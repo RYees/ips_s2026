@@ -1,0 +1,20 @@
+SDK_ROOT := ../../../pyorbbecsdk
+VENV := venv/bin/python3
+PYTHONPATH := $(abspath $(SDK_ROOT)/install/lib)
+LD_LIBRARY_PATH := $(abspath $(SDK_ROOT)/install/lib)
+
+.PHONY: run env
+
+env:
+	@echo "Setting Orbbec SDK environment: $(PYTHONPATH)"
+	@echo "Use this for shell sessions:"
+	@echo "  export PYTHONPATH=$(PYTHONPATH):$$PYTHONPATH"
+	@echo "  export LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$$LD_LIBRARY_PATH"
+
+run:
+	@echo "Running main.py with Orbbec SDK environment..."
+	PYTHONPATH=$(PYTHONPATH):$$PYTHONPATH LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$$LD_LIBRARY_PATH $(VENV) main.py
+
+run-app:
+	@echo "Running app.py with Orbbec SDK environment..."
+	PYTHONPATH=$(PYTHONPATH):$$PYTHONPATH LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$$LD_LIBRARY_PATH $(VENV) app.py
