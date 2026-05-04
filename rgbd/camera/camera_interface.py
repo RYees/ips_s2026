@@ -1,7 +1,27 @@
-from pyorbbecsdk import *
+from pyorbbecsdk import (
+    AlignFilter,
+    Config,
+    OBAlignMode,
+    OBError,
+    OBFormat,
+    OBFrameAggregateOutputMode,
+    OBPropertyID,
+    OBSensorType,
+    OBStreamType,
+    Pipeline,
+)
 import open3d as o3d
+import numpy as np
+import cv2
+
 
 class CameraInterface:
+    """Orbbec RGB-D camera wrapper.
+
+    This class provides a single stable capture backend for the project.
+    It exposes a clean public API without changing the existing behavior used by main.py.
+    """
+
     def __init__(self):
         self.pipeline = Pipeline()
         self.config = Config()
@@ -29,89 +49,70 @@ class CameraInterface:
         for prop_id in props_to_check:
             try:
                 val = device.get_int_property(prop_id)
-                print(f"{prop_id.name}: {val}")
+                print(f"  {prop_id.name}: {val}")
             except Exception:
                 try:
                     val = device.get_bool_property(prop_id)
-                    print(f"{prop_id.name}: {val}")
+                    print(f"  {prop_id.name}: {val}")
                 except Exception:
-                    print(f"{prop_id.name}: Not supported")
-
+                    print(f"  {prop_id.name}: Not supported")
         print("=== END SETTINGS ===\n")
 
     def setup_streams(self):
-        # Setup color stream (prefer RGB format)
-        color_profiles = self.pipeline.get_stream_profile_list(OBSensorType.COLOR_SENSOR)
-        self.color_profile = color_profiles.get_default_video_stream_profile()
-        
-        # Setup depth stream with default profile
-        depth_profiles = self.pipeline.get_stream_profile_list(OBSensorType.DEPTH_SENSOR)
-        depth_profile = depth_profiles.get_default_video_stream_profile()
+        # Prefer explicit RGB stream profiles so we avoid software color conversions.
+        color_sensor_list = self.pipeline.get_stream_profile_list(OBSensorType.COLOR_SENSOR)
+        rgb_profile = None
+        try:
+            rgb_profile = color_sensor_list.get_video_stream_profile(640, 480, OBFormat.RGB, 30)
+            print("[INFO] Using explicit RGB888 640x480 @ 30 fps color profile.")
+        except OBError:
+            pass
+
+        if rgb_profile is None:
+            try:
+                rgb_profile = color_sensor_list.get_video_stream_profile(1280, 720, OBFormat.RGB, 30)
+                print("[INFO] Using explicit RGB888 1280x720 @ 30 fps color profile.")
+            except OBError:
+                pass
+
+        if rgb_profile is None:
+            rgb_profile = color_sensor_list.get_default_video_stream_profile()
+            fmt = rgb_profile.get_format() if hasattr(rgb_profile, 'get_format') else 'unknown'
+            print(f"[WARNING] RGB888 profile not available; falling back to default ({fmt}).")
+
+        self.color_profile = rgb_profile
+
+        depth_sensor_list = self.pipeline.get_stream_profile_list(OBSensorType.DEPTH_SENSOR)
+        depth_profile = depth_sensor_list.get_default_video_stream_profile()
 
         device = self.pipeline.get_device()
-        # self.print_supported_properties(device)
-        # self.print_default_camera_settings(device)
-        # print("=== OBPropertyID Members ===")
-        # for attr in dir(OBPropertyID):
-        #    if not attr.startswith("__"):
-        #        val = getattr(OBPropertyID, attr)
-        #        print(f"{attr}: {val}")
-
-
-        # --- Configure color stream properties ---
         try:
-            device.set_bool_property(OBPropertyID.OB_PROP_COLOR_AUTO_EXPOSURE_BOOL, False)  # Disable auto exposure
+            device.set_bool_property(OBPropertyID.OB_PROP_COLOR_AUTO_EXPOSURE_BOOL, False)
+            print("[INFO] Color auto-exposure disabled.")
         except OBError:
-            print("[WARNING] Could not disable color auto exposure")
+            print("[WARNING] Could not disable color auto exposure.")
 
         try:
-            device.set_int_property(OBPropertyID.OB_PROP_COLOR_EXPOSURE_INT, 100)  # Set manual exposure in microseconds
+            device.set_int_property(OBPropertyID.OB_PROP_COLOR_EXPOSURE_INT, 100)
+            print("[INFO] Color exposure set to 100 µs.")
         except OBError:
-            print("[WARNING] Could not set color exposure")
+            print("[WARNING] Could not set color exposure.")
 
         try:
-            device.set_int_property(OBPropertyID.OB_PROP_COLOR_GAIN_INT, 64)  # Set manual gain
+            device.set_int_property(OBPropertyID.OB_PROP_COLOR_GAIN_INT, 64)
+            print("[INFO] Color gain set to 64.")
         except OBError:
-            print("[WARNING] Could not set color gain")
-
-        print("[INFO] Color stream exposure and gain set.")
-
-        # --- Configure depth stream properties ---
-        #try:
-        #    device.set_int_property(OBPropertyID.OB_PROP_DEPTH_EXPOSURE_INT, 10000)  # microseconds
-        #except OBError:
-        #    print("[WARNING] Could not set depth exposure")
-
-        #try:
-        #    device.set_int_property(OBPropertyID.OB_PROP_DEPTH_GAIN_INT, 16)         # gain value
-        #except OBError:
-        #    print("[WARNING] Could not set depth gain")
-
-        #try:
-        #    device.set_int_property(OBPropertyID.OB_PROP_IR_EXPOSURE_INT, 2000)      # microseconds
-        #except OBError:
-        #    print("[WARNING] Could not set IR exposure")
-
-        #try:
-        #    device.set_int_property(OBPropertyID.OB_PROP_IR_GAIN_INT, 24)            # gain value
-        #except OBError:
-        #    print("[WARNING] Could not set IR gain")
-
-        #print("[INFO] Depth and IR exposure/gain successfully configured.")
+            print("[WARNING] Could not set color gain.")
 
         self.config.enable_stream(self.color_profile)
         self.config.enable_stream(depth_profile)
         self.config.set_frame_aggregate_output_mode(OBFrameAggregateOutputMode.ANY_SITUATION)
-
-        # Start the pipeline with the configured streams
-
-        # Get the depth sensor to apply hardware alignment settings
         self.config.set_align_mode(OBAlignMode.SW_MODE)
+
         self.pipeline.enable_frame_sync()
         self.pipeline.start(self.config)
         self.print_default_camera_settings(device)
 
-        # Retrieve intrinsics from first frame
         frames = self.pipeline.wait_for_frames(1000)
         if not frames:
             raise RuntimeError("Unable to retrieve frames for intrinsics.")
@@ -121,29 +122,73 @@ class CameraInterface:
             raise RuntimeError("Unable to retrieve color frame for intrinsics.")
 
         color_frame = color_frame.as_video_frame()
-        color_profile = color_frame.get_stream_profile().as_video_stream_profile()
-        color_intrinsics = color_profile.get_intrinsic()
+        color_profile_obj = color_frame.get_stream_profile().as_video_stream_profile()
+        intr = color_profile_obj.get_intrinsic()
 
         self.intrinsics = o3d.camera.PinholeCameraIntrinsic(
-            width=color_intrinsics.width,
-            height=color_intrinsics.height,
-            fx=color_intrinsics.fx,
-            fy=color_intrinsics.fy,
-            cx=color_intrinsics.cx,
-            cy=color_intrinsics.cy
+            width=intr.width,
+            height=intr.height,
+            fx=intr.fx,
+            fy=intr.fy,
+            cx=intr.cx,
+            cy=intr.cy,
         )
-        print("[INFO] Camera intrinsics retrieved successfully.")
+        print(f"[INFO] Camera intrinsics: {intr.width}×{intr.height}  fx={intr.fx:.2f} fy={intr.fy:.2f}  cx={intr.cx:.2f} cy={intr.cy:.2f}")
 
+    def color_frame_to_rgb(self, color_frame) -> np.ndarray:
+        """Convert any supported Orbbec color frame format to RGB uint8."""
+        vf = color_frame.as_video_frame()
+        fmt = vf.get_format()
+        w = vf.get_width()
+        h = vf.get_height()
+        data = np.frombuffer(vf.get_data(), dtype=np.uint8)
+
+        if fmt == OBFormat.RGB:
+            img = data.reshape((h, w, 3))
+            return img.copy()
+
+        if fmt == OBFormat.BGR:
+            img = data.reshape((h, w, 3))
+            return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        if fmt in (OBFormat.MJPG, OBFormat.JPEG):
+            img = cv2.imdecode(data, cv2.IMREAD_COLOR)
+            if img is None:
+                raise RuntimeError("MJPEG decode failed")
+            return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        if fmt in (OBFormat.YUYV, OBFormat.YUY2):
+            img = data.reshape((h, w, 2))
+            return cv2.cvtColor(img, cv2.COLOR_YUV2RGB_YUYV)
+
+        if fmt == OBFormat.I420:
+            img = data.reshape((h * 3 // 2, w))
+            return cv2.cvtColor(img, cv2.COLOR_YUV2RGB_I420)
+
+        if fmt == OBFormat.NV12:
+            img = data.reshape((h * 3 // 2, w))
+            return cv2.cvtColor(img, cv2.COLOR_YUV2RGB_NV12)
+
+        if fmt == OBFormat.NV21:
+            img = data.reshape((h * 3 // 2, w))
+            return cv2.cvtColor(img, cv2.COLOR_YUV2RGB_NV21)
+
+        print(f"[WARNING] Unsupported color format {fmt}; attempting MJPEG fallback.")
+        img = cv2.imdecode(data, cv2.IMREAD_COLOR)
+        if img is not None:
+            return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        raise RuntimeError(f"Unsupported color frame format: {fmt}")
 
     def get_frames(self):
         frames = self.pipeline.wait_for_frames(1000)
         if not frames:
             self.consecutive_missed_frames += 1
-            print(f"[WARNING] No frames received from pipeline (missed={self.consecutive_missed_frames}); retrying with longer timeout")
+            print(f"[WARNING] No frames received (missed={self.consecutive_missed_frames}); retrying...")
             frames = self.pipeline.wait_for_frames(2000)
             if not frames:
                 self.consecutive_missed_frames += 1
-                print(f"[WARNING] Still no frames after 2000ms (missed={self.consecutive_missed_frames})")
+                print(f"[WARNING] Still no frames after 2000 ms (missed={self.consecutive_missed_frames})")
                 return None, None
 
         self.consecutive_missed_frames = 0
@@ -155,15 +200,15 @@ class CameraInterface:
 
         def frame_info(frame):
             if frame is None:
-                return None
-            info = []
+                return "None"
+            parts = []
             if hasattr(frame, 'get_width') and hasattr(frame, 'get_height'):
-                info.append(f"{frame.get_width()}x{frame.get_height()}")
+                parts.append(f"{frame.get_width()}×{frame.get_height()}")
             if hasattr(frame, 'get_format'):
-                info.append(str(frame.get_format()))
+                parts.append(str(frame.get_format()))
             if hasattr(frame, 'get_timestamp'):
-                info.append(f"ts={frame.get_timestamp()}")
-            return ",".join(info)
+                parts.append(f"ts={frame.get_timestamp()}")
+            return ",".join(parts)
 
         if raw_color is not None:
             self.last_color_frame = raw_color
@@ -173,8 +218,9 @@ class CameraInterface:
             self.last_depth_ts = raw_depth.get_timestamp() if hasattr(raw_depth, 'get_timestamp') else None
 
         print(
-            f"[DEBUG] got frames: total_seen={self.total_frames_seen}, depth_sets={self.total_frame_sets_with_depth}, "
-            f"raw_color={bool(raw_color)}({frame_info(raw_color)}), raw_depth={bool(raw_depth)}({frame_info(raw_depth)})"
+            f"[DEBUG] frames: total={self.total_frames_seen}, "
+            f"depth_sets={self.total_frame_sets_with_depth}, "
+            f"color={frame_info(raw_color)}, depth={frame_info(raw_depth)}"
         )
         if raw_color is not None and raw_depth is not None:
             return raw_color, raw_depth
@@ -184,9 +230,9 @@ class CameraInterface:
             if self.last_color_ts is not None and self.last_depth_ts is not None:
                 dt = abs(self.last_color_ts - self.last_depth_ts)
             if dt is None or dt <= 2500:
-                print(f"[INFO] using cached color+depth pair, dt={dt}")
+                print(f"[INFO] Using cached color+depth pair (dt={dt})")
                 return self.last_color_frame, self.last_depth_frame
-            print(f"[WARNING] cached color+depth too far apart, dt={dt}")
+            print(f"[WARNING] Cached pair too far apart (dt={dt})")
 
         aligned = None
         try:

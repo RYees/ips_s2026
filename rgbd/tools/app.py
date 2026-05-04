@@ -1,5 +1,6 @@
 import cv2
-from camera_test2 import CameraInterface
+from camera.camera_test2 import CameraInterface
+
 
 def main():
     cam = CameraInterface()
@@ -19,6 +20,7 @@ def main():
 
     cam.stop()
     cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     main()

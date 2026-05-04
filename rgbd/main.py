@@ -5,11 +5,12 @@ from PIL import Image, ImageTk
 from pathlib import Path
 import open3d as o3d
 
-from camera_interface import CameraInterface
-from segmentation_helper import SegmentationHelper
-from annotation_writer import AnnotationWriter
-from utils import frame_to_bgr_image
+from camera.camera_interface import CameraInterface
+from processing.segmentation_helper import SegmentationHelper
+from processing.annotation_writer import AnnotationWriter
+from processing.utils import frame_to_bgr_image
 from tkinter import ttk
+
 
 # Crops the input image to a square region centered in the image, extra_crop pixels are removed from each side.
 def crop_manual(img, top=0, bottom=0, left=0, right=0):
@@ -24,7 +25,9 @@ def crop_manual(img, top=0, bottom=0, left=0, right=0):
     if top + bottom >= h or left + right >= w:
         return img, 0, 0
 
-    new_img = img[top:h-bottom if bottom > 0 else h, left:w-right if right > 0 else w]
+    new_img = img[
+        top : h - bottom if bottom > 0 else h, left : w - right if right > 0 else w
+    ]
     return new_img, left, top
 
 
@@ -34,20 +37,32 @@ class RGBDCollectorApp:
         self.root.title("RGB-D Data Collector (Orbbec)")
         self.root.focus_force()
 
-        self.cam = CameraInterface() # Initialize Orbbec camera interface
-        self.cam.setup_streams() # Sets up the RGB-D streams (color + depth)
-        intrinsics = self.cam.get_intrinsics() # Retrieves intrinsic camera parameters
-        print("Width:", intrinsics.width) # The number of pixels horizontally in the image (camera resolution)
-        print("Height:", intrinsics.height) # The number of pixels vertically in the image
-        fx = intrinsics.intrinsic_matrix[0, 0] # Focal length in x direction (in pixels)
-        fy = intrinsics.intrinsic_matrix[1, 1] # Focal length in y direction (in pixels)
-        cx = intrinsics.intrinsic_matrix[0, 2] # Optical center x-coordinate (in pixels)
-        cy = intrinsics.intrinsic_matrix[1, 2] # Optical center y-coordinate (in pixels)
+        self.cam = CameraInterface()  # Initialize Orbbec camera interface
+        self.cam.setup_streams()  # Sets up the RGB-D streams (color + depth)
+        intrinsics = self.cam.get_intrinsics()  # Retrieves intrinsic camera parameters
+        print(
+            "Width:", intrinsics.width
+        )  # The number of pixels horizontally in the image (camera resolution)
+        print(
+            "Height:", intrinsics.height
+        )  # The number of pixels vertically in the image
+        fx = intrinsics.intrinsic_matrix[
+            0, 0
+        ]  # Focal length in x direction (in pixels)
+        fy = intrinsics.intrinsic_matrix[
+            1, 1
+        ]  # Focal length in y direction (in pixels)
+        cx = intrinsics.intrinsic_matrix[
+            0, 2
+        ]  # Optical center x-coordinate (in pixels)
+        cy = intrinsics.intrinsic_matrix[
+            1, 2
+        ]  # Optical center y-coordinate (in pixels)
         print("fx:", fx)
         print("fy:", fy)
         print("cx:", cx)
         print("cy:", cy)
-        #self.seg = SegmentationHelper(intrinsics) # Uncomment this if you are not cropping the images
+        # self.seg = SegmentationHelper(intrinsics) # Uncomment this if you are not cropping the images
         self.writer = AnnotationWriter()
 
         # Directories
@@ -57,7 +72,13 @@ class RGBDCollectorApp:
         self.depth_dir = base_path / "depth"
         self.info_dir = base_path / "info"
         self.pc_dir = base_path / "pointcloud"
-        for d in [self.img_dir, self.label_dir, self.depth_dir, self.info_dir, self.pc_dir]:
+        for d in [
+            self.img_dir,
+            self.label_dir,
+            self.depth_dir,
+            self.info_dir,
+            self.pc_dir,
+        ]:
             d.mkdir(parents=True, exist_ok=True)
 
         self.counter = len(list(self.img_dir.glob("*.png")))
@@ -80,28 +101,45 @@ class RGBDCollectorApp:
         tk.Label(self.btn_frame, text="Class:").grid(row=1, column=0)
         self.class_selector = tk.OptionMenu(self.btn_frame, self.class_var, "0", "1")
         self.class_selector.grid(row=1, column=1)
-        tk.Label(self.btn_frame, text="(0: Copper, 1: Steel)").grid(row=1, column=2, columnspan=2)
+        tk.Label(self.btn_frame, text="(0: Copper, 1: Steel)").grid(
+            row=1, column=2, columnspan=2
+        )
 
-        self.capture_btn = tk.Button(self.btn_frame, text="Capture (Enter)", command=self.capture_frame)
+        self.capture_btn = tk.Button(
+            self.btn_frame, text="Capture (Enter)", command=self.capture_frame
+        )
         self.capture_btn.grid(row=0, column=0, padx=5)
-        self.save_btn = tk.Button(self.btn_frame, text="Save (S)", command=self.save_data, state=tk.DISABLED)
+        self.save_btn = tk.Button(
+            self.btn_frame, text="Save (S)", command=self.save_data, state=tk.DISABLED
+        )
         self.save_btn.grid(row=0, column=1, padx=5)
-        self.retake_btn = tk.Button(self.btn_frame, text="Retake (R)", command=self.retake_frame, state=tk.DISABLED)
+        self.retake_btn = tk.Button(
+            self.btn_frame,
+            text="Retake (R)",
+            command=self.retake_frame,
+            state=tk.DISABLED,
+        )
         self.retake_btn.grid(row=0, column=2, padx=5)
-        self.quit_btn = tk.Button(self.btn_frame, text="Quit (Q)", command=self.quit_app)
+        self.quit_btn = tk.Button(
+            self.btn_frame, text="Quit (Q)", command=self.quit_app
+        )
         self.quit_btn.grid(row=0, column=3, padx=5)
-        self.pcd_btn = tk.Button(self.btn_frame, text="Preview PointCloud (P)", command=self.preview_pointcloud_interactive)
+        self.pcd_btn = tk.Button(
+            self.btn_frame,
+            text="Preview PointCloud (P)",
+            command=self.preview_pointcloud_interactive,
+        )
         self.pcd_btn.grid(row=0, column=4, padx=5)
 
-        self.root.bind('<Return>', lambda e: self.capture_frame())
-        self.root.bind('s', lambda e: self.save_data())
-        self.root.bind('S', lambda e: self.save_data())
-        self.root.bind('r', lambda e: self.retake_frame())
-        self.root.bind('R', lambda e: self.retake_frame())
-        self.root.bind('q', lambda e: self.quit_app())
-        self.root.bind('Q', lambda e: self.quit_app())
-        self.root.bind('p', lambda e: self.preview_pointcloud_interactive())
-        self.root.bind('P', lambda e: self.preview_pointcloud_interactive())
+        self.root.bind("<Return>", lambda e: self.capture_frame())
+        self.root.bind("s", lambda e: self.save_data())
+        self.root.bind("S", lambda e: self.save_data())
+        self.root.bind("r", lambda e: self.retake_frame())
+        self.root.bind("R", lambda e: self.retake_frame())
+        self.root.bind("q", lambda e: self.quit_app())
+        self.root.bind("Q", lambda e: self.quit_app())
+        self.root.bind("p", lambda e: self.preview_pointcloud_interactive())
+        self.root.bind("P", lambda e: self.preview_pointcloud_interactive())
 
         self.Q()
 
@@ -110,9 +148,13 @@ class RGBDCollectorApp:
             if self.is_capturing:
                 color_frame, depth_frame = self.cam.get_frames()
                 if color_frame is not None and depth_frame is not None:
-                    rgb = frame_to_bgr_image(color_frame) # Convert RGB to BGR for OpenCV
-                    preview = cv2.resize(rgb, (960, 540)) # Resize for display
-                    img = Image.fromarray(cv2.cvtColor(preview, cv2.COLOR_BGR2RGB)) # Convert BGR to RGB for PIL
+                    rgb = frame_to_bgr_image(
+                        color_frame
+                    )  # Convert RGB to BGR for OpenCV
+                    preview = cv2.resize(rgb, (960, 540))  # Resize for display
+                    img = Image.fromarray(
+                        cv2.cvtColor(preview, cv2.COLOR_BGR2RGB)
+                    )  # Convert BGR to RGB for PIL
                     imgtk = ImageTk.PhotoImage(image=img)
                     self.video_label.imgtk = imgtk
                     self.video_label.configure(image=imgtk)
@@ -132,12 +174,12 @@ class RGBDCollectorApp:
             print("[ERROR] No frame available to capture")
             return
 
-        rgb = frame_to_bgr_image(color_frame) # Convert RGB to BGR for OpenCV
+        rgb = frame_to_bgr_image(color_frame)  # Convert RGB to BGR for OpenCV
         depth = np.frombuffer(depth_frame.get_data(), dtype=np.uint16).reshape(
             (depth_frame.get_height(), depth_frame.get_width())
-        ) # convert depth frame to numpy array
+        )  # convert depth frame to numpy array
         depth_height, depth_width = depth.shape
-        #rgb = cv2.resize(rgb, (depth_width, depth_height)) # Resize RGB to match depth dimensions
+        # rgb = cv2.resize(rgb, (depth_width, depth_height)) # Resize RGB to match depth dimensions
         print(f"****[DEBUG] RGB shape: {rgb.shape}, Depth shape: {depth.shape}")
 
         # === Crop both to center square ===
@@ -146,7 +188,9 @@ class RGBDCollectorApp:
         depth, _, _ = crop_manual(depth, top=0, bottom=0, left=250, right=520)
 
         # === Get original intrinsics ===
-        intrinsics = self.cam.get_intrinsics() # Recalculate intrinsics based on the cropped image
+        intrinsics = (
+            self.cam.get_intrinsics()
+        )  # Recalculate intrinsics based on the cropped image
         fx = intrinsics.intrinsic_matrix[0, 0]
         fy = intrinsics.intrinsic_matrix[1, 1]
         cx = intrinsics.intrinsic_matrix[0, 2]
@@ -159,10 +203,10 @@ class RGBDCollectorApp:
             fx=fx,
             fy=fy,
             cx=cx - crop_x,
-            cy=cy - crop_y
+            cy=cy - crop_y,
         )
 
-        print(f"[DEBUG] RGB shape: {rgb.shape}")    # Shape: (height, width, 3)
+        print(f"[DEBUG] RGB shape: {rgb.shape}")  # Shape: (height, width, 3)
         print(f"[DEBUG] Depth shape: {depth.shape}")
         print(f"[DEBUG] Depth dtype: {depth.dtype}")
         print(f"[DEBUG] Depth min/max: {np.min(depth)}, {np.max(depth)}")
@@ -170,7 +214,9 @@ class RGBDCollectorApp:
 
         # === Run segmentation on cropped data ===
         self.seg = SegmentationHelper(adjusted_intrinsics)
-        mask, plane_eq, plane_inliers, non_plane_pts, pcd = self.seg.segment(depth, rgb) # binary mask, plane equation, inliers count, non-plane points count, and point cloud
+        mask, plane_eq, plane_inliers, non_plane_pts, pcd = self.seg.segment(
+            depth, rgb
+        )  # binary mask, plane equation, inliers count, non-plane points count, and point cloud
 
         self.captured_rgb = rgb
         self.captured_depth = depth
@@ -179,25 +225,45 @@ class RGBDCollectorApp:
 
         img_name = f"img{self.counter:04d}"
         intrinsics = self.cam.get_intrinsics()
-        self.save_info_txt(img_name, rgb, depth, adjusted_intrinsics, plane_eq, plane_inliers, non_plane_pts) # Change adjusted_intrinsics to intrinsics if you are not cropping the images
+        self.save_info_txt(
+            img_name,
+            rgb,
+            depth,
+            adjusted_intrinsics,
+            plane_eq,
+            plane_inliers,
+            non_plane_pts,
+        )  # Change adjusted_intrinsics to intrinsics if you are not cropping the images
 
-        mask_viz = (mask * 255).astype(np.uint8) # Convert binary mask to uint8 for visualization
-        mask_bgr = cv2.cvtColor(mask_viz, cv2.COLOR_GRAY2BGR) # Convert to BGR for OpenCV visualization
-        contours, _ = cv2.findContours(mask_viz, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE) # Find contours in the mask and outline the largest one
-        if contours: 
+        mask_viz = (mask * 255).astype(
+            np.uint8
+        )  # Convert binary mask to uint8 for visualization
+        mask_bgr = cv2.cvtColor(
+            mask_viz, cv2.COLOR_GRAY2BGR
+        )  # Convert to BGR for OpenCV visualization
+        contours, _ = cv2.findContours(
+            mask_viz, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )  # Find contours in the mask and outline the largest one
+        if contours:
             largest = max(contours, key=cv2.contourArea)
             cv2.drawContours(mask_bgr, [largest], -1, (0, 255, 0), 2)
 
-        depth_vis = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8) # Normalize depth for visualization
-        depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET) # Apply color map to depth image
+        depth_vis = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX).astype(
+            np.uint8
+        )  # Normalize depth for visualization
+        depth_colored = cv2.applyColorMap(
+            depth_vis, cv2.COLORMAP_JET
+        )  # Apply color map to depth image
 
         w, h = 320, 240
-        combined = np.hstack((
-            cv2.resize(rgb, (w, h)),
-            cv2.resize(mask_bgr, (w, h)),
-            cv2.resize(depth_colored, (w, h))
-        )) # Combine RGB, mask, and depth images horizontally
- 
+        combined = np.hstack(
+            (
+                cv2.resize(rgb, (w, h)),
+                cv2.resize(mask_bgr, (w, h)),
+                cv2.resize(depth_colored, (w, h)),
+            )
+        )  # Combine RGB, mask, and depth images horizontally
+
         img = Image.fromarray(cv2.cvtColor(combined, cv2.COLOR_BGR2RGB))
         imgtk = ImageTk.PhotoImage(image=img)
         self.video_label.imgtk = imgtk
@@ -209,9 +275,11 @@ class RGBDCollectorApp:
         self.retake_btn.config(state=tk.NORMAL)
         print(f"[INFO] Frame captured for class: {self.class_var.get()}")
 
-    def save_info_txt(self, img_name, rgb, depth, intrinsics, plane_eq, plane_inliers, non_plane_pts):
+    def save_info_txt(
+        self, img_name, rgb, depth, intrinsics, plane_eq, plane_inliers, non_plane_pts
+    ):
         txt_path = self.info_dir / f"{img_name}.txt"
-        with open(txt_path, 'w') as f:
+        with open(txt_path, "w") as f:
             f.write(f"RGB shape: {rgb.shape}\n")
             f.write(f"Depth shape: {depth.shape}\n")
             f.write(f"Depth dtype: {depth.dtype}\n")
@@ -220,7 +288,9 @@ class RGBDCollectorApp:
             f.write("Intrinsics matrix:\n")
             for row in intrinsics.intrinsic_matrix:
                 f.write("  " + " ".join(f"{val:.6f}" for val in row) + "\n")
-            f.write(f"Plane equation: {plane_eq[0]:.6f}x + {plane_eq[1]:.6f}y + {plane_eq[2]:.6f}z + {plane_eq[3]:.6f} = 0\n")
+            f.write(
+                f"Plane equation: {plane_eq[0]:.6f}x + {plane_eq[1]:.6f}y + {plane_eq[2]:.6f}z + {plane_eq[3]:.6f} = 0\n"
+            )
             f.write(f"Plane inliers: {plane_inliers}\n")
             f.write(f"Non-plane points: {non_plane_pts}\n")
         print(f"[INFO] Info saved to {txt_path}")
@@ -232,7 +302,9 @@ class RGBDCollectorApp:
 
         img_name = f"img{self.counter:04d}"
         cv2.imwrite(str(self.img_dir / f"{img_name}.png"), self.captured_rgb)
-        depth_vis = cv2.normalize(self.captured_depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+        depth_vis = cv2.normalize(
+            self.captured_depth, None, 0, 255, cv2.NORM_MINMAX
+        ).astype(np.uint8)
         depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
         cv2.imwrite(str(self.depth_dir / f"{img_name}.png"), depth_colored)
 
@@ -241,7 +313,7 @@ class RGBDCollectorApp:
             str(self.label_dir / f"{img_name}.txt"),
             self.captured_mask,
             self.captured_rgb.shape[:2],
-            label_class=selected_class
+            label_class=selected_class,
         )
 
         pcd_path = self.pc_dir / f"{img_name}.ply"
@@ -278,6 +350,7 @@ class RGBDCollectorApp:
         self.cam.stop()
         self.root.quit()
         self.root.destroy()
+
 
 if __name__ == "__main__":
     try:

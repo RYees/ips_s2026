@@ -3,7 +3,7 @@ VENV := venv/bin/python3
 PYTHONPATH := $(abspath $(SDK_ROOT)/install/lib)
 LD_LIBRARY_PATH := $(abspath $(SDK_ROOT)/install/lib)
 
-.PHONY: run env
+.PHONY: run env run-preview run-app
 
 env:
 	@echo "Setting Orbbec SDK environment: $(PYTHONPATH)"
@@ -15,6 +15,8 @@ run:
 	@echo "Running main.py with Orbbec SDK environment..."
 	PYTHONPATH=$(PYTHONPATH):$$PYTHONPATH LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$$LD_LIBRARY_PATH $(VENV) main.py
 
-run-app:
-	@echo "Running app.py with Orbbec SDK environment..."
-	PYTHONPATH=$(PYTHONPATH):$$PYTHONPATH LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$$LD_LIBRARY_PATH $(VENV) app.py
+run-preview:
+	@echo "Running camera preview tool with Orbbec SDK environment..."
+	PYTHONPATH=$(PYTHONPATH):$$PYTHONPATH LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$$LD_LIBRARY_PATH $(VENV) tools/camera_preview.py
+
+run-app: run-preview
