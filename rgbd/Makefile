@@ -20,3 +20,8 @@ run-preview:
 	PYTHONPATH=$(PYTHONPATH):$$PYTHONPATH LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$$LD_LIBRARY_PATH $(VENV) tools/camera_preview.py
 
 run-app: run-preview
+
+PYTHONNOUSERSITE=1 \
+PYTHONPATH=/home/cpsstudent/Documents/pyorbbecsdk/install/python \
+LD_LIBRARY_PATH=/home/cpsstudent/Documents/pyorbbecsdk/install/lib \
+python3 main.py
