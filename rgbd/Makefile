@@ -1,4 +1,4 @@
-SDK_ROOT := ../../../pyorbbecsdk
+SDK_ROOT := ../../pyorbbecsdk
 VENV := venv/bin/python3
 PYTHONPATH := $(abspath $(SDK_ROOT)/install/lib)
 LD_LIBRARY_PATH := $(abspath $(SDK_ROOT)/install/lib)
@@ -21,7 +21,3 @@ run-preview:
 
 run-app: run-preview
 
-PYTHONNOUSERSITE=1 \
-PYTHONPATH=/home/cpsstudent/Documents/pyorbbecsdk/install/python \
-LD_LIBRARY_PATH=/home/cpsstudent/Documents/pyorbbecsdk/install/lib \
-python3 main.py
