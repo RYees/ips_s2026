@@ -70,12 +70,14 @@ class RGBDCollectorApp:
         self.img_dir = base_path / "images"
         self.label_dir = base_path / "labels"
         self.depth_dir = base_path / "depth"
+        self.mask_dir = base_path / "masks"
         self.info_dir = base_path / "info"
         self.pc_dir = base_path / "pointcloud"
         for d in [
             self.img_dir,
             self.label_dir,
             self.depth_dir,
+            self.mask_dir,
             self.info_dir,
             self.pc_dir,
         ]:
@@ -315,6 +317,10 @@ class RGBDCollectorApp:
             self.captured_rgb.shape[:2],
             label_class=selected_class,
         )
+
+        mask_path = self.mask_dir / f"{img_name}.png"
+        cv2.imwrite(str(mask_path), self.captured_mask * 255)
+        print(f"[SAVED] Mask image saved to {mask_path}")
 
         pcd_path = self.pc_dir / f"{img_name}.ply"
         o3d.io.write_point_cloud(str(pcd_path), self.captured_pcd)
