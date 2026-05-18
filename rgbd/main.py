@@ -195,7 +195,7 @@ class RGBDCollectorApp:
 
     def save_mask_debug_overlay(self, img_name, rgb, mask):
         overlay = rgb.copy()
-        mask_u8 = (mask > 0).astype(np.uint8)
+        mask_u8 = self.match_mask_to_image(mask, overlay.shape[:2])
         green = np.zeros_like(overlay)
         green[:, :, 1] = 255
         overlay = cv2.addWeighted(overlay, 0.82, green, 0.18, 0)
@@ -211,6 +211,18 @@ class RGBDCollectorApp:
         debug_path = self.debug_dir / f"{img_name}_overlay.png"
         cv2.imwrite(str(debug_path), overlay)
         print(f"[DEBUG] Overlay saved to {debug_path}")
+
+    def match_mask_to_image(self, mask, image_shape):
+        mask_u8 = (mask > 0).astype(np.uint8)
+        if mask_u8.shape == image_shape:
+            return mask_u8
+
+        target_h, target_w = image_shape
+        print(
+            f"[WARNING] Mask/image shape mismatch: mask={mask_u8.shape}, "
+            f"image={image_shape}. Resizing mask for overlay/export."
+        )
+        return cv2.resize(mask_u8, (target_w, target_h), interpolation=cv2.INTER_NEAREST)
 
     def print_dataset_counts(self):
         counts = {
@@ -424,9 +436,10 @@ class RGBDCollectorApp:
         cv2.imwrite(str(self.depth_dir / f"{img_name}.png"), depth_colored)
 
         selected_class = int(self.class_var.get())
+        label_mask = self.match_mask_to_image(self.captured_mask, self.captured_rgb.shape[:2])
         label_written = self.writer.write(
             str(self.label_dir / f"{img_name}.txt"),
-            self.captured_mask,
+            label_mask,
             self.captured_rgb.shape[:2],
             label_class=selected_class,
         )
@@ -437,7 +450,7 @@ class RGBDCollectorApp:
             )
 
         mask_path = self.mask_dir / f"{img_name}.png"
-        cv2.imwrite(str(mask_path), self.captured_mask * 255)
+        cv2.imwrite(str(mask_path), label_mask * 255)
         print(f"[SAVED] Mask image saved to {mask_path}")
 
         pcd_path = self.pc_dir / f"{img_name}.ply"
