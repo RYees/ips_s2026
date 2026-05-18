@@ -1,0 +1,106 @@
+[INFO] Session log file: dataset/debug/session_20260518_175807.log
+[DEBUG] frames: total=1, depth_sets=0, color=1280×720,OBFormat.RGB,ts=2448037506, depth=None
+[WARNING] Align filter returned None
+[DEBUG] frames: total=2, depth_sets=0, color=1280×720,OBFormat.RGB,ts=2448037639, depth=None
+[WARNING] Align filter returned None
+[DEBUG] frames: total=3, depth_sets=1, color=1280×720,OBFormat.RGB,ts=2448037772, depth=640×576,OBFormat.Y16,ts=2448037773
+[DEBUG] frames: total=4, depth_sets=2, color=1280×720,OBFormat.RGB,ts=2448037905, depth=640×576,OBFormat.Y16,ts=2448037906
+[DEBUG] frames: total=5, depth_sets=3, color=1280×720,OBFormat.RGB,ts=2448038071, depth=640×576,OBFormat.Y16,ts=2448038072
+[DEBUG] frames: total=6, depth_sets=4, color=1280×720,OBFormat.RGB,ts=2448038204, depth=640×576,OBFormat.Y16,ts=2448038205
+[DEBUG] frames: total=7, depth_sets=5, color=1280×720,OBFormat.RGB,ts=2448038337, depth=640×576,OBFormat.Y16,ts=2448038338
+[DEBUG] frames: total=8, depth_sets=6, color=1280×720,OBFormat.RGB,ts=2448038437, depth=640×576,OBFormat.Y16,ts=2448038438
+[DEBUG] frames: total=9, depth_sets=7, color=1280×720,OBFormat.RGB,ts=2448038504, depth=640×576,OBFormat.Y16,ts=2448038505
+[DEBUG] frames: total=10, depth_sets=8, color=1280×720,OBFormat.RGB,ts=2448038670, depth=640×576,OBFormat.Y16,ts=2448038671
+[DEBUG] frames: total=11, depth_sets=9, color=1280×720,OBFormat.RGB,ts=2448038770, depth=640×576,OBFormat.Y16,ts=2448038771
+[DEBUG] frames: total=12, depth_sets=10, color=1280×720,OBFormat.RGB,ts=2448038869, depth=640×576,OBFormat.Y16,ts=2448038870
+[DEBUG] frames: total=13, depth_sets=11, color=1280×720,OBFormat.RGB,ts=2448039002, depth=640×576,OBFormat.Y16,ts=2448039003
+[DEBUG] frames: total=14, depth_sets=12, color=1280×720,OBFormat.RGB,ts=2448039102, depth=640×576,OBFormat.Y16,ts=2448039103
+[DEBUG] frames: total=15, depth_sets=13, color=1280×720,OBFormat.RGB,ts=2448039169, depth=640×576,OBFormat.Y16,ts=2448039170
+[DEBUG] frames: total=16, depth_sets=14, color=1280×720,OBFormat.RGB,ts=2448039235, depth=640×576,OBFormat.Y16,ts=2448039236
+[DEBUG] frames: total=17, depth_sets=15, color=1280×720,OBFormat.RGB,ts=2448039302, depth=640×576,OBFormat.Y16,ts=2448039303
+[DEBUG] frames: total=18, depth_sets=16, color=1280×720,OBFormat.RGB,ts=2448039435, depth=640×576,OBFormat.Y16,ts=2448039436
+[DEBUG] frames: total=19, depth_sets=17, color=1280×720,OBFormat.RGB,ts=2448039468, depth=640×576,OBFormat.Y16,ts=2448039469
+[DEBUG] frames: total=20, depth_sets=18, color=1280×720,OBFormat.RGB,ts=2448039634, depth=640×576,OBFormat.Y16,ts=2448039635
+****[DEBUG] RGB shape: (720, 1280, 3), Depth shape: (576, 640)
+[DEBUG] RGB shape: (720, 510, 3)
+[DEBUG] Depth shape: (576, 640)
+[DEBUG] Depth dtype: uint16
+[DEBUG] Depth min/max: 0, 1502
+[DEBUG] Valid depth pixels: 259133
+[DEBUG] Valid depth pixels after filtering: 259131
+[DEBUG] Full point cloud has 259131 points.
+[INFO] Plane equation: 0.02x + -0.16y + 0.99z + -0.48 = 0
+[DEBUG] Plane inliers: 218899
+[DEBUG] Non-plane points: 40232
+[DEBUG] Mask projection: projected foreground=48361, point_radius=2
+[DEBUG] Mask cleanup: raw foreground=48361
+[DEBUG] Mask cleanup: border_margin=11, after border suppression=45973
+[DEBUG] Mask cleanup: after morphology=47111
+[DEBUG] Mask cleanup candidate: idx=5 area=26044 bbox=(498, 88, 131, 386) centroid=(572.2, 283.7) touches_border=False score=102.8544
+[DEBUG] Mask cleanup candidate: idx=6 area=12799 bbox=(11, 143, 98, 263) centroid=(47.7, 276.3) touches_border=False score=46.7824
+[DEBUG] Mask cleanup candidate: idx=3 area=5917 bbox=(253, 35, 102, 102) centroid=(306.3, 91.4) touches_border=False score=29.8728
+[DEBUG] Mask cleanup: connected components=18, min_area=368, selected_indices=[1, 3, 5, 6, 12], selected_area=46002
+[DEBUG] Mask cleanup: keeping 5 components before hull
+[DEBUG] Mask cleanup: final area after dilation=65621
+[DEBUG] Mask projection: cleaned foreground=65621
+[WARNING] Mask/image shape mismatch: mask=(576, 640), image=(720, 510). Resizing mask for overlay/export.
+[DEBUG] Overlay saved to dataset/debug/img0923_overlay.png
+[MASK-QA] shape=(576, 640) foreground=65621 ratio=0.178008 components=5 largest_area=37451 border_pixels=0 border_ratio=0.000000
+[INFO] Info saved to dataset/info/img0923.txt
+[WARNING] Mask/image shape mismatch: mask=(576, 640), image=(720, 510). Resizing mask for overlay/export.
+[DEBUG] Capture QA report saved to dataset/debug/img0923.txt
+[INFO] Frame captured for class: 0
+[WARNING] Mask/image shape mismatch: mask=(576, 640), image=(720, 510). Resizing mask for overlay/export.
+[SAVED] Mask image saved to dataset/masks/img0923.png
+[SAVED] Point cloud saved to dataset/pointcloud/img0923.ply
+[SAVED] img0923
+[COUNT] images=865, depth=865, labels=865, masks=4, pointcloud=865, info=866, debug=5
+[DEBUG] frames: total=21, depth_sets=19, color=1280×720,OBFormat.RGB,ts=2448046285, depth=640×576,OBFormat.Y16,ts=2448046286
+[DEBUG] frames: total=22, depth_sets=20, color=1280×720,OBFormat.RGB,ts=2448046384, depth=640×576,OBFormat.Y16,ts=2448046386
+[DEBUG] frames: total=23, depth_sets=21, color=1280×720,OBFormat.RGB,ts=2448046484, depth=640×576,OBFormat.Y16,ts=2448046485
+[DEBUG] frames: total=24, depth_sets=22, color=1280×720,OBFormat.RGB,ts=2448046584, depth=640×576,OBFormat.Y16,ts=2448046585
+[DEBUG] frames: total=25, depth_sets=23, color=1280×720,OBFormat.RGB,ts=2448046684, depth=640×576,OBFormat.Y16,ts=2448046685
+[DEBUG] frames: total=26, depth_sets=24, color=1280×720,OBFormat.RGB,ts=2448046783, depth=640×576,OBFormat.Y16,ts=2448046785
+[DEBUG] frames: total=27, depth_sets=25, color=1280×720,OBFormat.RGB,ts=2448046883, depth=640×576,OBFormat.Y16,ts=2448046884
+[DEBUG] frames: total=28, depth_sets=26, color=1280×720,OBFormat.RGB,ts=2448046983, depth=640×576,OBFormat.Y16,ts=2448046984
+[DEBUG] frames: total=29, depth_sets=27, color=1280×720,OBFormat.RGB,ts=2448047149, depth=640×576,OBFormat.Y16,ts=2448047150
+[DEBUG] frames: total=30, depth_sets=28, color=1280×720,OBFormat.RGB,ts=2448047216, depth=640×576,OBFormat.Y16,ts=2448047217
+[DEBUG] frames: total=31, depth_sets=29, color=1280×720,OBFormat.RGB,ts=2448047349, depth=640×576,OBFormat.Y16,ts=2448047350
+[DEBUG] frames: total=32, depth_sets=30, color=1280×720,OBFormat.RGB,ts=2448047448, depth=640×576,OBFormat.Y16,ts=2448047450
+[DEBUG] frames: total=33, depth_sets=31, color=1280×720,OBFormat.RGB,ts=2448047582, depth=640×576,OBFormat.Y16,ts=2448047583
+[DEBUG] frames: total=34, depth_sets=32, color=1280×720,OBFormat.RGB,ts=2448047681, depth=640×576,OBFormat.Y16,ts=2448047682
+[DEBUG] frames: total=35, depth_sets=33, color=1280×720,OBFormat.RGB,ts=2448047748, depth=640×576,OBFormat.Y16,ts=2448047749
+[DEBUG] frames: total=36, depth_sets=34, color=1280×720,OBFormat.RGB,ts=2448047848, depth=640×576,OBFormat.Y16,ts=2448047849
+[DEBUG] frames: total=37, depth_sets=35, color=1280×720,OBFormat.RGB,ts=2448047947, depth=640×576,OBFormat.Y16,ts=2448047948
+[DEBUG] frames: total=38, depth_sets=36, color=1280×720,OBFormat.RGB,ts=2448048047, depth=640×576,OBFormat.Y16,ts=2448048048
+[DEBUG] frames: total=39, depth_sets=37, color=1280×720,OBFormat.RGB,ts=2448048147, depth=640×576,OBFormat.Y16,ts=2448048148
+[DEBUG] frames: total=40, depth_sets=38, color=1280×720,OBFormat.RGB,ts=2448048247, depth=640×576,OBFormat.Y16,ts=2448048248
+[DEBUG] frames: total=41, depth_sets=39, color=1280×720,OBFormat.RGB,ts=2448048346, depth=640×576,OBFormat.Y16,ts=2448048347
+[DEBUG] frames: total=42, depth_sets=40, color=1280×720,OBFormat.RGB,ts=2448048446, depth=640×576,OBFormat.Y16,ts=2448048447
+[DEBUG] frames: total=43, depth_sets=41, color=1280×720,OBFormat.RGB,ts=2448048513, depth=640×576,OBFormat.Y16,ts=2448048514
+[DEBUG] frames: total=44, depth_sets=42, color=1280×720,OBFormat.RGB,ts=2448048579, depth=640×576,OBFormat.Y16,ts=2448048580
+[DEBUG] frames: total=45, depth_sets=43, color=1280×720,OBFormat.RGB,ts=2448048679, depth=640×576,OBFormat.Y16,ts=2448048680
+[DEBUG] frames: total=46, depth_sets=44, color=1280×720,OBFormat.RGB,ts=2448048779, depth=640×576,OBFormat.Y16,ts=2448048780
+[DEBUG] frames: total=47, depth_sets=45, color=1280×720,OBFormat.RGB,ts=2448048845, depth=640×576,OBFormat.Y16,ts=2448048846
+[DEBUG] frames: total=48, depth_sets=46, color=1280×720,OBFormat.RGB,ts=2448048945, depth=640×576,OBFormat.Y16,ts=2448048946
+[DEBUG] frames: total=49, depth_sets=47, color=1280×720,OBFormat.RGB,ts=2448049011, depth=640×576,OBFormat.Y16,ts=2448049013
+[DEBUG] frames: total=50, depth_sets=48, color=1280×720,OBFormat.RGB,ts=2448049111, depth=640×576,OBFormat.Y16,ts=2448049112
+[DEBUG] frames: total=51, depth_sets=49, color=1280×720,OBFormat.RGB,ts=2448049211, depth=640×576,OBFormat.Y16,ts=2448049212
+[DEBUG] frames: total=52, depth_sets=50, color=1280×720,OBFormat.RGB,ts=2448049311, depth=640×576,OBFormat.Y16,ts=2448049312
+[DEBUG] frames: total=53, depth_sets=51, color=1280×720,OBFormat.RGB,ts=2448049377, depth=640×576,OBFormat.Y16,ts=2448049378
+[DEBUG] frames: total=54, depth_sets=52, color=1280×720,OBFormat.RGB,ts=2448049477, depth=640×576,OBFormat.Y16,ts=2448049478
+[DEBUG] frames: total=55, depth_sets=53, color=1280×720,OBFormat.RGB,ts=2448049577, depth=640×576,OBFormat.Y16,ts=2448049578
+[DEBUG] frames: total=56, depth_sets=54, color=1280×720,OBFormat.RGB,ts=2448049677, depth=640×576,OBFormat.Y16,ts=2448049678
+[DEBUG] frames: total=57, depth_sets=55, color=1280×720,OBFormat.RGB,ts=2448049743, depth=640×576,OBFormat.Y16,ts=2448049744
+[DEBUG] frames: total=58, depth_sets=56, color=1280×720,OBFormat.RGB,ts=2448049843, depth=640×576,OBFormat.Y16,ts=2448049844
+[DEBUG] frames: total=59, depth_sets=57, color=1280×720,OBFormat.RGB,ts=2448049909, depth=640×576,OBFormat.Y16,ts=2448049910
+[DEBUG] frames: total=60, depth_sets=58, color=1280×720,OBFormat.RGB,ts=2448050009, depth=640×576,OBFormat.Y16,ts=2448050010
+[DEBUG] frames: total=61, depth_sets=59, color=1280×720,OBFormat.RGB,ts=2448050109, depth=640×576,OBFormat.Y16,ts=2448050110
+[DEBUG] frames: total=62, depth_sets=60, color=1280×720,OBFormat.RGB,ts=2448050175, depth=640×576,OBFormat.Y16,ts=2448050176
+[DEBUG] frames: total=63, depth_sets=61, color=1280×720,OBFormat.RGB,ts=2448050275, depth=640×576,OBFormat.Y16,ts=2448050276
+[DEBUG] frames: total=64, depth_sets=62, color=1280×720,OBFormat.RGB,ts=2448050375, depth=640×576,OBFormat.Y16,ts=2448050376
+[DEBUG] frames: total=65, depth_sets=63, color=1280×720,OBFormat.RGB,ts=2448050441, depth=640×576,OBFormat.Y16,ts=2448050442
+[DEBUG] frames: total=66, depth_sets=64, color=1280×720,OBFormat.RGB,ts=2448050541, depth=640×576,OBFormat.Y16,ts=2448050542
+[DEBUG] frames: total=67, depth_sets=65, color=1280×720,OBFormat.RGB,ts=2448050608, depth=640×576,OBFormat.Y16,ts=2448050609
+[DEBUG] frames: total=68, depth_sets=66, color=1280×720,OBFormat.RGB,ts=2448050707, depth=640×576,OBFormat.Y16,ts=2448050708
+[INFO] Quitting application.

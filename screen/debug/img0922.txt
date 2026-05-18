@@ -1,0 +1,23 @@
+Image name: img0922
+RGB shape: (720, 510, 3)
+Depth shape: (576, 640)
+Mask shape: (720, 510)
+Mask foreground pixels: 73999
+Plane equation: [ 0.01735779 -0.15664004  0.98750322 -0.48183866]
+Plane inliers: 213140
+Non-plane points: 45738
+Mask QA:
+  Foreground pixels: 74071
+  Foreground ratio: 0.20093045
+  Connected components: 8
+  Largest component area: 35091
+  Border pixels: 0
+  Border ratio: 0.00000000
+  Largest bbox: (501, 87, 129, 388)
+  Largest centroid: (565.6495112706962, 285.16431563648797)
+
+Artifacts:
+  Overlay: dataset/debug/img0922_overlay.png
+  Mask: dataset/masks/img0922.png
+  Label: dataset/labels/img0922.txt
+  Info: dataset/info/img0922.txt

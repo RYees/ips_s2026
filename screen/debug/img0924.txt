@@ -1,0 +1,23 @@
+Image name: img0924
+RGB shape: (720, 510, 3)
+Depth shape: (576, 640)
+Mask shape: (720, 510)
+Mask foreground pixels: 65236
+Plane equation: [ 0.01553732 -0.15725802  0.98743532 -0.48235441]
+Plane inliers: 218376
+Non-plane points: 40654
+Mask QA:
+  Foreground pixels: 65314
+  Foreground ratio: 0.17717556
+  Connected components: 5
+  Largest component area: 37208
+  Border pixels: 0
+  Border ratio: 0.00000000
+  Largest bbox: (496, 87, 134, 388)
+  Largest centroid: (562.6050043001505, 284.97454848419693)
+
+Artifacts:
+  Overlay: dataset/debug/img0924_overlay.png
+  Mask: dataset/masks/img0924.png
+  Label: dataset/labels/img0924.txt
+  Info: dataset/info/img0924.txt
