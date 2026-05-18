@@ -3,6 +3,9 @@ import numpy as np
 import tkinter as tk
 from PIL import Image, ImageTk
 from pathlib import Path
+from datetime import datetime
+import re
+import sys
 import open3d as o3d
 
 from camera.camera_interface import CameraInterface
@@ -29,6 +32,20 @@ def crop_manual(img, top=0, bottom=0, left=0, right=0):
         top : h - bottom if bottom > 0 else h, left : w - right if right > 0 else w
     ]
     return new_img, left, top
+
+
+class TeeStream:
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, text):
+        for stream in self.streams:
+            stream.write(text)
+            stream.flush()
+
+    def flush(self):
+        for stream in self.streams:
+            stream.flush()
 
 
 class RGBDCollectorApp:
@@ -85,7 +102,16 @@ class RGBDCollectorApp:
         ]:
             d.mkdir(parents=True, exist_ok=True)
 
-        self.counter = len(list(self.img_dir.glob("*.png")))
+        self.log_path = self.debug_dir / f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        self.log_file = open(self.log_path, "a", buffering=1)
+        self._orig_stdout = sys.stdout
+        self._orig_stderr = sys.stderr
+        sys.stdout = TeeStream(self._orig_stdout, self.log_file)
+        sys.stderr = TeeStream(self._orig_stderr, self.log_file)
+        print(f"[INFO] Session log file: {self.log_path}")
+
+        self.counter = self.next_capture_index()
+        self.current_img_name = None
 
         self.captured_rgb = None
         self.captured_depth = None
@@ -193,6 +219,26 @@ class RGBDCollectorApp:
             "border_ratio": border_ratio,
         }
 
+    def next_capture_index(self):
+        pattern = re.compile(r"img(\d+)")
+        indices = []
+        for directory, suffixes in (
+            (self.img_dir, [".png"]),
+            (self.label_dir, [".txt"]),
+            (self.depth_dir, [".png"]),
+            (self.mask_dir, [".png"]),
+            (self.info_dir, [".txt"]),
+            (self.pc_dir, [".ply"]),
+            (self.debug_dir, [".png"]),
+        ):
+            for path in directory.iterdir():
+                if path.suffix not in suffixes:
+                    continue
+                match = pattern.match(path.stem)
+                if match:
+                    indices.append(int(match.group(1)))
+        return (max(indices) + 1) if indices else 0
+
     def save_mask_debug_overlay(self, img_name, rgb, mask):
         overlay = rgb.copy()
         mask_u8 = self.match_mask_to_image(mask, overlay.shape[:2])
@@ -209,6 +255,45 @@ class RGBDCollectorApp:
         debug_path = self.debug_dir / f"{img_name}_overlay.png"
         cv2.imwrite(str(debug_path), overlay)
         print(f"[DEBUG] Overlay saved to {debug_path}")
+
+    def save_capture_debug_report(
+        self,
+        img_name,
+        rgb,
+        depth,
+        mask,
+        plane_eq,
+        plane_inliers,
+        non_plane_pts,
+        mask_stats,
+    ):
+        report_path = self.debug_dir / f"{img_name}.txt"
+        mask_u8 = self.match_mask_to_image(mask, rgb.shape[:2])
+        mask_nonzero = int(np.count_nonzero(mask_u8))
+        with open(report_path, "w") as f:
+            f.write(f"Image name: {img_name}\n")
+            f.write(f"RGB shape: {rgb.shape}\n")
+            f.write(f"Depth shape: {depth.shape}\n")
+            f.write(f"Mask shape: {mask_u8.shape}\n")
+            f.write(f"Mask foreground pixels: {mask_nonzero}\n")
+            f.write(f"Plane equation: {plane_eq}\n")
+            f.write(f"Plane inliers: {plane_inliers}\n")
+            f.write(f"Non-plane points: {non_plane_pts}\n")
+            f.write("Mask QA:\n")
+            f.write(f"  Foreground pixels: {mask_stats['foreground']}\n")
+            f.write(f"  Foreground ratio: {mask_stats['ratio']:.8f}\n")
+            f.write(f"  Connected components: {mask_stats['components']}\n")
+            f.write(f"  Largest component area: {mask_stats['largest_area']}\n")
+            f.write(f"  Border pixels: {mask_stats['border_pixels']}\n")
+            f.write(f"  Border ratio: {mask_stats['border_ratio']:.8f}\n")
+            f.write(f"  Largest bbox: {mask_stats['largest_bbox']}\n")
+            f.write(f"  Largest centroid: {mask_stats['largest_centroid']}\n")
+            f.write("\nArtifacts:\n")
+            f.write(f"  Overlay: {self.debug_dir / f'{img_name}_overlay.png'}\n")
+            f.write(f"  Mask: {self.mask_dir / f'{img_name}.png'}\n")
+            f.write(f"  Label: {self.label_dir / f'{img_name}.txt'}\n")
+            f.write(f"  Info: {self.info_dir / f'{img_name}.txt'}\n")
+        print(f"[DEBUG] Capture QA report saved to {report_path}")
 
     def match_mask_to_image(self, mask, image_shape):
         mask_u8 = (mask > 0).astype(np.uint8)
@@ -264,6 +349,9 @@ class RGBDCollectorApp:
         if not self.is_capturing:
             return
 
+        if self.current_img_name is None:
+            self.current_img_name = f"img{self.counter:04d}"
+
         color_frame, depth_frame = self.cam.get_frames()
         if color_frame is None or depth_frame is None:
             print("[ERROR] No frame available to capture")
@@ -318,7 +406,8 @@ class RGBDCollectorApp:
         self.captured_mask = mask
         self.captured_pcd = pcd
         mask_stats = self.analyze_mask(mask)
-        self.save_mask_debug_overlay(img_name := f"img{self.counter:04d}", rgb, mask)
+        img_name = self.current_img_name
+        self.save_mask_debug_overlay(img_name, rgb, mask)
         print(
             "[MASK-QA] "
             f"shape={mask_stats['shape']} "
@@ -341,6 +430,16 @@ class RGBDCollectorApp:
             non_plane_pts,
             mask_stats,
         )  # Change adjusted_intrinsics to intrinsics if you are not cropping the images
+        self.save_capture_debug_report(
+            img_name,
+            rgb,
+            depth,
+            mask,
+            plane_eq,
+            plane_inliers,
+            non_plane_pts,
+            mask_stats,
+        )
 
         mask_viz = (mask * 255).astype(
             np.uint8
@@ -425,7 +524,7 @@ class RGBDCollectorApp:
             print("[WARNING] No frame to save.")
             return
 
-        img_name = f"img{self.counter:04d}"
+        img_name = self.current_img_name or f"img{self.counter:04d}"
         cv2.imwrite(str(self.img_dir / f"{img_name}.png"), self.captured_rgb)
         depth_vis = cv2.normalize(
             self.captured_depth, None, 0, 255, cv2.NORM_MINMAX
@@ -458,7 +557,8 @@ class RGBDCollectorApp:
 
         self.print_dataset_counts()
 
-        self.counter += 1
+        self.counter = self.next_capture_index()
+        self.current_img_name = None
         self.reset_capture_state()
 
     def preview_pointcloud_interactive(self):
@@ -477,6 +577,7 @@ class RGBDCollectorApp:
         self.captured_depth = None
         self.captured_mask = None
         self.captured_pcd = None
+        self.current_img_name = None
         self.is_capturing = True
         self.capture_btn.config(state=tk.NORMAL)
         self.save_btn.config(state=tk.DISABLED)
@@ -485,6 +586,15 @@ class RGBDCollectorApp:
     def quit_app(self):
         print("[INFO] Quitting application.")
         self.cam.stop()
+        try:
+            sys.stdout = self._orig_stdout
+            sys.stderr = self._orig_stderr
+        except Exception:
+            pass
+        try:
+            self.log_file.close()
+        except Exception:
+            pass
         self.root.quit()
         self.root.destroy()
 
