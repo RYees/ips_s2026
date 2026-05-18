@@ -199,9 +199,7 @@ class RGBDCollectorApp:
         green = np.zeros_like(overlay)
         green[:, :, 1] = 255
         overlay = cv2.addWeighted(overlay, 0.82, green, 0.18, 0)
-        overlay[mask_u8 > 0] = cv2.addWeighted(
-            overlay[mask_u8 > 0], 0.35, np.array([0, 255, 0], dtype=np.uint8), 0.65, 0
-        )
+        overlay[mask_u8 > 0] = np.array([0, 255, 0], dtype=np.uint8)
 
         contours, _ = cv2.findContours(mask_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if contours:
