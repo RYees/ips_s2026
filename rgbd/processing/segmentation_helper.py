@@ -9,8 +9,12 @@ class SegmentationHelper:
         self.ransac_n = ransac_n # number of points to sample for plane fitting
         self.num_iterations = num_iterations # number of RANSAC iterations
         self.point_radius = 2
-        self.border_margin_ratio = 0.02
+        self.border_margin_ratio = 0.0
         self.min_component_area_ratio = 0.001
+        self.edge_strip_width_ratio = 0.18
+        self.edge_strip_height_ratio = 0.35
+        self.edge_strip_aspect_ratio = 2.5
+        self.residual_threshold = max(0.008, self.distance_threshold * 1.2)
 
     def _empty_result(self, h, w):
         empty_mask = np.zeros((h, w), dtype=np.uint8)
@@ -22,17 +26,6 @@ class SegmentationHelper:
         cleaned = (mask > 0).astype(np.uint8)
         raw_foreground = int(np.count_nonzero(cleaned))
         print(f"[DEBUG] Mask cleanup: raw foreground={raw_foreground}")
-
-        border_margin = max(2, int(min(h, w) * self.border_margin_ratio))
-        cleaned[:border_margin, :] = 0
-        cleaned[-border_margin:, :] = 0
-        cleaned[:, :border_margin] = 0
-        cleaned[:, -border_margin:] = 0
-        after_border = int(np.count_nonzero(cleaned))
-        print(
-            f"[DEBUG] Mask cleanup: border_margin={border_margin}, "
-            f"after border suppression={after_border}"
-        )
 
         close_kernel = np.ones((5, 5), np.uint8)
         open_kernel = np.ones((3, 3), np.uint8)
@@ -62,13 +55,19 @@ class SegmentationHelper:
             y = int(stats[idx, cv2.CC_STAT_TOP])
             bw = int(stats[idx, cv2.CC_STAT_WIDTH])
             bh = int(stats[idx, cv2.CC_STAT_HEIGHT])
-            touches_border = (
-                x <= 0 or y <= 0 or x + bw >= w - 1 or y + bh >= h - 1
+            touches_left = x <= 1
+            touches_right = x + bw >= w - 2
+            touches_border = touches_left or touches_right or y <= 1 or y + bh >= h - 2
+            strip_like = (
+                (touches_left or touches_right)
+                and bw <= int(w * self.edge_strip_width_ratio)
+                and bh >= int(h * self.edge_strip_height_ratio)
+                and max(bw / max(bh, 1), bh / max(bw, 1)) >= self.edge_strip_aspect_ratio
             )
             centroid = np.array(centroids[idx], dtype=np.float32)
             center_dist = float(np.linalg.norm(centroid - center))
             score = float(area) / (1.0 + center_dist)
-            if touches_border:
+            if strip_like:
                 score *= 0.1
             candidate_logs.append(
                 {
@@ -77,6 +76,7 @@ class SegmentationHelper:
                     "bbox": (x, y, bw, bh),
                     "centroid": (float(centroids[idx][0]), float(centroids[idx][1])),
                     "touches_border": touches_border,
+                    "strip_like": strip_like,
                     "score": score,
                 }
             )
@@ -88,7 +88,8 @@ class SegmentationHelper:
                     "[DEBUG] Mask cleanup candidate: "
                     f"idx={cand['idx']} area={cand['area']} "
                     f"bbox={cand['bbox']} centroid=({cand['centroid'][0]:.1f}, {cand['centroid'][1]:.1f}) "
-                        f"touches_border={cand['touches_border']} score={cand['score']:.4f}"
+                    f"touches_border={cand['touches_border']} strip_like={cand['strip_like']} "
+                    f"score={cand['score']:.4f}"
                 )
 
         for idx in range(1, num_labels):
@@ -100,20 +101,41 @@ class SegmentationHelper:
             y = int(stats[idx, cv2.CC_STAT_TOP])
             bw = int(stats[idx, cv2.CC_STAT_WIDTH])
             bh = int(stats[idx, cv2.CC_STAT_HEIGHT])
-            touches_border = (
-                x <= 0 or y <= 0 or x + bw >= w - 1 or y + bh >= h - 1
+            touches_left = x <= 1
+            touches_right = x + bw >= w - 2
+            strip_like = (
+                (touches_left or touches_right)
+                and bw <= int(w * self.edge_strip_width_ratio)
+                and bh >= int(h * self.edge_strip_height_ratio)
+                and max(bw / max(bh, 1), bh / max(bw, 1)) >= self.edge_strip_aspect_ratio
             )
-            if touches_border:
+            if strip_like:
                 continue
 
-            centroid = np.array(centroids[idx], dtype=np.float32)
-            center_dist = float(np.linalg.norm(centroid - center))
-            score = float(area) / (1.0 + center_dist)
-            if score > 0:
-                selected_indices.append(idx)
+            selected_indices.append(idx)
 
         if not selected_indices:
-            best_idx = int(np.argmax(stats[1:, cv2.CC_STAT_AREA])) + 1
+            non_strip_indices = []
+            for idx in range(1, num_labels):
+                area = int(stats[idx, cv2.CC_STAT_AREA])
+                if area < min_area:
+                    continue
+                x = int(stats[idx, cv2.CC_STAT_LEFT])
+                bw = int(stats[idx, cv2.CC_STAT_WIDTH])
+                touches_left = x <= 1
+                touches_right = x + bw >= w - 2
+                strip_like = (
+                    (touches_left or touches_right)
+                    and bw <= int(w * self.edge_strip_width_ratio)
+                    and int(stats[idx, cv2.CC_STAT_HEIGHT]) >= int(h * self.edge_strip_height_ratio)
+                    and max(bw / max(int(stats[idx, cv2.CC_STAT_HEIGHT]), 1), int(stats[idx, cv2.CC_STAT_HEIGHT]) / max(bw, 1)) >= self.edge_strip_aspect_ratio
+                )
+                if not strip_like:
+                    non_strip_indices.append(idx)
+            if non_strip_indices:
+                best_idx = max(non_strip_indices, key=lambda idx: int(stats[idx, cv2.CC_STAT_AREA]))
+            else:
+                best_idx = int(np.argmax(stats[1:, cv2.CC_STAT_AREA])) + 1
             print(
                 f"[DEBUG] Mask cleanup: no component met selection rules, "
                 f"falling back to largest component idx={best_idx}"
@@ -210,18 +232,17 @@ class SegmentationHelper:
         cx = self.intrinsics.intrinsic_matrix[0][2]
         cy = self.intrinsics.intrinsic_matrix[1][2]
 
-        mask = np.zeros((h, w), dtype=np.uint8) # Generate mask from object points (non-plane points)
-        for x, y, z in np.asarray(outlier_cloud.points): # Projects 3D onject points back to 2D pixel coordinates
-            if z <= 0:
-                continue
-            u = int((x * fx / z) + cx)
-            v = int((y * fy / z) + cy)
-            if 0 <= u < w and 0 <= v < h:
-                cv2.circle(mask, (u, v), self.point_radius, 1, -1) # Marks foreground pixels in a binary mask
+        yy, xx = np.mgrid[0:h, 0:w]
+        z = depth_m
+        x = (xx - cx) * z / fx
+        y = (yy - cy) * z / fy
+        plane_norm = np.sqrt(a * a + b * b + c * c)
+        residual = np.abs(a * x + b * y + c * z + d) / max(plane_norm, 1e-8)
+        mask = ((z > 0) & valid_mask & (residual > self.residual_threshold)).astype(np.uint8)
         projected_foreground = int(np.count_nonzero(mask))
         print(
-            f"[DEBUG] Mask projection: projected foreground={projected_foreground}, "
-            f"point_radius={self.point_radius}"
+            f"[DEBUG] Mask projection: residual_threshold={self.residual_threshold:.4f}, "
+            f"projected foreground={projected_foreground}"
         )
 
         mask = self._clean_mask(mask)
