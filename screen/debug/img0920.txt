@@ -1,0 +1,23 @@
+Image name: img0920
+RGB shape: (720, 510, 3)
+Depth shape: (576, 640)
+Mask shape: (720, 510)
+Mask foreground pixels: 7997
+Plane equation: [ 0.01437993 -0.15588415  0.98767067 -0.48237756]
+Plane inliers: 217647
+Non-plane points: 41421
+Mask QA:
+  Foreground pixels: 8026
+  Foreground ratio: 0.02177192
+  Connected components: 1
+  Largest component area: 8026
+  Border pixels: 0
+  Border ratio: 0.00000000
+  Largest bbox: (257, 219, 104, 108)
+  Largest centroid: (308.1856466483927, 277.9369548965861)
+
+Artifacts:
+  Overlay: dataset/debug/img0920_overlay.png
+  Mask: dataset/masks/img0920.png
+  Label: dataset/labels/img0920.txt
+  Info: dataset/info/img0920.txt
