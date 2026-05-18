@@ -50,8 +50,7 @@ class SegmentationHelper:
 
         min_area = max(8, int(h * w * self.min_component_area_ratio))
         center = np.array([w / 2.0, h / 2.0], dtype=np.float32)
-        best_idx = -1
-        best_score = -1.0
+        selected_indices = []
         candidate_logs = []
 
         for idx in range(1, num_labels):
@@ -82,25 +81,6 @@ class SegmentationHelper:
                 }
             )
 
-            if score > best_score:
-                best_score = score
-                best_idx = idx
-
-        if best_idx < 0:
-            best_idx = int(np.argmax(stats[1:, cv2.CC_STAT_AREA])) + 1
-            print(
-                f"[DEBUG] Mask cleanup: no component met min_area={min_area}, "
-                f"falling back to largest component idx={best_idx}"
-            )
-
-        component = np.zeros_like(cleaned)
-        component[labels == best_idx] = 1
-        selected_area = int(np.count_nonzero(component))
-        print(
-            f"[DEBUG] Mask cleanup: connected components={num_labels - 1}, "
-            f"min_area={min_area}, selected_idx={best_idx}, "
-            f"selected_area={selected_area}, best_score={best_score:.4f}"
-        )
         if candidate_logs:
             top_candidates = sorted(candidate_logs, key=lambda item: item["score"], reverse=True)[:3]
             for cand in top_candidates:
@@ -108,18 +88,68 @@ class SegmentationHelper:
                     "[DEBUG] Mask cleanup candidate: "
                     f"idx={cand['idx']} area={cand['area']} "
                     f"bbox={cand['bbox']} centroid=({cand['centroid'][0]:.1f}, {cand['centroid'][1]:.1f}) "
-                    f"touches_border={cand['touches_border']} score={cand['score']:.4f}"
+                        f"touches_border={cand['touches_border']} score={cand['score']:.4f}"
                 )
 
-        points = np.column_stack(np.where(component > 0))
-        if points.shape[0] >= 3:
-            hull = cv2.convexHull(points[:, ::-1].astype(np.int32))
-            hull_mask = np.zeros_like(component)
-            cv2.fillConvexPoly(hull_mask, hull, 1)
-            component = hull_mask
-            print(
-                f"[DEBUG] Mask cleanup: convex hull applied, area={int(np.count_nonzero(component))}"
+        for idx in range(1, num_labels):
+            area = int(stats[idx, cv2.CC_STAT_AREA])
+            if area < min_area:
+                continue
+
+            x = int(stats[idx, cv2.CC_STAT_LEFT])
+            y = int(stats[idx, cv2.CC_STAT_TOP])
+            bw = int(stats[idx, cv2.CC_STAT_WIDTH])
+            bh = int(stats[idx, cv2.CC_STAT_HEIGHT])
+            touches_border = (
+                x <= 0 or y <= 0 or x + bw >= w - 1 or y + bh >= h - 1
             )
+            if touches_border:
+                continue
+
+            centroid = np.array(centroids[idx], dtype=np.float32)
+            center_dist = float(np.linalg.norm(centroid - center))
+            score = float(area) / (1.0 + center_dist)
+            if score > 0:
+                selected_indices.append(idx)
+
+        if not selected_indices:
+            best_idx = int(np.argmax(stats[1:, cv2.CC_STAT_AREA])) + 1
+            print(
+                f"[DEBUG] Mask cleanup: no component met selection rules, "
+                f"falling back to largest component idx={best_idx}"
+            )
+            selected_indices = [best_idx]
+
+        selected_indices = sorted(set(selected_indices))
+        component = np.zeros_like(cleaned)
+        for idx in selected_indices:
+            component[labels == idx] = 1
+
+        selected_area = int(np.count_nonzero(component))
+        print(
+            f"[DEBUG] Mask cleanup: connected components={num_labels - 1}, "
+            f"min_area={min_area}, selected_indices={selected_indices}, "
+            f"selected_area={selected_area}"
+        )
+
+        if len(selected_indices) > 1:
+            print(
+                f"[DEBUG] Mask cleanup: keeping {len(selected_indices)} components before hull"
+            )
+
+        refined = np.zeros_like(component)
+        for idx in selected_indices:
+            single_component = np.zeros_like(component)
+            single_component[labels == idx] = 1
+            points = np.column_stack(np.where(single_component > 0))
+            if points.shape[0] >= 3:
+                hull = cv2.convexHull(points[:, ::-1].astype(np.int32))
+                hull_mask = np.zeros_like(single_component)
+                cv2.fillConvexPoly(hull_mask, hull, 1)
+                single_component = hull_mask
+            refined = cv2.bitwise_or(refined, single_component)
+
+        component = refined
 
         dilate_kernel = np.ones((3, 3), np.uint8)
         component = cv2.dilate(component, dilate_kernel, iterations=1)
