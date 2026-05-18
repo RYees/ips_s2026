@@ -73,6 +73,7 @@ class RGBDCollectorApp:
         self.mask_dir = base_path / "masks"
         self.info_dir = base_path / "info"
         self.pc_dir = base_path / "pointcloud"
+        self.debug_dir = base_path / "debug"
         for d in [
             self.img_dir,
             self.label_dir,
@@ -80,6 +81,7 @@ class RGBDCollectorApp:
             self.mask_dir,
             self.info_dir,
             self.pc_dir,
+            self.debug_dir,
         ]:
             d.mkdir(parents=True, exist_ok=True)
 
@@ -144,6 +146,87 @@ class RGBDCollectorApp:
         self.root.bind("P", lambda e: self.preview_pointcloud_interactive())
 
         self.Q()
+
+    def analyze_mask(self, mask):
+        mask_u8 = (mask > 0).astype(np.uint8)
+        h, w = mask_u8.shape
+        foreground = int(np.count_nonzero(mask_u8))
+        total = int(mask_u8.size)
+        ratio = float(foreground / total) if total else 0.0
+
+        num_labels, _labels, stats, centroids = cv2.connectedComponentsWithStats(
+            mask_u8, connectivity=8
+        )
+        component_areas = stats[1:, cv2.CC_STAT_AREA] if num_labels > 1 else np.array([])
+        largest_area = int(component_areas.max()) if component_areas.size else 0
+        largest_idx = int(np.argmax(component_areas)) + 1 if component_areas.size else -1
+        largest_bbox = None
+        largest_centroid = None
+        if largest_idx > 0:
+            x = int(stats[largest_idx, cv2.CC_STAT_LEFT])
+            y = int(stats[largest_idx, cv2.CC_STAT_TOP])
+            bw = int(stats[largest_idx, cv2.CC_STAT_WIDTH])
+            bh = int(stats[largest_idx, cv2.CC_STAT_HEIGHT])
+            largest_bbox = (x, y, bw, bh)
+            largest_centroid = (
+                float(centroids[largest_idx][0]),
+                float(centroids[largest_idx][1]),
+            )
+
+        border_mask = np.zeros_like(mask_u8, dtype=bool)
+        border_mask[0, :] = True
+        border_mask[-1, :] = True
+        border_mask[:, 0] = True
+        border_mask[:, -1] = True
+        border_pixels = int(np.count_nonzero(mask_u8 & border_mask))
+        border_ratio = float(border_pixels / foreground) if foreground else 0.0
+
+        return {
+            "shape": (h, w),
+            "foreground": foreground,
+            "ratio": ratio,
+            "components": int(num_labels - 1),
+            "largest_area": largest_area,
+            "largest_bbox": largest_bbox,
+            "largest_centroid": largest_centroid,
+            "border_pixels": border_pixels,
+            "border_ratio": border_ratio,
+        }
+
+    def save_mask_debug_overlay(self, img_name, rgb, mask):
+        overlay = rgb.copy()
+        mask_u8 = (mask > 0).astype(np.uint8)
+        green = np.zeros_like(overlay)
+        green[:, :, 1] = 255
+        overlay = cv2.addWeighted(overlay, 0.82, green, 0.18, 0)
+        overlay[mask_u8 > 0] = cv2.addWeighted(
+            overlay[mask_u8 > 0], 0.35, np.array([0, 255, 0], dtype=np.uint8), 0.65, 0
+        )
+
+        contours, _ = cv2.findContours(mask_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            largest = max(contours, key=cv2.contourArea)
+            cv2.drawContours(overlay, [largest], -1, (0, 255, 255), 2)
+
+        debug_path = self.debug_dir / f"{img_name}_overlay.png"
+        cv2.imwrite(str(debug_path), overlay)
+        print(f"[DEBUG] Overlay saved to {debug_path}")
+
+    def print_dataset_counts(self):
+        counts = {
+            "images": len(list(self.img_dir.glob("*.png"))),
+            "depth": len(list(self.depth_dir.glob("*.png"))),
+            "labels": len(list(self.label_dir.glob("*.txt"))),
+            "masks": len(list(self.mask_dir.glob("*.png"))),
+            "pointcloud": len(list(self.pc_dir.glob("*.ply"))),
+            "info": len(list(self.info_dir.glob("*.txt"))),
+            "debug": len(list(self.debug_dir.glob("*.png"))),
+        }
+        print(
+            "[COUNT] "
+            + ", ".join(f"{name}={value}" for name, value in counts.items())
+        )
+        return counts
 
     def update_video(self):
         try:
@@ -224,8 +307,19 @@ class RGBDCollectorApp:
         self.captured_depth = depth
         self.captured_mask = mask
         self.captured_pcd = pcd
+        mask_stats = self.analyze_mask(mask)
+        self.save_mask_debug_overlay(img_name := f"img{self.counter:04d}", rgb, mask)
+        print(
+            "[MASK-QA] "
+            f"shape={mask_stats['shape']} "
+            f"foreground={mask_stats['foreground']} "
+            f"ratio={mask_stats['ratio']:.6f} "
+            f"components={mask_stats['components']} "
+            f"largest_area={mask_stats['largest_area']} "
+            f"border_pixels={mask_stats['border_pixels']} "
+            f"border_ratio={mask_stats['border_ratio']:.6f}"
+        )
 
-        img_name = f"img{self.counter:04d}"
         intrinsics = self.cam.get_intrinsics()
         self.save_info_txt(
             img_name,
@@ -235,6 +329,7 @@ class RGBDCollectorApp:
             plane_eq,
             plane_inliers,
             non_plane_pts,
+            mask_stats,
         )  # Change adjusted_intrinsics to intrinsics if you are not cropping the images
 
         mask_viz = (mask * 255).astype(
@@ -278,7 +373,15 @@ class RGBDCollectorApp:
         print(f"[INFO] Frame captured for class: {self.class_var.get()}")
 
     def save_info_txt(
-        self, img_name, rgb, depth, intrinsics, plane_eq, plane_inliers, non_plane_pts
+        self,
+        img_name,
+        rgb,
+        depth,
+        intrinsics,
+        plane_eq,
+        plane_inliers,
+        non_plane_pts,
+        mask_stats=None,
     ):
         txt_path = self.info_dir / f"{img_name}.txt"
         with open(txt_path, "w") as f:
@@ -295,6 +398,16 @@ class RGBDCollectorApp:
             )
             f.write(f"Plane inliers: {plane_inliers}\n")
             f.write(f"Non-plane points: {non_plane_pts}\n")
+            if mask_stats is not None:
+                f.write("Mask QA:\n")
+                f.write(f"  Foreground pixels: {mask_stats['foreground']}\n")
+                f.write(f"  Foreground ratio: {mask_stats['ratio']:.8f}\n")
+                f.write(f"  Connected components: {mask_stats['components']}\n")
+                f.write(f"  Largest component area: {mask_stats['largest_area']}\n")
+                f.write(f"  Border pixels: {mask_stats['border_pixels']}\n")
+                f.write(f"  Border ratio: {mask_stats['border_ratio']:.8f}\n")
+                f.write(f"  Largest bbox: {mask_stats['largest_bbox']}\n")
+                f.write(f"  Largest centroid: {mask_stats['largest_centroid']}\n")
         print(f"[INFO] Info saved to {txt_path}")
 
     def save_data(self):
@@ -311,12 +424,17 @@ class RGBDCollectorApp:
         cv2.imwrite(str(self.depth_dir / f"{img_name}.png"), depth_colored)
 
         selected_class = int(self.class_var.get())
-        self.writer.write(
+        label_written = self.writer.write(
             str(self.label_dir / f"{img_name}.txt"),
             self.captured_mask,
             self.captured_rgb.shape[:2],
             label_class=selected_class,
         )
+        if not label_written:
+            print(
+                f"[WARNING] No valid contour was written for {img_name}; "
+                "check the saved overlay and mask QA logs."
+            )
 
         mask_path = self.mask_dir / f"{img_name}.png"
         cv2.imwrite(str(mask_path), self.captured_mask * 255)
@@ -326,6 +444,8 @@ class RGBDCollectorApp:
         o3d.io.write_point_cloud(str(pcd_path), self.captured_pcd)
         print(f"[SAVED] Point cloud saved to {pcd_path}")
         print(f"[SAVED] {img_name}")
+
+        self.print_dataset_counts()
 
         self.counter += 1
         self.reset_capture_state()
