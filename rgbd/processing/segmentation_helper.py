@@ -5,21 +5,18 @@ import cv2
 
 class SegmentationHelper:
     def __init__(
-        self, intrinsics, distance_threshold=0.01, ransac_n=3, num_iterations=1000
+        self, intrinsics, distance_threshold=0.012, ransac_n=3, num_iterations=2000
     ):
         self.intrinsics = intrinsics
         self.distance_threshold = distance_threshold
         self.ransac_n = ransac_n
         self.num_iterations = num_iterations
-        self.point_radius = 2
-        self.border_margin_ratio = 0.0
+
+        # Operational margins for conveyor workspace
         self.belt_margin_x_ratio = 0.12
         self.belt_margin_y_ratio = 0.02
-        self.min_component_area_ratio = 0.001
-        self.edge_strip_width_ratio = 0.18
-        self.edge_strip_height_ratio = 0.35
-        self.edge_strip_aspect_ratio = 2.5
-        self.residual_threshold = max(0.008, self.distance_threshold * 1.2)
+        self.min_component_area_ratio = 0.0005  # Lowered to protect small nails/wires
+        self.edge_strip_width_ratio = 0.15
 
     def _apply_belt_roi(self, mask):
         h, w = mask.shape
@@ -33,11 +30,12 @@ class SegmentationHelper:
             roi[:, -x_margin:] = 0
         return roi
 
-    def _clean_mask(self, mask, residual_map, residual_threshold):
+    def _clean_mask(self, mask):
         h, w = mask.shape
         if np.count_nonzero(mask) == 0:
             return mask
 
+        # Retain all valid disjoint structural components
         min_area = int(h * w * self.min_component_area_ratio)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         cleaned = np.zeros_like(mask)
@@ -46,45 +44,14 @@ class SegmentationHelper:
             if cv2.contourArea(cnt) >= min_area:
                 cv2.drawContours(cleaned, [cnt], -1, 1, thickness=cv2.FILLED)
 
-        final_mask = cleaned.copy()
-        edge_w = int(w * self.edge_strip_width_ratio)
-        edge_h = int(h * self.edge_strip_height_ratio)
-
-        for side in ["left", "right"]:
-            x_start = 0 if side == "left" else w - edge_w
-            x_end = edge_w if side == "left" else w
-            roi_strip = final_mask[:, x_start:x_end]
-
-            strip_contours, _ = cv2.findContours(
-                roi_strip, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-            )
-            for sc in strip_contours:
-                sx, sy, sw, sh = cv2.boundingRect(sc)
-                if (
-                    sh > 0
-                    and (sw / sh) > self.edge_strip_aspect_ratio
-                    and sw > (edge_w * 0.4)
-                ):
-                    if sy < edge_h or sy > (h - edge_h - sh):
-                        cv2.drawContours(
-                            final_mask[:, x_start:x_end],
-                            [sc],
-                            -1,
-                            0,
-                            thickness=cv2.FILLED,
-                        )
-
-        return final_mask
+        return cleaned
 
     def segment(self, depth_image, color_image):
-        depth_m = depth_image.astype(np.float32) / 1000.0
         h, w = depth_image.shape
+        depth_m = depth_image.astype(np.float32) / 1000.0
 
-        valid_mask = (depth_m > 0.2) & (depth_m < 1.5)
+        valid_mask = (depth_m > 0.15) & (depth_m < 1.5)
         depth_m = np.where(valid_mask, depth_m, 0)
-        print(
-            f"[DEBUG] Valid depth pixels after filtering: {np.count_nonzero(depth_m)}"
-        )
 
         depth_o3d = o3d.geometry.Image(depth_m)
         pcd = o3d.geometry.PointCloud.create_from_depth_image(
@@ -92,125 +59,104 @@ class SegmentationHelper:
         )
 
         if len(pcd.points) < 3:
-            print("[WARNING] Empty point cloud cluster.")
             return np.zeros((h, w), dtype=np.uint8), [0, 0, 0, 0], 0, 0, None
 
-        # 1. Estimate conveyor floor plane structure via RANSAC
+        # 1. Compute the structural floor baseline via RANSAC
         plane_model, inliers = pcd.segment_plane(
             distance_threshold=self.distance_threshold,
             ransac_n=self.ransac_n,
             num_iterations=self.num_iterations,
         )
         [a, b, c, d] = plane_model
+        plane_norm = np.sqrt(a * a + b * b + c * c)
 
         inlier_cloud = pcd.select_by_index(inliers)
         outlier_cloud = pcd.select_by_index(inliers, invert=True)
 
-        total_outlier_count = len(outlier_cloud.points)
-        print(f"[DEBUG] Plane floor inliers: {len(inlier_cloud.points)}")
-        print(f"[DEBUG] Initial raw outliers: {total_outlier_count}")
+        # 2. Extract clusters via 3D DBSCAN spatial connectivity mapping
+        final_object_cloud = o3d.geometry.PointCloud()
+        mask = np.zeros((h, w), dtype=np.uint8)
 
-        # 2. ADAPTIVE 3D CLUSTERING
-        clean_object_cloud = o3d.geometry.PointCloud()
-
-        if total_outlier_count > 8:
+        if len(outlier_cloud.points) > 5:
             labels = np.array(
                 outlier_cloud.cluster_dbscan(
-                    eps=0.015, min_points=8, print_progress=False
+                    eps=0.018, min_points=5, print_progress=False
                 )
             )
 
             if labels.size > 0 and np.any(labels >= 0):
-                unique_labels, counts = np.unique(
-                    labels[labels >= 0], return_counts=True
-                )
+                unique_labels = np.unique(labels[labels >= 0])
+                valid_object_indices = []
 
-                sorted_indices = np.argsort(counts)[::-1]
-                chosen_cluster_idx = None
-
-                for idx in sorted_indices:
-                    cluster_id = unique_labels[idx]
-                    cluster_count = counts[idx]
-
+                # Evaluate EVERY cluster found in the scene
+                for cluster_id in unique_labels:
                     temp_indices = np.where(labels == cluster_id)[0]
                     temp_cloud = outlier_cloud.select_by_index(list(temp_indices))
+                    cluster_pts = np.asarray(temp_cloud.points)
 
-                    bbox = temp_cloud.get_axis_aligned_bounding_box()
-                    extent = bbox.get_extent()
-                    height_thickness = extent[2]
+                    # Compute the absolute perpendicular distance of each point to the belt plane
+                    # Formula: |ax + by + cz + d| / sqrt(a^2 + b^2 + c^2)
+                    distances = (
+                        np.abs(
+                            a * cluster_pts[:, 0]
+                            + b * cluster_pts[:, 1]
+                            + c * cluster_pts[:, 2]
+                            + d
+                        )
+                        / plane_norm
+                    )
+                    min_dist_to_plane = np.min(distances)
+                    max_height = np.max(distances)
 
-                    print(
-                        f"[CLUSTER TRACE] ID #{cluster_id}: {cluster_count} points, Height Extent={height_thickness * 1000:.1f}mm"
+                    # --- MULTI-OBJECT CRITERIA ENGINE ---
+                    # A cluster is a true physical object if its base makes spatial contact
+                    # with the belt surface (min_dist < 6mm) and it has measurable thickness.
+                    if min_dist_to_plane < 0.006 and max_height > 0.0015:
+                        valid_object_indices.extend(temp_indices)
+                        print(
+                            f"[TRACKER] Valid Object Confirmed (ID #{cluster_id}): {len(cluster_pts)} pts, Base Dist={min_dist_to_plane * 1000:.1f}mm, Max H={max_height * 1000:.1f}mm"
+                        )
+                    else:
+                        print(
+                            f"[REJECTED] Ghost Reflection Filtered (ID #{cluster_id}): Base sits {min_dist_to_plane * 1000:.1f}mm away from belt surface."
+                        )
+
+                if len(valid_object_indices) > 0:
+                    final_object_cloud = outlier_cloud.select_by_index(
+                        valid_object_indices
                     )
 
-                    if height_thickness > 0.002 or cluster_count > 100:
-                        chosen_cluster_idx = cluster_id
-                        break
-
-                if chosen_cluster_idx is None:
-                    chosen_cluster_idx = unique_labels[sorted_indices[0]]
-
-                valid_indices = np.where(labels == chosen_cluster_idx)[0]
-                clean_object_cloud = outlier_cloud.select_by_index(list(valid_indices))
-                print(
-                    f"[SUCCESS] Target Identified: Isolated cluster #{chosen_cluster_idx} containing {len(clean_object_cloud.points)} points."
-                )
-            else:
-                print(
-                    "[WARNING] No dense 3D structures formed. Preserving default outliers."
-                )
-                clean_object_cloud = outlier_cloud
-        else:
-            clean_object_cloud = outlier_cloud
-
-        # 3. FIXED PROJECTION MATRIX
+        # 3. Project all validated 3D targets onto the 2D mask matrix
         fx = self.intrinsics.intrinsic_matrix[0][0]
         fy = self.intrinsics.intrinsic_matrix[1][1]
         cx = self.intrinsics.intrinsic_matrix[0][2]
         cy = self.intrinsics.intrinsic_matrix[1][2]
 
-        mask = np.zeros((h, w), dtype=np.uint8)
+        # Force the manual crop displacement correction to align the mask projection
+        if cx > 200:
+            cx = cx - 250.0
 
-        # Project Open3D coordinates back into the unshifted 2D pixel space
-        points_3d = np.asarray(clean_object_cloud.points)
+        points_3d = np.asarray(final_object_cloud.points)
         if len(points_3d) > 0:
             for x, y, z in points_3d:
                 if z <= 0:
                     continue
-
-                # Math fix: Project to standard camera coordinate space
                 u = int((x * fx / z) + cx)
                 v = int((y * fy / z) + cy)
-
                 if 0 <= u < w and 0 <= v < h:
                     mask[v, u] = 1
 
-        print(
-            f"[DEBUG] Projected isolated cluster mask contains {np.count_nonzero(mask)} active pixels."
-        )
-
-        # 4. Post-processing filters
+        # 4. Workspace post-processing and filtering
         mask = self._apply_belt_roi(mask)
+        mask = self._clean_mask(mask)
 
-        yy, xx = np.mgrid[0:h, 0:w]
-        plane_norm = np.sqrt(a * a + b * b + c * c)
-        res_x = (xx - cx) * depth_m / fx
-        res_y = (yy - cy) * depth_m / fy
-        residual_map = np.abs(a * res_x + b * res_y + c * depth_m + d) / max(
-            plane_norm, 1e-8
-        )
-
-        mask = self._clean_mask(
-            mask, residual_map=residual_map, residual_threshold=self.distance_threshold
-        )
         print(
-            f"[DEBUG] Mask projection: final cleaned foreground={int(np.count_nonzero(mask))}"
+            f"[DEBUG] Mask Generation Complete. Total objects foreground pixels: {np.count_nonzero(mask)}"
         )
-
         return (
             mask,
             plane_model,
             len(inlier_cloud.points),
-            len(clean_object_cloud.points),
-            clean_object_cloud,
+            len(final_object_cloud.points),
+            final_object_cloud,
         )
