@@ -86,6 +86,6 @@ def debug_saved_pointcloud(ply_path, distance_threshold=0.01):
 if __name__ == "__main__":
     # TODO: Replace this path with the exact location of a saved .ply file
     # that produced a bad mask output (e.g., from image 0931)
-    TARGET_PLY_FILE = "path/to/your/saved_data/pointclouds/img0931.ply"
+    TARGET_PLY_FILE = "/home/cpsstudent/Documents/ips_s2026/rgbd/dataset/pointcloud/img0935.ply"
 
     debug_saved_pointcloud(TARGET_PLY_FILE, distance_threshold=0.01)
