@@ -19,5 +19,10 @@ run-preview:
 	@echo "Running camera preview tool with Orbbec SDK environment..."
 	PYTHONPATH=$(PYTHONPATH):$$PYTHONPATH LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$$LD_LIBRARY_PATH $(VENV) tools/camera_preview.py
 
+debug:
+	@echo "Running camera preview tool with Orbbec SDK environment..."
+	PYTHONPATH=$(PYTHONPATH):$$PYTHONPATH LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$$LD_LIBRARY_PATH $(VENV) processing/debug_pipeline.py
+
+
 run-app: run-preview
 
