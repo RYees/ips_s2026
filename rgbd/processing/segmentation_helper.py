@@ -15,7 +15,7 @@ class SegmentationHelper:
         # Operational margins for conveyor workspace
         self.belt_margin_x_ratio = 0.12
         self.belt_margin_y_ratio = 0.02
-        self.min_component_area_ratio = 0.0005  # Lowered to protect small nails/wires
+        self.min_component_area_ratio = 0.0005
         self.edge_strip_width_ratio = 0.15
 
     def _apply_belt_roi(self, mask):
@@ -35,7 +35,6 @@ class SegmentationHelper:
         if np.count_nonzero(mask) == 0:
             return mask
 
-        # Retain all valid disjoint structural components
         min_area = int(h * w * self.min_component_area_ratio)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         cleaned = np.zeros_like(mask)
@@ -88,14 +87,12 @@ class SegmentationHelper:
                 unique_labels = np.unique(labels[labels >= 0])
                 valid_object_indices = []
 
-                # Evaluate EVERY cluster found in the scene
                 for cluster_id in unique_labels:
                     temp_indices = np.where(labels == cluster_id)[0]
                     temp_cloud = outlier_cloud.select_by_index(list(temp_indices))
                     cluster_pts = np.asarray(temp_cloud.points)
 
-                    # Compute the absolute perpendicular distance of each point to the belt plane
-                    # Formula: |ax + by + cz + d| / sqrt(a^2 + b^2 + c^2)
+                    # Compute the perpendicular distance of each point to the belt plane
                     distances = (
                         np.abs(
                             a * cluster_pts[:, 0]
@@ -108,17 +105,15 @@ class SegmentationHelper:
                     min_dist_to_plane = np.min(distances)
                     max_height = np.max(distances)
 
-                    # --- MULTI-OBJECT CRITERIA ENGINE ---
-                    # A cluster is a true physical object if its base makes spatial contact
-                    # with the belt surface (min_dist < 6mm) and it has measurable thickness.
-                    if min_dist_to_plane < 0.006 and max_height > 0.0015:
+                    # --- CORRECTION: Tolerates up to 18mm of floor plane drift ---
+                    if min_dist_to_plane < 0.018 and max_height > 0.0015:
                         valid_object_indices.extend(temp_indices)
                         print(
-                            f"[TRACKER] Valid Object Confirmed (ID #{cluster_id}): {len(cluster_pts)} pts, Base Dist={min_dist_to_plane * 1000:.1f}mm, Max H={max_height * 1000:.1f}mm"
+                            f"[TRACKER] Valid Object Confirmed (ID #{cluster_id}): {len(cluster_pts)} pts, Base Dist={min_dist_to_plane * 1000:.1f}mm"
                         )
                     else:
                         print(
-                            f"[REJECTED] Ghost Reflection Filtered (ID #{cluster_id}): Base sits {min_dist_to_plane * 1000:.1f}mm away from belt surface."
+                            f"[REJECTED] Ghost Reflection Filtered (ID #{cluster_id}): Base floats at {min_dist_to_plane * 1000:.1f}mm"
                         )
 
                 if len(valid_object_indices) > 0:
@@ -126,15 +121,11 @@ class SegmentationHelper:
                         valid_object_indices
                     )
 
-        # 3. Project all validated 3D targets onto the 2D mask matrix
+        # 3. Project targets using the standard matrix center (No double-shifting)
         fx = self.intrinsics.intrinsic_matrix[0][0]
         fy = self.intrinsics.intrinsic_matrix[1][1]
         cx = self.intrinsics.intrinsic_matrix[0][2]
         cy = self.intrinsics.intrinsic_matrix[1][2]
-
-        # Force the manual crop displacement correction to align the mask projection
-        if cx > 200:
-            cx = cx - 250.0
 
         points_3d = np.asarray(final_object_cloud.points)
         if len(points_3d) > 0:
@@ -151,7 +142,7 @@ class SegmentationHelper:
         mask = self._clean_mask(mask)
 
         print(
-            f"[DEBUG] Mask Generation Complete. Total objects foreground pixels: {np.count_nonzero(mask)}"
+            f"[DEBUG] Mask Generation Complete. Active foreground pixels: {np.count_nonzero(mask)}"
         )
         return (
             mask,
