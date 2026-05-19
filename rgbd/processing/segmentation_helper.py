@@ -2,12 +2,15 @@ import numpy as np
 import open3d as o3d
 import cv2
 
+
 class SegmentationHelper:
-    def __init__(self, intrinsics, distance_threshold=0.01, ransac_n=3, num_iterations=1000):
+    def __init__(
+        self, intrinsics, distance_threshold=0.01, ransac_n=3, num_iterations=1000
+    ):
         self.intrinsics = intrinsics
-        self.distance_threshold = distance_threshold # max distance from a point to the plane to be considered an inlier
-        self.ransac_n = ransac_n # number of points to sample for plane fitting
-        self.num_iterations = num_iterations # number of RANSAC iterations
+        self.distance_threshold = distance_threshold  # max distance from a point to the plane to be considered an inlier
+        self.ransac_n = ransac_n  # number of points to sample for plane fitting
+        self.num_iterations = num_iterations  # number of RANSAC iterations
         self.point_radius = 2
         self.border_margin_ratio = 0.0
         self.belt_margin_x_ratio = 0.12
@@ -91,8 +94,7 @@ class SegmentationHelper:
                     mean_residual = float(np.mean(comp_residuals))
                     max_residual = float(np.max(comp_residuals))
             residual_ok = (
-                residual_threshold is None
-                or mean_residual >= residual_threshold * 1.05
+                residual_threshold is None or mean_residual >= residual_threshold * 1.05
             )
             centroid = np.array(centroids[idx], dtype=np.float32)
             center_dist = float(np.linalg.norm(centroid - center))
@@ -115,7 +117,9 @@ class SegmentationHelper:
             )
 
         if candidate_logs:
-            top_candidates = sorted(candidate_logs, key=lambda item: item["score"], reverse=True)[:3]
+            top_candidates = sorted(
+                candidate_logs, key=lambda item: item["score"], reverse=True
+            )[:3]
             for cand in top_candidates:
                 print(
                     "[DEBUG] Mask cleanup candidate: "
@@ -151,8 +155,7 @@ class SegmentationHelper:
                 if comp_residuals.size:
                     mean_residual = float(np.mean(comp_residuals))
             residual_ok = (
-                residual_threshold is None
-                or mean_residual >= residual_threshold * 1.05
+                residual_threshold is None or mean_residual >= residual_threshold * 1.05
             )
             if strip_like or not residual_ok:
                 continue
@@ -172,13 +175,20 @@ class SegmentationHelper:
                 strip_like = (
                     (touches_left or touches_right)
                     and bw <= int(w * self.edge_strip_width_ratio)
-                    and int(stats[idx, cv2.CC_STAT_HEIGHT]) >= int(h * self.edge_strip_height_ratio)
-                    and max(bw / max(int(stats[idx, cv2.CC_STAT_HEIGHT]), 1), int(stats[idx, cv2.CC_STAT_HEIGHT]) / max(bw, 1)) >= self.edge_strip_aspect_ratio
+                    and int(stats[idx, cv2.CC_STAT_HEIGHT])
+                    >= int(h * self.edge_strip_height_ratio)
+                    and max(
+                        bw / max(int(stats[idx, cv2.CC_STAT_HEIGHT]), 1),
+                        int(stats[idx, cv2.CC_STAT_HEIGHT]) / max(bw, 1),
+                    )
+                    >= self.edge_strip_aspect_ratio
                 )
                 if not strip_like:
                     non_strip_indices.append(idx)
             if non_strip_indices:
-                best_idx = max(non_strip_indices, key=lambda idx: int(stats[idx, cv2.CC_STAT_AREA]))
+                best_idx = max(
+                    non_strip_indices, key=lambda idx: int(stats[idx, cv2.CC_STAT_AREA])
+                )
             else:
                 best_idx = int(np.argmax(stats[1:, cv2.CC_STAT_AREA])) + 1
             print(
@@ -229,40 +239,31 @@ class SegmentationHelper:
         h, w = depth_image.shape
 
         valid_mask = (depth_m > 0.2) & (depth_m < 1.5)
-        depth_m = np.where(valid_mask, depth_m, 0) # Removes invalid depth values (either too near or too far) to avoid noise
-        print(f"[DEBUG] Valid depth pixels after filtering: {np.count_nonzero(depth_m)}")
+        depth_m = np.where(
+            valid_mask, depth_m, 0
+        )  # Removes invalid depth values to avoid noise
+        print(
+            f"[DEBUG] Valid depth pixels after filtering: {np.count_nonzero(depth_m)}"
+        )
 
-        depth_o3d = o3d.geometry.Image(depth_m) # Prepare Open3D RGBD image
-        #rgb_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
-        #rgb_image = np.ascontiguousarray(rgb_image, dtype=np.uint8)
-        #color_o3d = o3d.geometry.Image(rgb_image)
+        depth_o3d = o3d.geometry.Image(depth_m)  # Prepare Open3D Depth image
 
-        #rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(
-        #    color_o3d, depth_o3d,
-        #    convert_rgb_to_intensity=False,
-        #    depth_scale=1.0,
-        #    depth_trunc=3.0
-        #)
-
-        #pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd, self.intrinsics) # Create point cloud
         pcd = o3d.geometry.PointCloud.create_from_depth_image(
-            depth_o3d,
-            self.intrinsics,
-            depth_scale=1.0,
-            depth_trunc=3.0,
-            stride=1
+            depth_o3d, self.intrinsics, depth_scale=1.0, depth_trunc=3.0, stride=1
         )
         print(f"[DEBUG] Full point cloud has {len(pcd.points)} points.")
 
-        if len(pcd.points) < self.ransac_n: # Skips plane detection if the point cloud has too few points
+        if (
+            len(pcd.points) < self.ransac_n
+        ):  # Skips plane detection if the point cloud has too few points
             print("[WARNING] Not enough points for plane segmentation.")
             return self._empty_result(h, w)
 
         plane_model, inliers = pcd.segment_plane(
             distance_threshold=self.distance_threshold,
             ransac_n=self.ransac_n,
-            num_iterations=self.num_iterations
-        ) # Segment dominant plane using RANSAC - used to find the best model (like a plane, line, etc.) that fits the majority of points, even if some points (outliers) don’t follow the pattern.
+            num_iterations=self.num_iterations,
+        )  # Segment dominant plane using RANSAC
         [a, b, c, d] = plane_model
         print(f"[INFO] Plane equation: {a:.2f}x + {b:.2f}y + {c:.2f}z + {d:.2f} = 0")
 
@@ -271,49 +272,83 @@ class SegmentationHelper:
         print(f"[DEBUG] Plane inliers: {len(inlier_cloud.points)}")
         print(f"[DEBUG] Non-plane points: {len(outlier_cloud.points)}")
 
-        # Create binary mask from non-plane points
+        # =========================================================================
+        # FIX 1: Use 3D DBSCAN to separate the real object from background sensor jitter
+        # =========================================================================
+        if len(outlier_cloud.points) > 10:
+            # eps=0.02 (2cm max spacing), min_points=30 filters out sparse pixel sprays
+            labels = np.array(
+                outlier_cloud.cluster_dbscan(
+                    eps=0.02, min_points=30, print_progress=False
+                )
+            )
+
+            if labels.size > 0 and np.any(labels >= 0):
+                valid_labels = labels[labels >= 0]
+                if valid_labels.size > 0:
+                    largest_cluster_idx = np.argmax(np.bincount(valid_labels))
+
+                    # Lock onto only the single dense 3D structure (the object)
+                    object_indices = np.where(labels == largest_cluster_idx)[0]
+                    outlier_cloud = outlier_cloud.select_by_index(object_indices)
+                    print(
+                        f"[DEBUG] Isolated 3D object cluster contains {len(outlier_cloud.points)} points."
+                    )
+        # =========================================================================
+
+        # =========================================================================
+        # FIX 2: Project ONLY the isolated object points back into a clean depth map
+        # =========================================================================
+        clean_depth_m = np.zeros_like(depth_m)
         fx = self.intrinsics.intrinsic_matrix[0][0]
         fy = self.intrinsics.intrinsic_matrix[1][1]
         cx = self.intrinsics.intrinsic_matrix[0][2]
         cy = self.intrinsics.intrinsic_matrix[1][2]
 
+        for point in np.asarray(outlier_cloud.points):
+            x_val, y_val, z_val = point
+            if z_val <= 0:
+                continue
+            u = int((x_val * fx / z_val) + cx)
+            v = int((y_val * fy / z_val) + cy)
+            if 0 <= u < w and 0 <= v < h:
+                clean_depth_m[v, u] = z_val
+
+        # Calculate coordinates and residuals strictly based on our cleaned object mask
         yy, xx = np.mgrid[0:h, 0:w]
-        z = depth_m
+        z = clean_depth_m
         x = (xx - cx) * z / fx
         y = (yy - cy) * z / fy
+
         plane_norm = np.sqrt(a * a + b * b + c * c)
         residual = np.abs(a * x + b * y + c * z + d) / max(plane_norm, 1e-8)
-        adaptive_threshold = self.residual_threshold
-        if residual.size:
-            valid_residuals = residual[valid_mask]
-            if valid_residuals.size:
-                median_residual = float(np.median(valid_residuals))
-                mad_residual = float(np.median(np.abs(valid_residuals - median_residual)))
-                adaptive_threshold = max(
-                    self.residual_threshold,
-                    median_residual + 4.0 * 1.4826 * mad_residual,
-                )
-                print(
-                    f"[DEBUG] Residual stats: median={median_residual:.4f}, "
-                    f"mad={mad_residual:.4f}, adaptive_threshold={adaptive_threshold:.4f}"
-                )
 
-        mask = ((z > 0) & valid_mask & (residual > adaptive_threshold)).astype(np.uint8)
+        # Since 3D cloud is pre-cleaned, we can confidently capture points clearing the base distance threshold
+        mask = ((z > 0) & (residual > self.distance_threshold)).astype(np.uint8)
         projected_foreground = int(np.count_nonzero(mask))
+        print(f"[DEBUG] Mask projection: isolated foreground={projected_foreground}")
+        # =========================================================================
+
+        # Apply your downstream ROI and filtering workflows safely without fallback triggers
+        mask = self._apply_belt_roi(mask)
+        mask = self._clean_mask(
+            mask, residual_map=residual, residual_threshold=self.distance_threshold
+        )
         print(
-            f"[DEBUG] Mask projection: base_threshold={self.residual_threshold:.4f}, "
-            f"adaptive_threshold={adaptive_threshold:.4f}, "
-            f"projected foreground={projected_foreground}"
+            f"[DEBUG] Mask projection: final cleaned foreground={int(np.count_nonzero(mask))}"
         )
 
-        mask = self._apply_belt_roi(mask)
+        # Visualize color cues
+        inlier_cloud.paint_uniform_color([1.0, 0.0, 0.0])  # Plane points show Red
+        outlier_cloud.paint_uniform_color(
+            [0.0, 1.0, 0.0]
+        )  # True Object cluster shows Green
+        # o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud])
 
-        mask = self._clean_mask(mask, residual_map=residual, residual_threshold=adaptive_threshold)
-        print(f"[DEBUG] Mask projection: cleaned foreground={int(np.count_nonzero(mask))}")
-
-        # Visualize
-        inlier_cloud.paint_uniform_color([1.0, 0.0, 0.0])  # Red
-        outlier_cloud.paint_uniform_color([0.0, 1.0, 0.0])  # Green
-        #o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud])
-
-        return mask, plane_model, len(inlier_cloud.points), len(outlier_cloud.points), pcd
+        return (
+            mask,
+            plane_model,
+            len(inlier_cloud.points),
+            len(outlier_cloud.points),
+            pcd,
+        )
