@@ -102,7 +102,9 @@ class RGBDCollectorApp:
         ]:
             d.mkdir(parents=True, exist_ok=True)
 
-        self.log_path = self.debug_dir / f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        self.log_path = (
+            self.debug_dir / f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        )
         self.log_file = open(self.log_path, "a", buffering=1)
         self._orig_stdout = sys.stdout
         self._orig_stderr = sys.stderr
@@ -183,9 +185,13 @@ class RGBDCollectorApp:
         num_labels, _labels, stats, centroids = cv2.connectedComponentsWithStats(
             mask_u8, connectivity=8
         )
-        component_areas = stats[1:, cv2.CC_STAT_AREA] if num_labels > 1 else np.array([])
+        component_areas = (
+            stats[1:, cv2.CC_STAT_AREA] if num_labels > 1 else np.array([])
+        )
         largest_area = int(component_areas.max()) if component_areas.size else 0
-        largest_idx = int(np.argmax(component_areas)) + 1 if component_areas.size else -1
+        largest_idx = (
+            int(np.argmax(component_areas)) + 1 if component_areas.size else -1
+        )
         largest_bbox = None
         largest_centroid = None
         if largest_idx > 0:
@@ -247,7 +253,9 @@ class RGBDCollectorApp:
         overlay = cv2.addWeighted(overlay, 0.82, green, 0.18, 0)
         overlay[mask_u8 > 0] = np.array([0, 255, 0], dtype=np.uint8)
 
-        contours, _ = cv2.findContours(mask_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(
+            mask_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
         if contours:
             largest = max(contours, key=cv2.contourArea)
             cv2.drawContours(overlay, [largest], -1, (0, 255, 255), 2)
@@ -255,45 +263,6 @@ class RGBDCollectorApp:
         debug_path = self.debug_dir / f"{img_name}_overlay.png"
         cv2.imwrite(str(debug_path), overlay)
         print(f"[DEBUG] Overlay saved to {debug_path}")
-
-    def save_capture_debug_report(
-        self,
-        img_name,
-        rgb,
-        depth,
-        mask,
-        plane_eq,
-        plane_inliers,
-        non_plane_pts,
-        mask_stats,
-    ):
-        report_path = self.debug_dir / f"{img_name}.txt"
-        mask_u8 = self.match_mask_to_image(mask, rgb.shape[:2])
-        mask_nonzero = int(np.count_nonzero(mask_u8))
-        with open(report_path, "w") as f:
-            f.write(f"Image name: {img_name}\n")
-            f.write(f"RGB shape: {rgb.shape}\n")
-            f.write(f"Depth shape: {depth.shape}\n")
-            f.write(f"Mask shape: {mask_u8.shape}\n")
-            f.write(f"Mask foreground pixels: {mask_nonzero}\n")
-            f.write(f"Plane equation: {plane_eq}\n")
-            f.write(f"Plane inliers: {plane_inliers}\n")
-            f.write(f"Non-plane points: {non_plane_pts}\n")
-            f.write("Mask QA:\n")
-            f.write(f"  Foreground pixels: {mask_stats['foreground']}\n")
-            f.write(f"  Foreground ratio: {mask_stats['ratio']:.8f}\n")
-            f.write(f"  Connected components: {mask_stats['components']}\n")
-            f.write(f"  Largest component area: {mask_stats['largest_area']}\n")
-            f.write(f"  Border pixels: {mask_stats['border_pixels']}\n")
-            f.write(f"  Border ratio: {mask_stats['border_ratio']:.8f}\n")
-            f.write(f"  Largest bbox: {mask_stats['largest_bbox']}\n")
-            f.write(f"  Largest centroid: {mask_stats['largest_centroid']}\n")
-            f.write("\nArtifacts:\n")
-            f.write(f"  Overlay: {self.debug_dir / f'{img_name}_overlay.png'}\n")
-            f.write(f"  Mask: {self.mask_dir / f'{img_name}.png'}\n")
-            f.write(f"  Label: {self.label_dir / f'{img_name}.txt'}\n")
-            f.write(f"  Info: {self.info_dir / f'{img_name}.txt'}\n")
-        print(f"[DEBUG] Capture QA report saved to {report_path}")
 
     def match_mask_to_image(self, mask, image_shape):
         mask_u8 = (mask > 0).astype(np.uint8)
@@ -305,7 +274,9 @@ class RGBDCollectorApp:
             f"[WARNING] Mask/image shape mismatch: mask={mask_u8.shape}, "
             f"image={image_shape}. Resizing mask for overlay/export."
         )
-        return cv2.resize(mask_u8, (target_w, target_h), interpolation=cv2.INTER_NEAREST)
+        return cv2.resize(
+            mask_u8, (target_w, target_h), interpolation=cv2.INTER_NEAREST
+        )
 
     def print_dataset_counts(self):
         counts = {
@@ -318,8 +289,7 @@ class RGBDCollectorApp:
             "debug": len(list(self.debug_dir.glob("*.png"))),
         }
         print(
-            "[COUNT] "
-            + ", ".join(f"{name}={value}" for name, value in counts.items())
+            "[COUNT] " + ", ".join(f"{name}={value}" for name, value in counts.items())
         )
         return counts
 
@@ -430,16 +400,6 @@ class RGBDCollectorApp:
             non_plane_pts,
             mask_stats,
         )  # Change adjusted_intrinsics to intrinsics if you are not cropping the images
-        self.save_capture_debug_report(
-            img_name,
-            rgb,
-            depth,
-            mask,
-            plane_eq,
-            plane_inliers,
-            non_plane_pts,
-            mask_stats,
-        )
 
         mask_viz = (mask * 255).astype(
             np.uint8
@@ -520,43 +480,62 @@ class RGBDCollectorApp:
         print(f"[INFO] Info saved to {txt_path}")
 
     def save_data(self):
-        if self.captured_rgb is None or self.captured_mask is None:
+        if (
+            self.captured_rgb is None
+            or self.captured_mask is None
+            or self.captured_depth is None
+        ):
             print("[WARNING] No frame to save.")
             return
 
         img_name = self.current_img_name or f"img{self.counter:04d}"
-        cv2.imwrite(str(self.img_dir / f"{img_name}.png"), self.captured_rgb)
-        depth_vis = cv2.normalize(
-            self.captured_depth, None, 0, 255, cv2.NORM_MINMAX
-        ).astype(np.uint8)
-        depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
-        cv2.imwrite(str(self.depth_dir / f"{img_name}.png"), depth_colored)
+        print(f"\n[INFO] Saving pipeline data for frame: {img_name}...")
 
+        # 1. Save RGB Image (.png) to the images folder
+        cv2.imwrite(str(self.img_dir / f"{img_name}.png"), self.captured_rgb)
+        print(f"[SAVED] RGB image saved to: {self.img_dir / f'{img_name}.png'}")
+
+        # 2. Save Raw 16-bit Depth Map (Unchanged Millimeters) to the depth folder
+        # This keeps the exact metrics intact so diagnostics can parse it accurately
+        cv2.imwrite(str(self.depth_dir / f"{img_name}.png"), self.captured_depth)
+        print(
+            f"[SAVED] Raw 16-bit depth map saved to: {self.depth_dir / f'{img_name}.png'}"
+        )
+
+        # 3. Process and write the YOLO Text Annotation to the labels folder
         selected_class = int(self.class_var.get())
-        label_mask = self.match_mask_to_image(self.captured_mask, self.captured_rgb.shape[:2])
+        label_mask = self.match_mask_to_image(
+            self.captured_mask, self.captured_rgb.shape[:2]
+        )
         label_written = self.writer.write(
             str(self.label_dir / f"{img_name}.txt"),
             label_mask,
             self.captured_rgb.shape[:2],
             label_class=selected_class,
         )
-        if not label_written:
+        if label_written:
+            print(
+                f"[SAVED] YOLO segmentation label saved to: {self.label_dir / f'{img_name}.txt'}"
+            )
+        else:
             print(
                 f"[WARNING] No valid contour was written for {img_name}; "
                 "check the saved overlay and mask QA logs."
             )
 
+        # 4. Save Binary Mask Image to the masks folder
         mask_path = self.mask_dir / f"{img_name}.png"
         cv2.imwrite(str(mask_path), label_mask * 255)
         print(f"[SAVED] Mask image saved to {mask_path}")
 
+        # 5. Save 3D Point Cloud (.ply) to the pointcloud folder
         pcd_path = self.pc_dir / f"{img_name}.ply"
         o3d.io.write_point_cloud(str(pcd_path), self.captured_pcd)
         print(f"[SAVED] Point cloud saved to {pcd_path}")
-        print(f"[SAVED] {img_name}")
+        print(f"[SUCCESS] All directory outputs for {img_name} written successfully.\n")
 
+        # Update tracking numbers and reset interface
         self.print_dataset_counts()
-
         self.counter = self.next_capture_index()
         self.current_img_name = None
         self.reset_capture_state()
