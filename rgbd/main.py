@@ -329,19 +329,17 @@ class RGBDCollectorApp:
 
         rgb = frame_to_bgr_image(color_frame)
 
-        # Extract raw 16-bit depth buffer securely
+        # 1. Safely pull the raw 16-bit depth values
         depth_raw = np.frombuffer(depth_frame.get_data(), dtype=np.uint16)
         depth = depth_raw.reshape(
             (depth_frame.get_height(), depth_frame.get_width())
         ).copy()
 
-        print(f"****[DEBUG] Original shapes -> RGB: {rgb.shape}, Depth: {depth.shape}")
-
-        # === Apply identical crop bounding boxes to both channels ===
+        # 2. Keep your original manual cropping boundaries
         rgb, crop_x, crop_y = crop_manual(rgb, top=0, bottom=0, left=250, right=520)
         depth, _, _ = crop_manual(depth, top=0, bottom=0, left=250, right=520)
 
-        # === Adjust camera intrinsics based on the cropped offset ===
+        # 3. Adjust the intrinsics to match your cropped frame bounds
         intrinsics = self.cam.get_intrinsics()
         fx = intrinsics.intrinsic_matrix[0, 0]
         fy = intrinsics.intrinsic_matrix[1, 1]
@@ -357,63 +355,28 @@ class RGBDCollectorApp:
             cy=cy - crop_y,
         )
 
-        print(f"[DEBUG] Cropped shapes -> RGB: {rgb.shape}, Depth: {depth.shape}")
-        print(
-            f"[DEBUG] Depth values info -> Min: {np.min(depth)}mm, Max: {np.max(depth)}mm"
-        )
-        print(f"[DEBUG] Non-zero depth pixels: {np.count_nonzero(depth)}")
-
-        # === Generate the correct 3D point cloud directly from the raw depth metrics ===
-        # Convert mm to meters for Open3D geometry processing
-        depth_m = depth.astype(np.float32) / 1000.0
-        # Only keep values inside active conveyor work envelope
-        depth_m = np.where((depth_m > 0.2) & (depth_m < 1.5), depth_m, 0.0)
+        # 4. Generate the 3D Point Cloud geometry from clean scaled metrics
+        depth_m = depth.astype(np.float32) / 1000.0  # Convert mm to meters
+        depth_m = np.where(
+            (depth_m > 0.2) & (depth_m < 1.5), depth_m, 0.0
+        )  # Filter out noise
 
         depth_o3d = o3d.geometry.Image(depth_m)
         pcd = o3d.geometry.PointCloud.create_from_depth_image(
             depth_o3d, adjusted_intrinsics, depth_scale=1.0, depth_trunc=3.0, stride=1
         )
-        print(
-            f"[DEBUG] Generated Point Cloud contains {len(pcd.points)} spatial vertices."
-        )
 
-        # === Pass clean arrays to Segmentation Backend ===
+        # 5. Send your clean data to your Segmentation backend helper
         self.seg = SegmentationHelper(adjusted_intrinsics)
-        mask, plane_eq, plane_inliers, non_plane_pts, _ = self.seg.segment(depth, rgb)
+        mask, plane_model, inlier_count, outlier_count, _ = self.seg.segment(depth, rgb)
 
-        # Cache variables into app memory state
+        # Save arrays into app memory state exactly as before
         self.captured_rgb = rgb
-        self.captured_depth = depth  # Store raw 16-bit millimeter data
+        self.captured_depth = depth
         self.captured_mask = mask
-        self.captured_pcd = pcd  # Save valid non-empty point cloud object
+        self.captured_pcd = pcd
 
-        # Run standard logging routines
-        mask_stats = self.analyze_mask(mask)
-        img_name = self.current_img_name
-        self.save_mask_debug_overlay(img_name, rgb, mask)
-
-        self.save_info_txt(
-            img_name,
-            rgb,
-            depth,
-            adjusted_intrinsics,
-            plane_eq,
-            plane_inliers,
-            non_plane_pts,
-            mask_stats,
-        )
-        self.save_capture_debug_report(
-            img_name,
-            rgb,
-            depth,
-            mask,
-            plane_eq,
-            plane_inliers,
-            non_plane_pts,
-            mask_stats,
-        )
-
-        # --- Build UI Live Preview Windows ---
+        # 6. Render the UI Preview Window layouts
         mask_viz = (mask * 255).astype(np.uint8)
         mask_bgr = cv2.cvtColor(mask_viz, cv2.COLOR_GRAY2BGR)
         contours, _ = cv2.findContours(
@@ -423,7 +386,6 @@ class RGBDCollectorApp:
             largest = max(contours, key=cv2.contourArea)
             cv2.drawContours(mask_bgr, [largest], -1, (0, 255, 0), 2)
 
-        # Normalize visually ONLY for display window so human user can verify data
         depth_vis = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
         depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
 
@@ -445,7 +407,6 @@ class RGBDCollectorApp:
         self.capture_btn.config(state=tk.DISABLED)
         self.save_btn.config(state=tk.NORMAL)
         self.retake_btn.config(state=tk.NORMAL)
-        print(f"[INFO] Frame processing complete for class: {self.class_var.get()}")
 
     def save_info_txt(
         self,
@@ -499,9 +460,13 @@ class RGBDCollectorApp:
 
         # 1. Save clean RGB image file
         cv2.imwrite(str(self.img_dir / f"{img_name}.png"), self.captured_rgb)
+        print(f"[SAVED] RGB image saved to: {self.img_dir / f'{img_name}.png'}")
 
         # 2. Save Raw 16-bit depth values mapping real metric millimeters
         cv2.imwrite(str(self.depth_dir / f"{img_name}.png"), self.captured_depth)
+        print(
+            f"[SAVED] Raw 16-bit depth map saved to: {self.depth_dir / f'{img_name}.png'}"
+        )
 
         # 3. Handle YOLO label text formatting
         selected_class = int(self.class_var.get())
@@ -514,9 +479,13 @@ class RGBDCollectorApp:
             self.captured_rgb.shape[:2],
             label_class=selected_class,
         )
+        print(f"[SAVED] YOLO text file saved to: {self.label_dir / f'{img_name}.txt'}")
 
         # 4. Save Binary Segmentation Mask file
         cv2.imwrite(str(self.mask_dir / f"{img_name}.png"), label_mask * 255)
+        print(
+            f"[SAVED] Mask tracking image saved to: {self.mask_dir / f'{img_name}.png'}"
+        )
 
         # 5. Save verified Open3D Point Cloud (.ply spatial model)
         pcd_path = self.pc_dir / f"{img_name}.ply"
@@ -534,7 +503,7 @@ class RGBDCollectorApp:
         self.counter = self.next_capture_index()
         self.current_img_name = None
         self.reset_capture_state()
-        print(f"[SUCCESS] Packout cycle {img_name} closed safely.\n")
+        print(f"[SUCCESS] Packout cycle {img_name} complete.\n")
 
     def preview_pointcloud_interactive(self):
         if self.captured_pcd is not None:
