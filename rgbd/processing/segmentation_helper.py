@@ -10,11 +10,29 @@ class SegmentationHelper:
         self.num_iterations = num_iterations # number of RANSAC iterations
         self.point_radius = 2
         self.border_margin_ratio = 0.0
+        self.belt_margin_x_ratio = 0.12
+        self.belt_margin_y_ratio = 0.02
         self.min_component_area_ratio = 0.001
         self.edge_strip_width_ratio = 0.18
         self.edge_strip_height_ratio = 0.35
         self.edge_strip_aspect_ratio = 2.5
         self.residual_threshold = max(0.008, self.distance_threshold * 1.2)
+
+    def _apply_belt_roi(self, mask):
+        h, w = mask.shape
+        roi = mask.copy()
+        x_margin = max(0, int(w * self.belt_margin_x_ratio))
+        y_margin = max(0, int(h * self.belt_margin_y_ratio))
+        if x_margin or y_margin:
+            roi[:y_margin, :] = 0
+            roi[-y_margin:, :] = 0
+            roi[:, :x_margin] = 0
+            roi[:, -x_margin:] = 0
+        print(
+            f"[DEBUG] Belt ROI: x_margin={x_margin}, y_margin={y_margin}, "
+            f"foreground={int(np.count_nonzero(roi))}"
+        )
+        return roi
 
     def _empty_result(self, h, w):
         empty_mask = np.zeros((h, w), dtype=np.uint8)
@@ -287,6 +305,8 @@ class SegmentationHelper:
             f"adaptive_threshold={adaptive_threshold:.4f}, "
             f"projected foreground={projected_foreground}"
         )
+
+        mask = self._apply_belt_roi(mask)
 
         mask = self._clean_mask(mask, residual_map=residual, residual_threshold=adaptive_threshold)
         print(f"[DEBUG] Mask projection: cleaned foreground={int(np.count_nonzero(mask))}")
