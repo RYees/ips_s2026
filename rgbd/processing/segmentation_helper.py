@@ -8,9 +8,9 @@ class SegmentationHelper:
         self, intrinsics, distance_threshold=0.01, ransac_n=3, num_iterations=1000
     ):
         self.intrinsics = intrinsics
-        self.distance_threshold = distance_threshold  # max distance from a point to the plane to be considered an inlier
-        self.ransac_n = ransac_n  # number of points to sample for plane fitting
-        self.num_iterations = num_iterations  # number of RANSAC iterations
+        self.distance_threshold = distance_threshold
+        self.ransac_n = ransac_n
+        self.num_iterations = num_iterations
         self.point_radius = 2
         self.border_margin_ratio = 0.0
         self.belt_margin_x_ratio = 0.12
@@ -38,7 +38,6 @@ class SegmentationHelper:
         if np.count_nonzero(mask) == 0:
             return mask
 
-        # Remove small isolated pixel groups
         min_area = int(h * w * self.min_component_area_ratio)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         cleaned = np.zeros_like(mask)
@@ -47,7 +46,6 @@ class SegmentationHelper:
             if cv2.contourArea(cnt) >= min_area:
                 cv2.drawContours(cleaned, [cnt], -1, 1, thickness=cv2.FILLED)
 
-        # Clear side artifacts using a mathematical bounding grid profile
         final_mask = cleaned.copy()
         edge_w = int(w * self.edge_strip_width_ratio)
         edge_h = int(h * self.edge_strip_height_ratio)
@@ -79,7 +77,7 @@ class SegmentationHelper:
         return final_mask
 
     def segment(self, depth_image, color_image):
-        depth_m = depth_image.astype(np.float32) / 1000.0  # Convert mm to meters
+        depth_m = depth_image.astype(np.float32) / 1000.0
         h, w = depth_image.shape
 
         valid_mask = (depth_m > 0.2) & (depth_m < 1.5)
@@ -112,12 +110,10 @@ class SegmentationHelper:
         print(f"[DEBUG] Plane floor inliers: {len(inlier_cloud.points)}")
         print(f"[DEBUG] Initial raw outliers: {total_outlier_count}")
 
-        # 2. ADAPTIVE 3D CLUSTERING FOR ANY SHAPE/SIZE OBJECT
+        # 2. ADAPTIVE 3D CLUSTERING
         clean_object_cloud = o3d.geometry.PointCloud()
 
-        # Low initial seed threshold (8 points) ensures thin objects like steel wires/nails are processed
         if total_outlier_count > 8:
-            # Tight connectivity (1.5 cm neighborhood) keeps thin assets distinct from floor reflections
             labels = np.array(
                 outlier_cloud.cluster_dbscan(
                     eps=0.015, min_points=8, print_progress=False
@@ -129,11 +125,9 @@ class SegmentationHelper:
                     labels[labels >= 0], return_counts=True
                 )
 
-                # Sort clusters by total point counts descending
                 sorted_indices = np.argsort(counts)[::-1]
                 chosen_cluster_idx = None
 
-                # Examine clusters to isolate structural items from ultra-flat glare shapes
                 for idx in sorted_indices:
                     cluster_id = unique_labels[idx]
                     cluster_count = counts[idx]
@@ -141,22 +135,18 @@ class SegmentationHelper:
                     temp_indices = np.where(labels == cluster_id)[0]
                     temp_cloud = outlier_cloud.select_by_index(list(temp_indices))
 
-                    # Evaluate physical height/thickness along the Z axis relative to the belt plane
                     bbox = temp_cloud.get_axis_aligned_bounding_box()
-                    extent = bbox.get_extent()  # [width, height, depth_thickness]
+                    extent = bbox.get_extent()
                     height_thickness = extent[2]
 
                     print(
                         f"[CLUSTER TRACE] ID #{cluster_id}: {cluster_count} points, Height Extent={height_thickness * 1000:.1f}mm"
                     )
 
-                    # Real assets rising above the floor trigger the thickness test (>2mm).
-                    # Substantial clusters fall back to count checks to handle low-profile objects safely.
                     if height_thickness > 0.002 or cluster_count > 100:
                         chosen_cluster_idx = cluster_id
                         break
 
-                # Fallback directly to the largest available group if all appear flat
                 if chosen_cluster_idx is None:
                     chosen_cluster_idx = unique_labels[sorted_indices[0]]
 
@@ -173,20 +163,22 @@ class SegmentationHelper:
         else:
             clean_object_cloud = outlier_cloud
 
-        # 3. Project the dynamically isolated 3D cluster coordinates back onto the 2D pixel mask
+        # 3. FIXED PROJECTION MATRIX
         fx = self.intrinsics.intrinsic_matrix[0][0]
         fy = self.intrinsics.intrinsic_matrix[1][1]
         cx = self.intrinsics.intrinsic_matrix[0][2]
         cy = self.intrinsics.intrinsic_matrix[1][2]
 
         mask = np.zeros((h, w), dtype=np.uint8)
-        points_3d = np.asarray(clean_object_cloud.points)
 
+        # Project Open3D coordinates back into the unshifted 2D pixel space
+        points_3d = np.asarray(clean_object_cloud.points)
         if len(points_3d) > 0:
             for x, y, z in points_3d:
                 if z <= 0:
                     continue
-                # Map standard spatial matrices back onto the active cropped coordinate space
+
+                # Math fix: Project to standard camera coordinate space
                 u = int((x * fx / z) + cx)
                 v = int((y * fy / z) + cy)
 
@@ -197,7 +189,7 @@ class SegmentationHelper:
             f"[DEBUG] Projected isolated cluster mask contains {np.count_nonzero(mask)} active pixels."
         )
 
-        # 4. Standard post-processing ROI filters and cleaners
+        # 4. Post-processing filters
         mask = self._apply_belt_roi(mask)
 
         yy, xx = np.mgrid[0:h, 0:w]
