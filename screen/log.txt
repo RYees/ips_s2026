@@ -1,21 +1,46 @@
 ==========================================================
 [DATA] Successfully loaded cloud.
-[DATA] Total 3D coordinates captured: 259190
-[DATA] Points belonging to floor surface: 219703
-[DATA] Points belonging to outliers (Objects + Noise): 39487
-[CLUSTER] Found 8 distinct 3D shapes in the outlier space.
+[DATA] Total 3D coordinates captured: 259108
+[DATA] Points belonging to floor surface: 219665
+[DATA] Points belonging to outliers (Objects + Noise): 39443
+[CLUSTER] Found 10 distinct 3D shapes in the outlier space.
 
 Cluster ID   | Point Count  | Width (mm) | Length (mm) | Height (mm) | Type Inference
 -------------------------------------------------------------------------------------
-Cluster #0    | 787          | 36.8       | 51.2       | 31.0       | Small 3D Object (Nail / Component)
-Cluster #1    | 14           | 4.1        | 5.0        | 1.8        | Scatter Artifact / Noise Dust
-Cluster #2    | 21810        | 161.1      | 175.0      | 33.1       | Massive 3D Volume Object (Box)
-Cluster #3    | 5267         | 54.1       | 55.5       | 34.0       | Small 3D Object (Nail / Component)
-Cluster #4    | 9755         | 124.4      | 146.0      | 70.3       | Scatter Artifact / Noise Dust
-Cluster #5    | 1503         | 76.4       | 210.2      | 64.0       | Scatter Artifact / Noise Dust
-Cluster #6    | 289          | 10.4       | 15.4       | 5.0        | Small 3D Object (Nail / Component)
-Cluster #7    | 53           | 6.0        | 9.6        | 4.4        | Small 3D Object (Nail / Component)
+Cluster #0    | 1088         | 39.2       | 51.9       | 31.0       | Small 3D Object (Nail / Component)
+Cluster #1    | 11           | 15.1       | 17.0       | 3.0        | Small 3D Object (Nail / Component)
+Cluster #2    | 22358        | 162.9      | 176.0      | 33.3       | Massive 3D Volume Object (Box)
+Cluster #3    | 5222         | 52.1       | 55.6       | 34.0       | Small 3D Object (Nail / Component)
+Cluster #4    | 9081         | 122.7      | 138.0      | 70.0       | Scatter Artifact / Noise Dust
+Cluster #5    | 1490         | 68.9       | 209.2      | 61.0       | Scatter Artifact / Noise Dust
+Cluster #6    | 6            | 2.0        | 11.1       | 1.4        | Scatter Artifact / Noise Dust
+Cluster #7    | 82           | 7.2        | 10.9       | 3.0        | Small 3D Object (Nail / Component)
+Cluster #8    | 61           | 12.0       | 80.7       | 3.1        | Scatter Artifact / Noise Dust
+Cluster #9    | 39           | 5.0        | 10.2       | 4.6        | Small 3D Object (Nail / Component)
 ==========================================================
 
 
+=== COORD PROJECTION & MULTI-OBJECT VALIDATION RADAR ===
+[DATA] Loaded point cloud containing 259108 points.
+
+--- PROCESSING ALL DETECTED 3D CLUSTERS ---
+[FILTERED] Cluster #0: 30 pts. GHOST NOISE (Base floats at 10.5mm).
+[FILTERED] Cluster #1: 397 pts. GHOST NOISE (Base floats at 16.7mm).
+[FILTERED] Cluster #2: 261 pts. GHOST NOISE (Base floats at 17.7mm).
+[FILTERED] Cluster #3: 11 pts. GHOST NOISE (Base floats at 13.9mm).
+[FILTERED] Cluster #4: 21491 pts. GHOST NOISE (Base floats at 15.0mm).
+[FILTERED] Cluster #5: 5489 pts. GHOST NOISE (Base floats at 11.6mm).
+[FILTERED] Cluster #6: 10456 pts. GHOST NOISE (Base floats at 6.4mm).
+[FILTERED] Cluster #7: 1490 pts. GHOST NOISE (Base floats at 971.5mm).
+[FILTERED] Cluster #8: 320 pts. GHOST NOISE (Base floats at 8.7mm).
+[PASSED] Cluster #9: 116 pts. Touches belt (Base Dist=5.1mm).
+[FILTERED] Cluster #10: 64 pts. GHOST NOISE (Base floats at 13.3mm).
+
+[TOTAL TARGETS] Combined validated physical points to project: 116
+
+--- SIMULATING PROJECTION LOCATIONS FOR VALIDATED OBJECTS ---
+[UNSHIFTED (Standard Matrix)] Points landed inside window: 116 pts. Average column (u) = 174
+[SHIFTED (Crop Compensated)] Out of window bounds!
+
+[SAVED] Diagnostic tracking map written to: projection_diagnostic_radar.png
 
