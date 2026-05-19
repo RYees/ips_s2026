@@ -239,116 +239,138 @@ class SegmentationHelper:
         h, w = depth_image.shape
 
         valid_mask = (depth_m > 0.2) & (depth_m < 1.5)
-        depth_m = np.where(
-            valid_mask, depth_m, 0
-        )  # Removes invalid depth values to avoid noise
+        depth_m = np.where(valid_mask, depth_m, 0)
         print(
             f"[DEBUG] Valid depth pixels after filtering: {np.count_nonzero(depth_m)}"
         )
 
-        depth_o3d = o3d.geometry.Image(depth_m)  # Prepare Open3D Depth image
-
+        depth_o3d = o3d.geometry.Image(depth_m)
         pcd = o3d.geometry.PointCloud.create_from_depth_image(
             depth_o3d, self.intrinsics, depth_scale=1.0, depth_trunc=3.0, stride=1
         )
-        print(f"[DEBUG] Full point cloud has {len(pcd.points)} points.")
 
-        if (
-            len(pcd.points) < self.ransac_n
-        ):  # Skips plane detection if the point cloud has too few points
-            print("[WARNING] Not enough points for plane segmentation.")
-            return self._empty_result(h, w)
+        if len(pcd.points) < 3:
+            print("[WARNING] Empty point cloud cluster.")
+            return np.zeros((h, w), dtype=np.uint8), [0, 0, 0, 0], 0, 0, None
 
+        # 1. Estimate conveyor floor plane structure via RANSAC
         plane_model, inliers = pcd.segment_plane(
             distance_threshold=self.distance_threshold,
             ransac_n=self.ransac_n,
             num_iterations=self.num_iterations,
-        )  # Segment dominant plane using RANSAC
+        )
         [a, b, c, d] = plane_model
-        print(f"[INFO] Plane equation: {a:.2f}x + {b:.2f}y + {c:.2f}z + {d:.2f} = 0")
 
         inlier_cloud = pcd.select_by_index(inliers)
         outlier_cloud = pcd.select_by_index(inliers, invert=True)
-        print(f"[DEBUG] Plane inliers: {len(inlier_cloud.points)}")
-        print(f"[DEBUG] Non-plane points: {len(outlier_cloud.points)}")
 
-        # =========================================================================
-        # FIX 1: Use 3D DBSCAN to separate the real object from background sensor jitter
-        # =========================================================================
-        if len(outlier_cloud.points) > 10:
-            # eps=0.02 (2cm max spacing), min_points=30 filters out sparse pixel sprays
+        total_outlier_count = len(outlier_cloud.points)
+        print(f"[DEBUG] Plane floor inliers: {len(inlier_cloud.points)}")
+        print(f"[DEBUG] Initial raw outliers: {total_outlier_count}")
+
+        # 2. ADAPTIVE 3D CLUSTERING FOR ANY SHAPE/SIZE OBJECT
+        clean_object_cloud = o3d.geometry.PointCloud()
+
+        # We lower the minimum seed requirement drastically to 8 points to ensure
+        # a thin steel wire or small nail is never ignored by the initial scan.
+        if total_outlier_count > 8:
+            # Tight connectivity (1.5 cm) prevents small objects from merging into floor artifacts
             labels = np.array(
                 outlier_cloud.cluster_dbscan(
-                    eps=0.02, min_points=30, print_progress=False
+                    eps=0.015, min_points=8, print_progress=False
                 )
             )
 
             if labels.size > 0 and np.any(labels >= 0):
-                valid_labels = labels[labels >= 0]
-                if valid_labels.size > 0:
-                    largest_cluster_idx = np.argmax(np.bincount(valid_labels))
+                unique_labels, counts = np.unique(
+                    labels[labels >= 0], return_counts=True
+                )
 
-                    # Lock onto only the single dense 3D structure (the object)
-                    object_indices = np.where(labels == largest_cluster_idx)[0]
-                    outlier_cloud = outlier_cloud.select_by_index(object_indices)
+                # Sort clusters by point counts descending
+                sorted_indices = np.argsort(counts)[::-1]
+
+                chosen_cluster_idx = None
+
+                # DYNAMIC DISCRIMINATION LOGIC:
+                # Loop through clusters to ensure we select a real object instead of a flat glare field.
+                for idx in sorted_indices:
+                    cluster_id = unique_labels[idx]
+                    cluster_count = counts[idx]
+
+                    # Temporarily isolate this specific cluster
+                    temp_indices = np.where(labels == cluster_id)[0]
+                    temp_cloud = outlier_cloud.select_by_index(list(temp_indices))
+
+                    # Calculate its physical height/thickness bounding box
+                    bbox = temp_cloud.get_axis_aligned_bounding_box()
+                    extent = bbox.get_extent()  # [width, height, depth_thickness]
+                    height_thickness = extent[
+                        2
+                    ]  # Z-axis extent represents height relative to belt
+
+                    # Diagnostic logging for tracking thin wires/nails
                     print(
-                        f"[DEBUG] Isolated 3D object cluster contains {len(outlier_cloud.points)} points."
+                        f"[CLUSTER TRACE] ID #{cluster_id}: {cluster_count} points, Height Extent={height_thickness * 1000:.1f}mm"
                     )
-        # =========================================================================
 
-        # =========================================================================
-        # FIX 2: Project ONLY the isolated object points back into a clean depth map
-        # =========================================================================
-        clean_depth_m = np.zeros_like(depth_m)
+                    # A true physical object has structural thickness rising above the floor.
+                    # Flat glare noise arrays on the belt surface have a height extent near 0.
+                    # If it rises more than 2 millimeters or contains a solid core, it's our target!
+                    if height_thickness > 0.002 or cluster_count > 100:
+                        chosen_cluster_idx = cluster_id
+                        break
+
+                # Fallback to the absolute largest group if everything is ultra-flat
+                if chosen_cluster_idx is None:
+                    chosen_cluster_idx = unique_labels[sorted_indices[0]]
+
+                valid_indices = np.where(labels == chosen_cluster_idx)[0]
+                clean_object_cloud = outlier_cloud.select_by_index(list(valid_indices))
+                print(
+                    f"[SUCCESS] Target Identified: Isolated cluster #{chosen_cluster_idx} containing {len(clean_object_cloud.points)} points."
+                )
+            else:
+                print("[WARNING] No dense 3D shapes formed. Preserving raw outliers.")
+                clean_object_cloud = outlier_cloud
+        else:
+            clean_object_cloud = outlier_cloud
+
+        # 3. Project the dynamically isolated 3D cluster coordinates back onto the 2D pixel mask
         fx = self.intrinsics.intrinsic_matrix[0][0]
         fy = self.intrinsics.intrinsic_matrix[1][1]
         cx = self.intrinsics.intrinsic_matrix[0][2]
         cy = self.intrinsics.intrinsic_matrix[1][2]
 
-        for point in np.asarray(outlier_cloud.points):
-            x_val, y_val, z_val = point
-            if z_val <= 0:
+        mask = np.zeros((h, w), dtype=np.uint8)
+        for x, y, z in np.asarray(clean_object_cloud.points):
+            if z <= 0:
                 continue
-            u = int((x_val * fx / z_val) + cx)
-            v = int((y_val * fy / z_val) + cy)
+            u = int((x * fx / z) + cx)
+            v = int((y * fy / z) + cy)
             if 0 <= u < w and 0 <= v < h:
-                clean_depth_m[v, u] = z_val
+                mask[v, u] = 1
 
-        # Calculate coordinates and residuals strictly based on our cleaned object mask
-        yy, xx = np.mgrid[0:h, 0:w]
-        z = clean_depth_m
-        x = (xx - cx) * z / fx
-        y = (yy - cy) * z / fy
-
-        plane_norm = np.sqrt(a * a + b * b + c * c)
-        residual = np.abs(a * x + b * y + c * z + d) / max(plane_norm, 1e-8)
-
-        # Since 3D cloud is pre-cleaned, we can confidently capture points clearing the base distance threshold
-        mask = ((z > 0) & (residual > self.distance_threshold)).astype(np.uint8)
-        projected_foreground = int(np.count_nonzero(mask))
-        print(f"[DEBUG] Mask projection: isolated foreground={projected_foreground}")
-        # =========================================================================
-
-        # Apply your downstream ROI and filtering workflows safely without fallback triggers
+        # Apply standard region of interest margins
         mask = self._apply_belt_roi(mask)
-        mask = self._clean_mask(
-            mask, residual_map=residual, residual_threshold=self.distance_threshold
-        )
-        print(
-            f"[DEBUG] Mask projection: final cleaned foreground={int(np.count_nonzero(mask))}"
+
+        # Prepare tracking matrices for secondary cleaners
+        yy, xx = np.mgrid[0:h, 0:w]
+        plane_norm = np.sqrt(a * a + b * b + c * c)
+        res_x = (xx - cx) * depth_m / fx
+        res_y = (yy - cy) * depth_m / fy
+        residual_map = np.abs(a * res_x + b * res_y + c * depth_m + d) / max(
+            plane_norm, 1e-8
         )
 
-        # Visualize color cues
-        inlier_cloud.paint_uniform_color([1.0, 0.0, 0.0])  # Plane points show Red
-        outlier_cloud.paint_uniform_color(
-            [0.0, 1.0, 0.0]
-        )  # True Object cluster shows Green
-        # o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud])
+        # Clean up stray noise pixels
+        mask = self._clean_mask(
+            mask, residual_map=residual_map, residual_threshold=self.distance_threshold
+        )
 
         return (
             mask,
             plane_model,
             len(inlier_cloud.points),
-            len(outlier_cloud.points),
-            pcd,
+            len(clean_object_cloud.points),
+            clean_object_cloud,
         )
