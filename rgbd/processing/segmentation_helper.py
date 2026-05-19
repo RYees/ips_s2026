@@ -21,7 +21,7 @@ class SegmentationHelper:
         empty_pcd = o3d.geometry.PointCloud()
         return empty_mask, (0.0, 0.0, 1.0, 0.0), 0, 0, empty_pcd
 
-    def _clean_mask(self, mask):
+    def _clean_mask(self, mask, residual_map=None, residual_threshold=None):
         h, w = mask.shape
         cleaned = (mask > 0).astype(np.uint8)
         raw_foreground = int(np.count_nonzero(cleaned))
@@ -58,11 +58,23 @@ class SegmentationHelper:
             touches_left = x <= 1
             touches_right = x + bw >= w - 2
             touches_border = touches_left or touches_right or y <= 1 or y + bh >= h - 2
+            aspect_ratio = max(bw / max(bh, 1), bh / max(bw, 1))
             strip_like = (
                 (touches_left or touches_right)
                 and bw <= int(w * self.edge_strip_width_ratio)
                 and bh >= int(h * self.edge_strip_height_ratio)
-                and max(bw / max(bh, 1), bh / max(bw, 1)) >= self.edge_strip_aspect_ratio
+                and aspect_ratio >= self.edge_strip_aspect_ratio
+            )
+            mean_residual = 0.0
+            max_residual = 0.0
+            if residual_map is not None:
+                comp_residuals = residual_map[labels == idx]
+                if comp_residuals.size:
+                    mean_residual = float(np.mean(comp_residuals))
+                    max_residual = float(np.max(comp_residuals))
+            residual_ok = (
+                residual_threshold is None
+                or mean_residual >= residual_threshold * 1.05
             )
             centroid = np.array(centroids[idx], dtype=np.float32)
             center_dist = float(np.linalg.norm(centroid - center))
@@ -77,6 +89,9 @@ class SegmentationHelper:
                     "centroid": (float(centroids[idx][0]), float(centroids[idx][1])),
                     "touches_border": touches_border,
                     "strip_like": strip_like,
+                    "mean_residual": mean_residual,
+                    "max_residual": max_residual,
+                    "residual_ok": residual_ok,
                     "score": score,
                 }
             )
@@ -89,6 +104,8 @@ class SegmentationHelper:
                     f"idx={cand['idx']} area={cand['area']} "
                     f"bbox={cand['bbox']} centroid=({cand['centroid'][0]:.1f}, {cand['centroid'][1]:.1f}) "
                     f"touches_border={cand['touches_border']} strip_like={cand['strip_like']} "
+                    f"mean_residual={cand['mean_residual']:.4f} max_residual={cand['max_residual']:.4f} "
+                    f"residual_ok={cand['residual_ok']} "
                     f"score={cand['score']:.4f}"
                 )
 
@@ -103,13 +120,23 @@ class SegmentationHelper:
             bh = int(stats[idx, cv2.CC_STAT_HEIGHT])
             touches_left = x <= 1
             touches_right = x + bw >= w - 2
+            aspect_ratio = max(bw / max(bh, 1), bh / max(bw, 1))
             strip_like = (
                 (touches_left or touches_right)
                 and bw <= int(w * self.edge_strip_width_ratio)
                 and bh >= int(h * self.edge_strip_height_ratio)
-                and max(bw / max(bh, 1), bh / max(bw, 1)) >= self.edge_strip_aspect_ratio
+                and aspect_ratio >= self.edge_strip_aspect_ratio
             )
-            if strip_like:
+            mean_residual = 0.0
+            if residual_map is not None:
+                comp_residuals = residual_map[labels == idx]
+                if comp_residuals.size:
+                    mean_residual = float(np.mean(comp_residuals))
+            residual_ok = (
+                residual_threshold is None
+                or mean_residual >= residual_threshold * 1.05
+            )
+            if strip_like or not residual_ok:
                 continue
 
             selected_indices.append(idx)
@@ -238,14 +265,30 @@ class SegmentationHelper:
         y = (yy - cy) * z / fy
         plane_norm = np.sqrt(a * a + b * b + c * c)
         residual = np.abs(a * x + b * y + c * z + d) / max(plane_norm, 1e-8)
-        mask = ((z > 0) & valid_mask & (residual > self.residual_threshold)).astype(np.uint8)
+        adaptive_threshold = self.residual_threshold
+        if residual.size:
+            valid_residuals = residual[valid_mask]
+            if valid_residuals.size:
+                median_residual = float(np.median(valid_residuals))
+                mad_residual = float(np.median(np.abs(valid_residuals - median_residual)))
+                adaptive_threshold = max(
+                    self.residual_threshold,
+                    median_residual + 4.0 * 1.4826 * mad_residual,
+                )
+                print(
+                    f"[DEBUG] Residual stats: median={median_residual:.4f}, "
+                    f"mad={mad_residual:.4f}, adaptive_threshold={adaptive_threshold:.4f}"
+                )
+
+        mask = ((z > 0) & valid_mask & (residual > adaptive_threshold)).astype(np.uint8)
         projected_foreground = int(np.count_nonzero(mask))
         print(
-            f"[DEBUG] Mask projection: residual_threshold={self.residual_threshold:.4f}, "
+            f"[DEBUG] Mask projection: base_threshold={self.residual_threshold:.4f}, "
+            f"adaptive_threshold={adaptive_threshold:.4f}, "
             f"projected foreground={projected_foreground}"
         )
 
-        mask = self._clean_mask(mask)
+        mask = self._clean_mask(mask, residual_map=residual, residual_threshold=adaptive_threshold)
         print(f"[DEBUG] Mask projection: cleaned foreground={int(np.count_nonzero(mask))}")
 
         # Visualize
