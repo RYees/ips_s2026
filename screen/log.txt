@@ -3,21 +3,21 @@
 [DATA] Total 3D Points captured: 259102
 
 === RANSAC GEOMETRY RESULTS ===
-[RANSAC] Plane Equation: 0.0148x + -0.1571y + 0.9875z + -0.4826 = 0
-[RANSAC] Floor/Plane Inliers (Red): 217511 (83.95%)
-[RANSAC] Target Object Outliers (Green): 41591 (16.05%)
+[RANSAC] Plane Equation: 0.0132x + -0.1572y + 0.9875z + -0.4827 = 0
+[RANSAC] Floor/Plane Inliers (Red): 217275 (83.86%)
+[RANSAC] Target Object Outliers (Green): 41827 (16.14%)
 
 === 3D CLUSTERING TEST ===
 [CLUSTER] Found 8 dense clusters.
-   -> Cluster #0: contains 1151 points
-   -> Cluster #1: contains 33 points
-   -> Cluster #2: contains 22981 points
-   -> Cluster #3: contains 5707 points
-   -> Cluster #4: contains 9820 points
+   -> Cluster #0: contains 1227 points
+   -> Cluster #1: contains 23401 points
+   -> Cluster #2: contains 5559 points
+   -> Cluster #3: contains 9433 points
+   -> Cluster #4: contains 380 points
    -> Cluster #5: contains 1500 points
-   -> Cluster #6: contains 256 points
-   -> Cluster #7: contains 138 points
-[CLUSTER] Largest isolated object cluster is #2 with 22981 points.
+   -> Cluster #6: contains 121 points
+   -> Cluster #7: contains 191 points
+[CLUSTER] Largest isolated object cluster is #1 with 23401 points.
 
 [INFO] Launching interactive 3D window...
  -> INSTRUCTIONS: Use left click to rotate, right click to pan, scroll wheel to zoom.
