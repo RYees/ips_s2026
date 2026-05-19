@@ -16,7 +16,6 @@ class SegmentationHelper:
         self.belt_margin_x_ratio = 0.12
         self.belt_margin_y_ratio = 0.02
         self.min_component_area_ratio = 0.0005
-        self.edge_strip_width_ratio = 0.15
 
     def _apply_belt_roi(self, mask):
         h, w = mask.shape
@@ -72,6 +71,26 @@ class SegmentationHelper:
         inlier_cloud = pcd.select_by_index(inliers)
         outlier_cloud = pcd.select_by_index(inliers, invert=True)
 
+        # ==========================================================
+        # STATISTICAL THRESHOLD ENGINE
+        # Calculate the exact noise variance of the floor in this specific frame
+        # ==========================================================
+        floor_pts = np.asarray(inlier_cloud.points)
+        floor_distances = (
+            np.abs(a * floor_pts[:, 0] + b * floor_pts[:, 1] + c * floor_pts[:, 2] + d)
+            / plane_norm
+        )
+
+        # Calculate standard deviation of the plane error
+        sigma = np.std(floor_distances)
+
+        # Dynamic cutoff threshold set to 3.5 Sigma + a baseline minimum floor thickness (5mm)
+        adaptive_cutoff = max(0.005, 3.5 * sigma)
+        print(
+            f"[DYNAMIC ENGINE] Floor Noise Sigma={sigma * 1000:.2f}mm. Adaptive Outlier Cutoff Threshold={adaptive_cutoff * 1000:.2f}mm"
+        )
+        # ==========================================================
+
         # 2. Extract clusters via 3D DBSCAN spatial connectivity mapping
         final_object_cloud = o3d.geometry.PointCloud()
         mask = np.zeros((h, w), dtype=np.uint8)
@@ -105,15 +124,15 @@ class SegmentationHelper:
                     min_dist_to_plane = np.min(distances)
                     max_height = np.max(distances)
 
-                    # --- CORRECTION: Tolerates up to 18mm of floor plane drift ---
-                    if min_dist_to_plane < 0.018 and max_height > 0.0015:
+                    # Apply the dynamic adaptive threshold
+                    if min_dist_to_plane < adaptive_cutoff and max_height > 0.0015:
                         valid_object_indices.extend(temp_indices)
                         print(
                             f"[TRACKER] Valid Object Confirmed (ID #{cluster_id}): {len(cluster_pts)} pts, Base Dist={min_dist_to_plane * 1000:.1f}mm"
                         )
                     else:
                         print(
-                            f"[REJECTED] Ghost Reflection Filtered (ID #{cluster_id}): Base floats at {min_dist_to_plane * 1000:.1f}mm"
+                            f"[REJECTED] Ghost Reflection Filtered (ID #{cluster_id}): Base sits at {min_dist_to_plane * 1000:.1f}mm (Cutoff={adaptive_cutoff * 1000:.2f}mm)"
                         )
 
                 if len(valid_object_indices) > 0:
