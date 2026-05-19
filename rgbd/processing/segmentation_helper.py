@@ -31,208 +31,52 @@ class SegmentationHelper:
             roi[-y_margin:, :] = 0
             roi[:, :x_margin] = 0
             roi[:, -x_margin:] = 0
-        print(
-            f"[DEBUG] Belt ROI: x_margin={x_margin}, y_margin={y_margin}, "
-            f"foreground={int(np.count_nonzero(roi))}"
-        )
         return roi
 
-    def _empty_result(self, h, w):
-        empty_mask = np.zeros((h, w), dtype=np.uint8)
-        empty_pcd = o3d.geometry.PointCloud()
-        return empty_mask, (0.0, 0.0, 1.0, 0.0), 0, 0, empty_pcd
-
-    def _clean_mask(self, mask, residual_map=None, residual_threshold=None):
+    def _clean_mask(self, mask, residual_map, residual_threshold):
         h, w = mask.shape
-        cleaned = (mask > 0).astype(np.uint8)
-        raw_foreground = int(np.count_nonzero(cleaned))
-        print(f"[DEBUG] Mask cleanup: raw foreground={raw_foreground}")
+        if np.count_nonzero(mask) == 0:
+            return mask
 
-        close_kernel = np.ones((5, 5), np.uint8)
-        open_kernel = np.ones((3, 3), np.uint8)
-        cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, close_kernel)
-        cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_OPEN, open_kernel)
-        after_morph = int(np.count_nonzero(cleaned))
-        print(f"[DEBUG] Mask cleanup: after morphology={after_morph}")
+        # Remove small isolated pixel groups
+        min_area = int(h * w * self.min_component_area_ratio)
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        cleaned = np.zeros_like(mask)
 
-        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(
-            cleaned, connectivity=8
-        )
-        if num_labels <= 1:
-            print("[DEBUG] Mask cleanup: no connected components survived")
-            return cleaned
+        for cnt in contours:
+            if cv2.contourArea(cnt) >= min_area:
+                cv2.drawContours(cleaned, [cnt], -1, 1, thickness=cv2.FILLED)
 
-        min_area = max(8, int(h * w * self.min_component_area_ratio))
-        center = np.array([w / 2.0, h / 2.0], dtype=np.float32)
-        selected_indices = []
-        candidate_logs = []
+        # Clear side artifacts using a mathematical bounding grid profile
+        final_mask = cleaned.copy()
+        edge_w = int(w * self.edge_strip_width_ratio)
+        edge_h = int(h * self.edge_strip_height_ratio)
 
-        for idx in range(1, num_labels):
-            area = int(stats[idx, cv2.CC_STAT_AREA])
-            if area < min_area:
-                continue
+        for side in ["left", "right"]:
+            x_start = 0 if side == "left" else w - edge_w
+            x_end = edge_w if side == "left" else w
+            roi_strip = final_mask[:, x_start:x_end]
 
-            x = int(stats[idx, cv2.CC_STAT_LEFT])
-            y = int(stats[idx, cv2.CC_STAT_TOP])
-            bw = int(stats[idx, cv2.CC_STAT_WIDTH])
-            bh = int(stats[idx, cv2.CC_STAT_HEIGHT])
-            touches_left = x <= 1
-            touches_right = x + bw >= w - 2
-            touches_border = touches_left or touches_right or y <= 1 or y + bh >= h - 2
-            aspect_ratio = max(bw / max(bh, 1), bh / max(bw, 1))
-            strip_like = (
-                (touches_left or touches_right)
-                and bw <= int(w * self.edge_strip_width_ratio)
-                and bh >= int(h * self.edge_strip_height_ratio)
-                and aspect_ratio >= self.edge_strip_aspect_ratio
+            strip_contours, _ = cv2.findContours(
+                roi_strip, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
             )
-            mean_residual = 0.0
-            max_residual = 0.0
-            if residual_map is not None:
-                comp_residuals = residual_map[labels == idx]
-                if comp_residuals.size:
-                    mean_residual = float(np.mean(comp_residuals))
-                    max_residual = float(np.max(comp_residuals))
-            residual_ok = (
-                residual_threshold is None or mean_residual >= residual_threshold * 1.05
-            )
-            centroid = np.array(centroids[idx], dtype=np.float32)
-            center_dist = float(np.linalg.norm(centroid - center))
-            score = float(area) / (1.0 + center_dist)
-            if strip_like:
-                score *= 0.1
-            candidate_logs.append(
-                {
-                    "idx": idx,
-                    "area": area,
-                    "bbox": (x, y, bw, bh),
-                    "centroid": (float(centroids[idx][0]), float(centroids[idx][1])),
-                    "touches_border": touches_border,
-                    "strip_like": strip_like,
-                    "mean_residual": mean_residual,
-                    "max_residual": max_residual,
-                    "residual_ok": residual_ok,
-                    "score": score,
-                }
-            )
+            for sc in strip_contours:
+                sx, sy, sw, sh = cv2.boundingRect(sc)
+                if (
+                    sh > 0
+                    and (sw / sh) > self.edge_strip_aspect_ratio
+                    and sw > (edge_w * 0.4)
+                ):
+                    if sy < edge_h or sy > (h - edge_h - sh):
+                        cv2.drawContours(
+                            final_mask[:, x_start:x_end],
+                            [sc],
+                            -1,
+                            0,
+                            thickness=cv2.FILLED,
+                        )
 
-        if candidate_logs:
-            top_candidates = sorted(
-                candidate_logs, key=lambda item: item["score"], reverse=True
-            )[:3]
-            for cand in top_candidates:
-                print(
-                    "[DEBUG] Mask cleanup candidate: "
-                    f"idx={cand['idx']} area={cand['area']} "
-                    f"bbox={cand['bbox']} centroid=({cand['centroid'][0]:.1f}, {cand['centroid'][1]:.1f}) "
-                    f"touches_border={cand['touches_border']} strip_like={cand['strip_like']} "
-                    f"mean_residual={cand['mean_residual']:.4f} max_residual={cand['max_residual']:.4f} "
-                    f"residual_ok={cand['residual_ok']} "
-                    f"score={cand['score']:.4f}"
-                )
-
-        for idx in range(1, num_labels):
-            area = int(stats[idx, cv2.CC_STAT_AREA])
-            if area < min_area:
-                continue
-
-            x = int(stats[idx, cv2.CC_STAT_LEFT])
-            y = int(stats[idx, cv2.CC_STAT_TOP])
-            bw = int(stats[idx, cv2.CC_STAT_WIDTH])
-            bh = int(stats[idx, cv2.CC_STAT_HEIGHT])
-            touches_left = x <= 1
-            touches_right = x + bw >= w - 2
-            aspect_ratio = max(bw / max(bh, 1), bh / max(bw, 1))
-            strip_like = (
-                (touches_left or touches_right)
-                and bw <= int(w * self.edge_strip_width_ratio)
-                and bh >= int(h * self.edge_strip_height_ratio)
-                and aspect_ratio >= self.edge_strip_aspect_ratio
-            )
-            mean_residual = 0.0
-            if residual_map is not None:
-                comp_residuals = residual_map[labels == idx]
-                if comp_residuals.size:
-                    mean_residual = float(np.mean(comp_residuals))
-            residual_ok = (
-                residual_threshold is None or mean_residual >= residual_threshold * 1.05
-            )
-            if strip_like or not residual_ok:
-                continue
-
-            selected_indices.append(idx)
-
-        if not selected_indices:
-            non_strip_indices = []
-            for idx in range(1, num_labels):
-                area = int(stats[idx, cv2.CC_STAT_AREA])
-                if area < min_area:
-                    continue
-                x = int(stats[idx, cv2.CC_STAT_LEFT])
-                bw = int(stats[idx, cv2.CC_STAT_WIDTH])
-                touches_left = x <= 1
-                touches_right = x + bw >= w - 2
-                strip_like = (
-                    (touches_left or touches_right)
-                    and bw <= int(w * self.edge_strip_width_ratio)
-                    and int(stats[idx, cv2.CC_STAT_HEIGHT])
-                    >= int(h * self.edge_strip_height_ratio)
-                    and max(
-                        bw / max(int(stats[idx, cv2.CC_STAT_HEIGHT]), 1),
-                        int(stats[idx, cv2.CC_STAT_HEIGHT]) / max(bw, 1),
-                    )
-                    >= self.edge_strip_aspect_ratio
-                )
-                if not strip_like:
-                    non_strip_indices.append(idx)
-            if non_strip_indices:
-                best_idx = max(
-                    non_strip_indices, key=lambda idx: int(stats[idx, cv2.CC_STAT_AREA])
-                )
-            else:
-                best_idx = int(np.argmax(stats[1:, cv2.CC_STAT_AREA])) + 1
-            print(
-                f"[DEBUG] Mask cleanup: no component met selection rules, "
-                f"falling back to largest component idx={best_idx}"
-            )
-            selected_indices = [best_idx]
-
-        selected_indices = sorted(set(selected_indices))
-        component = np.zeros_like(cleaned)
-        for idx in selected_indices:
-            component[labels == idx] = 1
-
-        selected_area = int(np.count_nonzero(component))
-        print(
-            f"[DEBUG] Mask cleanup: connected components={num_labels - 1}, "
-            f"min_area={min_area}, selected_indices={selected_indices}, "
-            f"selected_area={selected_area}"
-        )
-
-        if len(selected_indices) > 1:
-            print(
-                f"[DEBUG] Mask cleanup: keeping {len(selected_indices)} components before hull"
-            )
-
-        refined = np.zeros_like(component)
-        for idx in selected_indices:
-            single_component = np.zeros_like(component)
-            single_component[labels == idx] = 1
-            points = np.column_stack(np.where(single_component > 0))
-            if points.shape[0] >= 3:
-                hull = cv2.convexHull(points[:, ::-1].astype(np.int32))
-                hull_mask = np.zeros_like(single_component)
-                cv2.fillConvexPoly(hull_mask, hull, 1)
-                single_component = hull_mask
-            refined = cv2.bitwise_or(refined, single_component)
-
-        component = refined
-
-        dilate_kernel = np.ones((3, 3), np.uint8)
-        component = cv2.dilate(component, dilate_kernel, iterations=1)
-        final_area = int(np.count_nonzero(component))
-        print(f"[DEBUG] Mask cleanup: final area after dilation={final_area}")
-        return component.astype(np.uint8)
+        return final_mask
 
     def segment(self, depth_image, color_image):
         depth_m = depth_image.astype(np.float32) / 1000.0  # Convert mm to meters
@@ -271,10 +115,9 @@ class SegmentationHelper:
         # 2. ADAPTIVE 3D CLUSTERING FOR ANY SHAPE/SIZE OBJECT
         clean_object_cloud = o3d.geometry.PointCloud()
 
-        # We lower the minimum seed requirement drastically to 8 points to ensure
-        # a thin steel wire or small nail is never ignored by the initial scan.
+        # Low initial seed threshold (8 points) ensures thin objects like steel wires/nails are processed
         if total_outlier_count > 8:
-            # Tight connectivity (1.5 cm) prevents small objects from merging into floor artifacts
+            # Tight connectivity (1.5 cm neighborhood) keeps thin assets distinct from floor reflections
             labels = np.array(
                 outlier_cloud.cluster_dbscan(
                     eps=0.015, min_points=8, print_progress=False
@@ -286,41 +129,34 @@ class SegmentationHelper:
                     labels[labels >= 0], return_counts=True
                 )
 
-                # Sort clusters by point counts descending
+                # Sort clusters by total point counts descending
                 sorted_indices = np.argsort(counts)[::-1]
-
                 chosen_cluster_idx = None
 
-                # DYNAMIC DISCRIMINATION LOGIC:
-                # Loop through clusters to ensure we select a real object instead of a flat glare field.
+                # Examine clusters to isolate structural items from ultra-flat glare shapes
                 for idx in sorted_indices:
                     cluster_id = unique_labels[idx]
                     cluster_count = counts[idx]
 
-                    # Temporarily isolate this specific cluster
                     temp_indices = np.where(labels == cluster_id)[0]
                     temp_cloud = outlier_cloud.select_by_index(list(temp_indices))
 
-                    # Calculate its physical height/thickness bounding box
+                    # Evaluate physical height/thickness along the Z axis relative to the belt plane
                     bbox = temp_cloud.get_axis_aligned_bounding_box()
                     extent = bbox.get_extent()  # [width, height, depth_thickness]
-                    height_thickness = extent[
-                        2
-                    ]  # Z-axis extent represents height relative to belt
+                    height_thickness = extent[2]
 
-                    # Diagnostic logging for tracking thin wires/nails
                     print(
                         f"[CLUSTER TRACE] ID #{cluster_id}: {cluster_count} points, Height Extent={height_thickness * 1000:.1f}mm"
                     )
 
-                    # A true physical object has structural thickness rising above the floor.
-                    # Flat glare noise arrays on the belt surface have a height extent near 0.
-                    # If it rises more than 2 millimeters or contains a solid core, it's our target!
+                    # Real assets rising above the floor trigger the thickness test (>2mm).
+                    # Substantial clusters fall back to count checks to handle low-profile objects safely.
                     if height_thickness > 0.002 or cluster_count > 100:
                         chosen_cluster_idx = cluster_id
                         break
 
-                # Fallback to the absolute largest group if everything is ultra-flat
+                # Fallback directly to the largest available group if all appear flat
                 if chosen_cluster_idx is None:
                     chosen_cluster_idx = unique_labels[sorted_indices[0]]
 
@@ -330,7 +166,9 @@ class SegmentationHelper:
                     f"[SUCCESS] Target Identified: Isolated cluster #{chosen_cluster_idx} containing {len(clean_object_cloud.points)} points."
                 )
             else:
-                print("[WARNING] No dense 3D shapes formed. Preserving raw outliers.")
+                print(
+                    "[WARNING] No dense 3D structures formed. Preserving default outliers."
+                )
                 clean_object_cloud = outlier_cloud
         else:
             clean_object_cloud = outlier_cloud
@@ -342,18 +180,26 @@ class SegmentationHelper:
         cy = self.intrinsics.intrinsic_matrix[1][2]
 
         mask = np.zeros((h, w), dtype=np.uint8)
-        for x, y, z in np.asarray(clean_object_cloud.points):
-            if z <= 0:
-                continue
-            u = int((x * fx / z) + cx)
-            v = int((y * fy / z) + cy)
-            if 0 <= u < w and 0 <= v < h:
-                mask[v, u] = 1
+        points_3d = np.asarray(clean_object_cloud.points)
 
-        # Apply standard region of interest margins
+        if len(points_3d) > 0:
+            for x, y, z in points_3d:
+                if z <= 0:
+                    continue
+                # Map standard spatial matrices back onto the active cropped coordinate space
+                u = int((x * fx / z) + cx)
+                v = int((y * fy / z) + cy)
+
+                if 0 <= u < w and 0 <= v < h:
+                    mask[v, u] = 1
+
+        print(
+            f"[DEBUG] Projected isolated cluster mask contains {np.count_nonzero(mask)} active pixels."
+        )
+
+        # 4. Standard post-processing ROI filters and cleaners
         mask = self._apply_belt_roi(mask)
 
-        # Prepare tracking matrices for secondary cleaners
         yy, xx = np.mgrid[0:h, 0:w]
         plane_norm = np.sqrt(a * a + b * b + c * c)
         res_x = (xx - cx) * depth_m / fx
@@ -362,9 +208,11 @@ class SegmentationHelper:
             plane_norm, 1e-8
         )
 
-        # Clean up stray noise pixels
         mask = self._clean_mask(
             mask, residual_map=residual_map, residual_threshold=self.distance_threshold
+        )
+        print(
+            f"[DEBUG] Mask projection: final cleaned foreground={int(np.count_nonzero(mask))}"
         )
 
         return (
