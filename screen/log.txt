@@ -1,25 +1,12 @@
-=== STARTING SAVED POINT CLOUD DIAGNOSTIC ===
-[DATA] Successfully loaded point cloud.
-[DATA] Total 3D Points captured: 259102
+=== COORD PROJECTION RADAR DETECTOR ===
+[DATA] Loaded point cloud containing 259190 points.
+[SUCCESS] Isolated target cluster with 22246 points.
 
-=== RANSAC GEOMETRY RESULTS ===
-[RANSAC] Plane Equation: 0.0132x + -0.1572y + 0.9875z + -0.4827 = 0
-[RANSAC] Floor/Plane Inliers (Red): 217275 (83.86%)
-[RANSAC] Target Object Outliers (Green): 41827 (16.14%)
+[GEOMETRY CENTER] Real-world meters from lens center -> X: 0.089m, Y: -0.038m, Z: 0.348m
 
-=== 3D CLUSTERING TEST ===
-[CLUSTER] Found 8 dense clusters.
-   -> Cluster #0: contains 1227 points
-   -> Cluster #1: contains 23401 points
-   -> Cluster #2: contains 5559 points
-   -> Cluster #3: contains 9433 points
-   -> Cluster #4: contains 380 points
-   -> Cluster #5: contains 1500 points
-   -> Cluster #6: contains 121 points
-   -> Cluster #7: contains 191 points
-[CLUSTER] Largest isolated object cluster is #1 with 23401 points.
+--- SIMULATING PROJECTION LOCATIONS ---
+[UNSHIFTED (Normal Lens)] Points landed in frame: 22246 pts. Center Pixel column (u) = 438
+[SHIFTED (Crop Compensated)] Points landed in frame: 22246 pts. Center Pixel column (u) = 188
 
-[INFO] Launching interactive 3D window...
- -> INSTRUCTIONS: Use left click to rotate, right click to pan, scroll wheel to zoom.
- -> Look at it from a perfect horizontal side-view profile.
- -> Are there green points floating ABOVE the red plane? Or are they stuck flat on it?
+[SAVED] Diagnostic tracking map written to: projection_diagnostic_radar.png
+Please run this script and share the printed console lines text directly.

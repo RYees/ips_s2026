@@ -113,4 +113,4 @@ def debug_exact_projection(ply_path):
 
 
 if __name__ == "__main__":
-    debug_exact_projection("img0937.ply")
+    debug_exact_projection("/home/cpsstudent/Documents/ips_s2026/rgbd/dataset/pointcloud/img0937.ply")
