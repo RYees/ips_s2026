@@ -126,6 +126,8 @@ class SegmentationHelper:
                             continue
                         u = int((x * fx / z) + cx)
                         v = int((y * fy / z) + cy)
+
+                        # --- FIX: Guard the boundary check BEFORE indexing the mask ---
                         if 0 <= u < w and 0 <= v < h:
                             total_projected_pixels += 1
                             if visual_gate_mask[v, u] > 0:
