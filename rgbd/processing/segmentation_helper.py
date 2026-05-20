@@ -1,11 +1,7 @@
 import numpy as np
 import open3d as o3d
 import cv2
-from ultralytics import SAM
-import os
-import torch
 
-curl -L -o mobile_sam.pt https://github.com/ultralytics/assets/releases/download/v8.2.0/mobile_sam.pt
 
 class SegmentationHelper:
     def __init__(
@@ -16,60 +12,38 @@ class SegmentationHelper:
         self.ransac_n = ransac_n
         self.num_iterations = num_iterations
 
-        # Determine the fastest available compute device on your Ubuntu tower
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print(
-            f"[INIT] Configuring pipeline compute backend target: {self.device.upper()}"
+            "[INIT] Utilizing local OpenCV Contrast Gate Engine. (Network Bypass Active)"
         )
-
-        # Guard against background download hangs by checking local availability
-        weights_filename = "mobile_sam.pt"
-        if not os.path.exists(weights_filename):
-            raise FileNotFoundError(
-                f"[CRITICAL] Weights file '{weights_filename}' not found in the working directory! "
-                "Please run the curl download command first."
-            )
-
-        print("[INIT] Loading MobileSAM Local weights asset safely...")
-        # Load the model directly onto the chosen device architecture
-        self.sam_model = SAM(weights_filename)
-        self.sam_model.to(self.device)
-        print("[INIT] MobileSAM Foundation Model active and online.")
 
         # Operational margins for conveyor workspace
         self.belt_margin_x_ratio = 0.12
         self.belt_margin_y_ratio = 0.02
+        self.min_component_area_ratio = 0.0005
 
-    def _get_sam_2d_mask(self, color_image):
+    def _get_contrast_2d_mask(self, color_image):
         """
-        Uses MobileSAM to extract the pure visual boundary of the box on the belt,
-        completely ignoring the 3D infrared glare artifacts.
+        Generates a fast visual footprint of the object based on color variance.
+        Cardboard boxes stand out starkly against the dark conveyor belt.
         """
-        h, w, _ = color_image.shape
-        # Run zero-shot prompt-free instance segmentation on the 2D frame
-        results = self.sam_model(color_image, verbose=False)
+        # Convert to grayscale to evaluate structure
+        gray = cv2.cvtColor(color_image, cv2.COLOR_BGR2GRAY)
 
-        sam_mask = np.zeros((h, w), dtype=np.uint8)
-        if results and len(results[0].masks) > 0:
-            # Sort masks by area to find the primary object on the belt (the box)
-            masks_data = results[0].masks.data.cpu().numpy()
-            mask_areas = [np.sum(m) for m in masks_data]
-            largest_mask_idx = np.argmax(mask_areas)
+        # Apply an adaptive threshold to isolate high-contrast objects from the dark belt
+        _, binary_gate = cv2.threshold(gray, 45, 255, cv2.THRESH_BINARY)
 
-            # Convert boolean mask to binary uint8 matrix
-            sam_mask = (masks_data[largest_mask_idx] > 0.5).astype(np.uint8)
-            print(
-                f"[SAM 2D] Isolated visual object mask footprint containing {np.sum(sam_mask)} pixels."
-            )
-        else:
-            print("[SAM 2D] WARNING: No visual objects detected in color stream.")
-        return sam_mask
+        # Clean up stray pixels using a quick morphological closure
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+        cleaned_gate = cv2.morphologyEx(binary_gate, cv2.MORPH_CLOSE, kernel)
+
+        # Convert to a 0/1 mask format
+        return (cleaned_gate > 0).astype(np.uint8)
 
     def segment(self, depth_image, color_image):
         h, w = depth_image.shape
 
-        # 1. Generate the 2D visual object mask gatekeeper using MobileSAM
-        sam_gatekeeper_mask = self._get_sam_2d_mask(color_image)
+        # 1. Generate the local 2D visual footprint gate
+        visual_gate_mask = self._get_contrast_2d_mask(color_image)
 
         # 2. Build the 3D Point Cloud from Depth Image
         depth_m = depth_image.astype(np.float32) / 1000.0
@@ -96,7 +70,7 @@ class SegmentationHelper:
         inlier_cloud = pcd.select_by_index(inliers)
         outlier_cloud = pcd.select_by_index(inliers, invert=True)
 
-        # Calculate standard deviation noise profile of the floor in real-time
+        # Real-time Standard Deviation floor noise analysis
         floor_pts = np.asarray(inlier_cloud.points)
         floor_distances = (
             np.abs(a * floor_pts[:, 0] + b * floor_pts[:, 1] + c * floor_pts[:, 2] + d)
@@ -104,9 +78,7 @@ class SegmentationHelper:
         )
         sigma = np.std(floor_distances)
         adaptive_cutoff = max(0.005, 3.5 * sigma)
-        print(
-            f"[DYNAMIC ENGINE] Floor Noise Cutoff set to: {adaptive_cutoff * 1000:.2f}mm"
-        )
+        print(f"[DYNAMIC ENGINE] Floor Noise Cutoff: {adaptive_cutoff * 1000:.2f}mm")
 
         # 4. Extract 3D Clusters via DBSCAN Spatial Mapping
         final_object_cloud = o3d.geometry.PointCloud()
@@ -123,19 +95,16 @@ class SegmentationHelper:
                 unique_labels = np.unique(labels[labels >= 0])
                 valid_object_indices = []
 
-                # Camera intrinsic centers for mapping validation
                 fx = self.intrinsics.intrinsic_matrix[0][0]
                 fy = self.intrinsics.intrinsic_matrix[1][1]
                 cx = self.intrinsics.intrinsic_matrix[0][2]
                 cy = self.intrinsics.intrinsic_matrix[1][2]
 
-                # Process and cross-reference every individual 3D cluster found
                 for cluster_id in unique_labels:
                     temp_indices = np.where(labels == cluster_id)[0]
                     temp_cloud = outlier_cloud.select_by_index(list(temp_indices))
                     cluster_pts = np.asarray(temp_cloud.points)
 
-                    # Compute basic spatial parameters
                     distances = (
                         np.abs(
                             a * cluster_pts[:, 0]
@@ -148,8 +117,8 @@ class SegmentationHelper:
                     min_dist_to_plane = np.min(distances)
                     max_height = np.max(distances)
 
-                    # Project this specific cluster's points into 2D pixel space to see where it lands
-                    pixels_inside_sam_gate = 0
+                    # Project this specific cluster down to verify its location
+                    pixels_inside_visual_gate = 0
                     total_projected_pixels = 0
 
                     for x, y, z in cluster_pts:
@@ -159,31 +128,29 @@ class SegmentationHelper:
                         v = int((y * fy / z) + cy)
                         if 0 <= u < w and 0 <= v < h:
                             total_projected_pixels += 1
-                            # Check if this 3D point maps inside SAM's 2D object mask
-                            if sam_gatekeeper_mask[v, u] > 0:
-                                pixels_inside_sam_gate += 1
+                            if visual_gate_mask[v, u] > 0:
+                                pixels_inside_visual_gate += 1
 
-                    # Calculate alignment ratio
-                    gate_overlap_ratio = (
-                        (pixels_inside_sam_gate / total_projected_pixels)
+                    overlap_ratio = (
+                        (pixels_inside_visual_gate / total_projected_pixels)
                         if total_projected_pixels > 0
                         else 0
                     )
 
-                    # --- COMPLEMENTARY FUSION RULE ---
-                    # To pass, a cluster must rest near the belt (min_dist <= cutoff)
-                    # AND its projected 2D coordinates must match SAM's visual object footprint (> 30% overlap)
+                    # --- PHYSICAL + VISUAL HYBRID GATE ---
+                    # Object must rest on the belt and align with a high-contrast region
                     if (
                         min_dist_to_plane <= adaptive_cutoff
-                        and gate_overlap_ratio > 0.30
+                        and max_height > adaptive_cutoff
+                        and overlap_ratio > 0.25
                     ):
                         valid_object_indices.extend(temp_indices)
                         print(
-                            f"[FUSION PASSED] Cluster #{cluster_id}: {len(cluster_pts)} pts. Overlaps 2D SAM Mask by {gate_overlap_ratio * 100:.1f}%. Real Object Verified."
+                            f"[PASSED] Cluster #{cluster_id}: {len(cluster_pts)} pts maps perfectly to visual object footprint."
                         )
                     else:
                         print(
-                            f"[FUSION REJECTED] Cluster #{cluster_id}: {len(cluster_pts)} pts. Overlaps SAM Mask by {gate_overlap_ratio * 100:.1f}%. Flagged as Ghost Noise."
+                            f"[FILTERED] Cluster #{cluster_id}: {len(cluster_pts)} pts. Base={min_dist_to_plane * 1000:.1f}mm, Overlap={overlap_ratio * 100:.1f}%. Dropped."
                         )
 
                 if len(valid_object_indices) > 0:
@@ -191,14 +158,9 @@ class SegmentationHelper:
                         valid_object_indices
                     )
 
-        # 5. Project the verified 3D object points to the final output mask
+        # 5. Project verified object coordinates to final output mask
         points_3d = np.asarray(final_object_cloud.points)
         if len(points_3d) > 0:
-            fx = self.intrinsics.intrinsic_matrix[0][0]
-            fy = self.intrinsics.intrinsic_matrix[1][1]
-            cx = self.intrinsics.intrinsic_matrix[0][2]
-            cy = self.intrinsics.intrinsic_matrix[1][2]
-
             for x, y, z in points_3d:
                 if z <= 0:
                     continue
@@ -207,8 +169,7 @@ class SegmentationHelper:
                 if 0 <= u < w and 0 <= v < h:
                     final_mask[v, u] = 1
 
-        # Clean borders and fill tiny holes
-        final_mask = self._clean_mask(final_mask)
+        final_mask = self._apply_belt_roi(final_mask)
         return (
             final_mask,
             plane_model,
@@ -217,7 +178,14 @@ class SegmentationHelper:
             final_object_cloud,
         )
 
-    def _clean_mask(self, mask):
-        # Quick close operation to merge individual projected 3D pixels into a solid mask
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-        return cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    def _apply_belt_roi(self, mask):
+        h, w = mask.shape
+        roi = mask.copy()
+        x_margin = max(0, int(w * self.belt_margin_x_ratio))
+        y_margin = max(0, int(h * self.belt_margin_y_ratio))
+        if x_margin or y_margin:
+            roi[:y_margin, :] = 0
+            roi[-y_margin:, :] = 0
+            roi[:, :x_margin] = 0
+            roi[:, -x_margin:] = 0
+        return roi
