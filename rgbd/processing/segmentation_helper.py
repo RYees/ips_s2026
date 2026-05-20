@@ -124,12 +124,18 @@ class SegmentationHelper:
                     for x, y, z in cluster_pts:
                         if z <= 0:
                             continue
+
+                        # 1. Calculate raw projected pixel positions
                         u = int((x * fx / z) + cx)
                         v = int((y * fy / z) + cy)
 
-                        # --- FIX: Guard the boundary check BEFORE indexing the mask ---
+                        # 2. CRITICAL BOUNDARY GATE:
+                        # This outer 'if' statement must completely wrap the mask lookup.
+                        # If 'u' is 519 or 581, it skips the inside block entirely and NEVER crashes.
                         if 0 <= u < w and 0 <= v < h:
                             total_projected_pixels += 1
+
+                            # Safely read inside the verified bounds
                             if visual_gate_mask[v, u] > 0:
                                 pixels_inside_visual_gate += 1
 
