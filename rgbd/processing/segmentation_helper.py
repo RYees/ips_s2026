@@ -2,7 +2,10 @@ import numpy as np
 import open3d as o3d
 import cv2
 from ultralytics import SAM
+import os
+import torch
 
+curl -L -o mobile_sam.pt https://github.com/ultralytics/assets/releases/download/v8.2.0/mobile_sam.pt
 
 class SegmentationHelper:
     def __init__(
@@ -13,9 +16,25 @@ class SegmentationHelper:
         self.ransac_n = ransac_n
         self.num_iterations = num_iterations
 
-        # Load the lightweight MobileSAM model
-        print("[INIT] Loading MobileSAM Foundation Model...")
-        self.sam_model = SAM("mobile_sam.pt")
+        # Determine the fastest available compute device on your Ubuntu tower
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        print(
+            f"[INIT] Configuring pipeline compute backend target: {self.device.upper()}"
+        )
+
+        # Guard against background download hangs by checking local availability
+        weights_filename = "mobile_sam.pt"
+        if not os.path.exists(weights_filename):
+            raise FileNotFoundError(
+                f"[CRITICAL] Weights file '{weights_filename}' not found in the working directory! "
+                "Please run the curl download command first."
+            )
+
+        print("[INIT] Loading MobileSAM Local weights asset safely...")
+        # Load the model directly onto the chosen device architecture
+        self.sam_model = SAM(weights_filename)
+        self.sam_model.to(self.device)
+        print("[INIT] MobileSAM Foundation Model active and online.")
 
         # Operational margins for conveyor workspace
         self.belt_margin_x_ratio = 0.12
