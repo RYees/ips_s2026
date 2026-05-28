@@ -1,5 +1,5 @@
 PYTHON ?= python3
-SAMPLE_STEM ?= img0932
+SAMPLE_STEM ?= img0000
 SAMPLE_SAMPLES_ROOT ?= offline_case/samples
 SAMPLE_OUTPUT_DIR ?= offline_case/output/$(SAMPLE_STEM)
 SAMPLE_INTRINSICS_FILE ?=

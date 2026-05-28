@@ -1,6 +1,7 @@
 import argparse
 import json
 import sys
+import re
 from pathlib import Path
 
 import cv2
@@ -77,11 +78,58 @@ def parse_intrinsics_info(info_path):
             "cx": float(mat[0, 2]),
             "cy": float(mat[1, 2]),
             "matrix": mat,
+            "crop": None,
+            "raw_rgb_shape": None,
+            "raw_depth_shape": None,
+            "cropped_rgb_shape": None,
+            "cropped_depth_shape": None,
+        }
+
+    def parse_shape(value):
+        nums = [int(v) for v in re.findall(r"\d+", value)]
+        if len(nums) >= 2:
+            return tuple(nums)
+        return None
+
+    def parse_crop(value):
+        match = re.search(
+            r"top=(\d+)\s+bottom=(\d+)\s+left=(\d+)\s+right=(\d+)", value
+        )
+        if not match:
+            return None
+        return {
+            "top": int(match.group(1)),
+            "bottom": int(match.group(2)),
+            "left": int(match.group(3)),
+            "right": int(match.group(4)),
         }
 
     # Fallback for compact key/value info dumps
     values = {}
+    crop = None
+    raw_rgb_shape = None
+    raw_depth_shape = None
+    cropped_rgb_shape = None
+    cropped_depth_shape = None
     for line in lines:
+        stripped = line.strip()
+        if stripped.lower().startswith("crop:"):
+            continue
+        if stripped.startswith("top=") and "left=" in stripped and "right=" in stripped:
+            crop = parse_crop(stripped)
+            continue
+        if stripped.lower().startswith("raw rgb shape:"):
+            raw_rgb_shape = parse_shape(stripped.split(":", 1)[1].strip())
+            continue
+        if stripped.lower().startswith("raw depth shape:"):
+            raw_depth_shape = parse_shape(stripped.split(":", 1)[1].strip())
+            continue
+        if stripped.lower().startswith("cropped rgb shape:"):
+            cropped_rgb_shape = parse_shape(stripped.split(":", 1)[1].strip())
+            continue
+        if stripped.lower().startswith("cropped depth shape:"):
+            cropped_depth_shape = parse_shape(stripped.split(":", 1)[1].strip())
+            continue
         if ":" not in line:
             continue
         key, value = line.split(":", 1)
@@ -99,6 +147,11 @@ def parse_intrinsics_info(info_path):
             "cx": float(values["cx"]),
             "cy": float(values["cy"]),
             "matrix": None,
+            "crop": crop,
+            "raw_rgb_shape": raw_rgb_shape,
+            "raw_depth_shape": raw_depth_shape,
+            "cropped_rgb_shape": cropped_rgb_shape,
+            "cropped_depth_shape": cropped_depth_shape,
         }
 
     raise ValueError(
