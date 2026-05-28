@@ -25,3 +25,5 @@ TestResults.xml
 **/__pycache__/
 **/dataset/
 **/dataset_orbbec/
+
+.env/
