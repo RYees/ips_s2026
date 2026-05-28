@@ -114,11 +114,21 @@ class RGBDCollectorApp:
 
         self.counter = self.next_capture_index()
         self.current_img_name = None
+        self.capture_crop = {"top": 0, "bottom": 0, "left": 250, "right": 520}
 
         self.captured_rgb = None
         self.captured_depth = None
         self.captured_mask = None
         self.captured_pcd = None
+        self.captured_mask_stats = None
+        self.captured_plane_model = None
+        self.captured_plane_inliers = None
+        self.captured_non_plane_pts = None
+        self.captured_intrinsics = None
+        self.raw_rgb_shape = None
+        self.raw_depth_shape = None
+        self.cropped_rgb_shape = None
+        self.cropped_depth_shape = None
         self.is_capturing = True
 
         self.video_frame = tk.Frame(root)
@@ -335,9 +345,27 @@ class RGBDCollectorApp:
             (depth_frame.get_height(), depth_frame.get_width())
         ).copy()
 
+        self.raw_rgb_shape = rgb.shape
+        self.raw_depth_shape = depth.shape
+
         # 2. Keep your original manual cropping boundaries
-        rgb, crop_x, crop_y = crop_manual(rgb, top=0, bottom=0, left=250, right=520)
-        depth, _, _ = crop_manual(depth, top=0, bottom=0, left=250, right=520)
+        crop = self.capture_crop
+        rgb, crop_x, crop_y = crop_manual(
+            rgb,
+            top=crop["top"],
+            bottom=crop["bottom"],
+            left=crop["left"],
+            right=crop["right"],
+        )
+        depth, _, _ = crop_manual(
+            depth,
+            top=crop["top"],
+            bottom=crop["bottom"],
+            left=crop["left"],
+            right=crop["right"],
+        )
+        self.cropped_rgb_shape = rgb.shape
+        self.cropped_depth_shape = depth.shape
 
         # 3. Adjust the intrinsics to match your cropped frame bounds
         intrinsics = self.cam.get_intrinsics()
@@ -375,6 +403,11 @@ class RGBDCollectorApp:
         self.captured_depth = depth
         self.captured_mask = mask
         self.captured_pcd = pcd
+        self.captured_intrinsics = adjusted_intrinsics
+        self.captured_plane_model = plane_model
+        self.captured_plane_inliers = inlier_count
+        self.captured_non_plane_pts = outlier_count
+        self.captured_mask_stats = self.analyze_mask(mask)
 
         # 6. Render the UI Preview Window layouts
         mask_viz = (mask * 255).astype(np.uint8)
@@ -411,6 +444,11 @@ class RGBDCollectorApp:
     def save_info_txt(
         self,
         img_name,
+        crop,
+        raw_rgb_shape,
+        raw_depth_shape,
+        cropped_rgb_shape,
+        cropped_depth_shape,
         rgb,
         depth,
         intrinsics,
@@ -421,6 +459,14 @@ class RGBDCollectorApp:
     ):
         txt_path = self.info_dir / f"{img_name}.txt"
         with open(txt_path, "w") as f:
+            f.write("Crop:\n")
+            f.write(
+                f"  top={crop['top']} bottom={crop['bottom']} left={crop['left']} right={crop['right']}\n"
+            )
+            f.write(f"Raw RGB shape: {raw_rgb_shape}\n")
+            f.write(f"Raw depth shape: {raw_depth_shape}\n")
+            f.write(f"Cropped RGB shape: {cropped_rgb_shape}\n")
+            f.write(f"Cropped depth shape: {cropped_depth_shape}\n")
             f.write(f"RGB shape: {rgb.shape}\n")
             f.write(f"Depth shape: {depth.shape}\n")
             f.write(f"Depth dtype: {depth.dtype}\n")
@@ -499,6 +545,25 @@ class RGBDCollectorApp:
                 "[ERROR] Cannot save .ply file: tracked application point cloud is empty!"
             )
 
+        if self.captured_plane_model is not None:
+            self.save_info_txt(
+                img_name,
+                self.capture_crop,
+                self.raw_rgb_shape,
+                self.raw_depth_shape,
+                self.cropped_rgb_shape,
+                self.cropped_depth_shape,
+                self.captured_rgb,
+                self.captured_depth,
+                self.captured_intrinsics or self.cam.get_intrinsics(),
+                self.captured_plane_model,
+                self.captured_plane_inliers,
+                self.captured_non_plane_pts,
+                mask_stats=self.captured_mask_stats,
+            )
+        else:
+            print("[WARNING] Skipping info.txt save because capture metadata is missing.")
+
         self.print_dataset_counts()
         self.counter = self.next_capture_index()
         self.current_img_name = None
@@ -521,6 +586,15 @@ class RGBDCollectorApp:
         self.captured_depth = None
         self.captured_mask = None
         self.captured_pcd = None
+        self.captured_mask_stats = None
+        self.captured_plane_model = None
+        self.captured_plane_inliers = None
+        self.captured_non_plane_pts = None
+        self.captured_intrinsics = None
+        self.raw_rgb_shape = None
+        self.raw_depth_shape = None
+        self.cropped_rgb_shape = None
+        self.cropped_depth_shape = None
         self.current_img_name = None
         self.is_capturing = True
         self.capture_btn.config(state=tk.NORMAL)

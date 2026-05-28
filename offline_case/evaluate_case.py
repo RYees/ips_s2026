@@ -113,7 +113,7 @@ def main():
         "--stem",
         type=str,
         default=default_stem,
-        help="Sample stem name, for example img0935",
+        help="Sample stem name, for example img0932",
     )
     parser.add_argument(
         "--reference-mask",

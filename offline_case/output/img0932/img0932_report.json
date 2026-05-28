@@ -16,52 +16,38 @@
     "cy": 360.0
   },
   "intrinsics_source": "fallback_from_rgb_shape",
-  "depth_path": "offline_case/samples/depth/img0932.png",
-  "depth_shape": [
-    720,
-    510,
-    3
-  ],
-  "depth_mode": "visualization",
-  "depth_visualization": {
-    "shape": [
-      720,
-      510,
-      3
-    ],
-    "colormap": "TURBO"
-  },
   "ply_path": "offline_case/samples/pointcloud/img0932.ply",
   "pointcloud_plane": {
-    "a": 0.020161057834162308,
-    "b": -0.1587891652999522,
-    "c": 0.9871066470905522,
-    "d": -0.48190439258844997,
-    "inliers": 219812,
-    "outliers": 39215
+    "a": 0.014714512610210619,
+    "b": -0.15770331010946212,
+    "c": 0.9873769032639779,
+    "d": -0.4825859901812593,
+    "inliers": 219722,
+    "outliers": 39305
   },
   "pointcloud_mask": {
     "shape": [
       720,
       510
     ],
-    "foreground": 27341,
-    "ratio": 0.07445806100217865,
-    "components": 3,
-    "largest_area": 20132,
+    "foreground": 27385,
+    "ratio": 0.07457788671023965,
+    "components": 4,
+    "largest_area": 21722,
     "largest_bbox": [
-      375,
+      370,
       109,
-      119,
+      124,
       348
     ],
     "largest_centroid": [
-      443.230876216968,
-      280.2694218160143
+      439.0419390479698,
+      280.6524261117761
     ],
     "border_pixels": 0,
     "border_ratio": 0.0
   },
   "pointcloud_depth_viz": "generated with TURBO",
+  "generated_depth_path": "offline_case/samples/depth/img0932.png",
   "selected_mask_source": "pointcloud"
 }

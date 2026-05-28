@@ -1,0 +1,33 @@
+sample_stem: img0000
+samples_root: offline_case/samples
+rgb_path: offline_case/samples/images/img0000.png
+rgb_shape: (1080, 1150, 3)
+intrinsics:
+  width: 1150
+  height: 1080
+  fx: 1150.0
+  fy: 1150.0
+  cx: 575.0
+  cy: 540.0
+intrinsics_source: fallback_from_rgb_shape
+ply_path: offline_case/samples/pointcloud/img0000.ply
+pointcloud_plane:
+  a: 0.030210818556041814
+  b: -0.3602522668591075
+  c: 0.932365599250127
+  d: -0.4792952303459322
+  inliers: 219661
+  outliers: 34445
+pointcloud_mask:
+  shape: (1080, 1150)
+  foreground: 28165
+  ratio: 0.022677133655394525
+  components: 2
+  largest_area: 21589
+  largest_bbox: (383, 100, 126, 357)
+  largest_centroid: (453.4419380239937, 266.8046690444208)
+  border_pixels: 0
+  border_ratio: 0.0
+pointcloud_depth_viz: generated with TURBO
+generated_depth_path: offline_case/samples/depth/img0000.png
+selected_mask_source: pointcloud

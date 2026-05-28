@@ -65,7 +65,7 @@ def parse_intrinsics_info(info_path):
         rows = []
         for line in matrix_lines:
             row = [float(v) for v in line.replace(",", " ").split()]
-            if len(row) != 4:
+            if len(row) != 3:
                 raise ValueError(f"Invalid intrinsics matrix row in {info_path}: {line}")
             rows.append(row)
         mat = np.array(rows, dtype=np.float64)
