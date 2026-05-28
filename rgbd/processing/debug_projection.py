@@ -14,6 +14,9 @@ def debug_exact_projection(ply_path):
     pcd = o3d.io.read_point_cloud(ply_path)
     print(f"[DATA] Loaded point cloud containing {len(pcd.points)} points.")
 
+# Open 3D viewer
+o3d.visualization.draw_geometries([pcd])
+
     # 2. Extract the conveyor floor plane
     plane_model, inliers = pcd.segment_plane(
         distance_threshold=0.012, ransac_n=3, num_iterations=2000
@@ -130,5 +133,5 @@ def debug_exact_projection(ply_path):
 
 if __name__ == "__main__":
     debug_exact_projection(
-        "/home/cpsstudent/Documents/ips_s2026/rgbd/dataset/pointcloud/img0938.ply"
+        "/home/cpsstudent/Documents/ips_s2026/rgbd/dataset/pointcloud/img0941.ply"
     )

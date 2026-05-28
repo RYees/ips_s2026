@@ -1,0 +1,23 @@
+Image name: img0931
+RGB shape: (720, 510, 3)
+Depth shape: (576, 640)
+Mask shape: (720, 510)
+Mask foreground pixels: 10193
+Plane equation: [ 0.01346639 -0.15751823  0.98742426 -0.4830958 ]
+Plane inliers: 217310
+Non-plane points: 23169
+Mask QA:
+  Foreground pixels: 10240
+  Foreground ratio: 0.02777778
+  Connected components: 1
+  Largest component area: 10240
+  Border pixels: 0
+  Border ratio: 0.00000000
+  Largest bbox: (501, 173, 64, 215)
+  Largest centroid: (530.748046875, 284.196484375)
+
+Artifacts:
+  Overlay: dataset/debug/img0931_overlay.png
+  Mask: dataset/masks/img0931.png
+  Label: dataset/labels/img0931.txt
+  Info: dataset/info/img0931.txt

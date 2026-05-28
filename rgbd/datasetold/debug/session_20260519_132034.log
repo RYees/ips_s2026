@@ -1,0 +1,226 @@
+[INFO] Session log file: dataset/debug/session_20260519_132034.log
+[DEBUG] frames: total=1, depth_sets=0, color=1280×720,OBFormat.RGB,ts=2517784909, depth=None
+[WARNING] Align filter returned None
+[DEBUG] frames: total=2, depth_sets=0, color=1280×720,OBFormat.RGB,ts=2517785009, depth=None
+[WARNING] Align filter returned None
+[DEBUG] frames: total=3, depth_sets=0, color=1280×720,OBFormat.RGB,ts=2517785109, depth=None
+[WARNING] Align filter returned None
+[DEBUG] frames: total=4, depth_sets=0, color=1280×720,OBFormat.RGB,ts=2517785142, depth=None
+[WARNING] Align filter returned None
+[DEBUG] frames: total=5, depth_sets=1, color=1280×720,OBFormat.RGB,ts=2517785209, depth=640×576,OBFormat.Y16,ts=2517785210
+[DEBUG] frames: total=6, depth_sets=2, color=1280×720,OBFormat.RGB,ts=2517785342, depth=640×576,OBFormat.Y16,ts=2517785343
+[DEBUG] frames: total=7, depth_sets=2, color=1280×720,OBFormat.RGB,ts=2517785475, depth=None
+[INFO] Using cached color+depth pair (dt=132)
+[DEBUG] frames: total=8, depth_sets=3, color=1280×720,OBFormat.RGB,ts=2517785641, depth=640×576,OBFormat.Y16,ts=2517785642
+[DEBUG] frames: total=9, depth_sets=4, color=1280×720,OBFormat.RGB,ts=2517785708, depth=640×576,OBFormat.Y16,ts=2517785709
+[DEBUG] frames: total=10, depth_sets=5, color=1280×720,OBFormat.RGB,ts=2517785807, depth=640×576,OBFormat.Y16,ts=2517785808
+[DEBUG] frames: total=11, depth_sets=6, color=1280×720,OBFormat.RGB,ts=2517785841, depth=640×576,OBFormat.Y16,ts=2517785842
+[DEBUG] frames: total=12, depth_sets=7, color=1280×720,OBFormat.RGB,ts=2517785940, depth=640×576,OBFormat.Y16,ts=2517785941
+[DEBUG] frames: total=13, depth_sets=8, color=1280×720,OBFormat.RGB,ts=2517786073, depth=640×576,OBFormat.Y16,ts=2517786074
+[DEBUG] frames: total=14, depth_sets=9, color=1280×720,OBFormat.RGB,ts=2517786206, depth=640×576,OBFormat.Y16,ts=2517786207
+[DEBUG] frames: total=15, depth_sets=10, color=1280×720,OBFormat.RGB,ts=2517786306, depth=640×576,OBFormat.Y16,ts=2517786307
+[DEBUG] frames: total=16, depth_sets=11, color=1280×720,OBFormat.RGB,ts=2517786406, depth=640×576,OBFormat.Y16,ts=2517786407
+[DEBUG] frames: total=17, depth_sets=12, color=1280×720,OBFormat.RGB,ts=2517786506, depth=640×576,OBFormat.Y16,ts=2517786507
+[DEBUG] frames: total=18, depth_sets=13, color=1280×720,OBFormat.RGB,ts=2517786639, depth=640×576,OBFormat.Y16,ts=2517786640
+[DEBUG] frames: total=19, depth_sets=14, color=1280×720,OBFormat.RGB,ts=2517786705, depth=640×576,OBFormat.Y16,ts=2517786706
+[DEBUG] frames: total=20, depth_sets=15, color=1280×720,OBFormat.RGB,ts=2517786805, depth=640×576,OBFormat.Y16,ts=2517786806
+[DEBUG] frames: total=21, depth_sets=16, color=1280×720,OBFormat.RGB,ts=2517786971, depth=640×576,OBFormat.Y16,ts=2517786972
+[DEBUG] frames: total=22, depth_sets=17, color=1280×720,OBFormat.RGB,ts=2517787104, depth=640×576,OBFormat.Y16,ts=2517787105
+[DEBUG] frames: total=23, depth_sets=18, color=1280×720,OBFormat.RGB,ts=2517787171, depth=640×576,OBFormat.Y16,ts=2517787172
+[DEBUG] frames: total=24, depth_sets=19, color=1280×720,OBFormat.RGB,ts=2517787270, depth=640×576,OBFormat.Y16,ts=2517787272
+[DEBUG] frames: total=25, depth_sets=20, color=1280×720,OBFormat.RGB,ts=2517787370, depth=640×576,OBFormat.Y16,ts=2517787371
+[DEBUG] frames: total=26, depth_sets=21, color=1280×720,OBFormat.RGB,ts=2517787470, depth=640×576,OBFormat.Y16,ts=2517787471
+[DEBUG] frames: total=27, depth_sets=22, color=1280×720,OBFormat.RGB,ts=2517787570, depth=640×576,OBFormat.Y16,ts=2517787571
+[DEBUG] frames: total=28, depth_sets=23, color=1280×720,OBFormat.RGB,ts=2517787636, depth=640×576,OBFormat.Y16,ts=2517787637
+[DEBUG] frames: total=29, depth_sets=24, color=1280×720,OBFormat.RGB,ts=2517787736, depth=640×576,OBFormat.Y16,ts=2517787737
+[DEBUG] frames: total=30, depth_sets=25, color=1280×720,OBFormat.RGB,ts=2517787802, depth=640×576,OBFormat.Y16,ts=2517787804
+[DEBUG] frames: total=31, depth_sets=26, color=1280×720,OBFormat.RGB,ts=2517787935, depth=640×576,OBFormat.Y16,ts=2517787937
+[DEBUG] frames: total=32, depth_sets=27, color=1280×720,OBFormat.RGB,ts=2517788069, depth=640×576,OBFormat.Y16,ts=2517788070
+[DEBUG] frames: total=33, depth_sets=28, color=1280×720,OBFormat.RGB,ts=2517788135, depth=640×576,OBFormat.Y16,ts=2517788136
+[DEBUG] frames: total=34, depth_sets=29, color=1280×720,OBFormat.RGB,ts=2517788235, depth=640×576,OBFormat.Y16,ts=2517788236
+[DEBUG] frames: total=35, depth_sets=30, color=1280×720,OBFormat.RGB,ts=2517788335, depth=640×576,OBFormat.Y16,ts=2517788336
+[DEBUG] frames: total=36, depth_sets=31, color=1280×720,OBFormat.RGB,ts=2517788434, depth=640×576,OBFormat.Y16,ts=2517788435
+[DEBUG] frames: total=37, depth_sets=32, color=1280×720,OBFormat.RGB,ts=2517788534, depth=640×576,OBFormat.Y16,ts=2517788535
+[DEBUG] frames: total=38, depth_sets=33, color=1280×720,OBFormat.RGB,ts=2517788634, depth=640×576,OBFormat.Y16,ts=2517788635
+[DEBUG] frames: total=39, depth_sets=34, color=1280×720,OBFormat.RGB,ts=2517788700, depth=640×576,OBFormat.Y16,ts=2517788701
+[DEBUG] frames: total=40, depth_sets=35, color=1280×720,OBFormat.RGB,ts=2517788767, depth=640×576,OBFormat.Y16,ts=2517788768
+[DEBUG] frames: total=41, depth_sets=36, color=1280×720,OBFormat.RGB,ts=2517788867, depth=640×576,OBFormat.Y16,ts=2517788868
+[DEBUG] frames: total=42, depth_sets=37, color=1280×720,OBFormat.RGB,ts=2517788933, depth=640×576,OBFormat.Y16,ts=2517788934
+[DEBUG] frames: total=43, depth_sets=38, color=1280×720,OBFormat.RGB,ts=2517789033, depth=640×576,OBFormat.Y16,ts=2517789034
+[DEBUG] frames: total=44, depth_sets=39, color=1280×720,OBFormat.RGB,ts=2517789099, depth=640×576,OBFormat.Y16,ts=2517789100
+[DEBUG] frames: total=45, depth_sets=40, color=1280×720,OBFormat.RGB,ts=2517789166, depth=640×576,OBFormat.Y16,ts=2517789167
+[DEBUG] frames: total=46, depth_sets=41, color=1280×720,OBFormat.RGB,ts=2517789266, depth=640×576,OBFormat.Y16,ts=2517789267
+[DEBUG] frames: total=47, depth_sets=42, color=1280×720,OBFormat.RGB,ts=2517789332, depth=640×576,OBFormat.Y16,ts=2517789333
+[DEBUG] frames: total=48, depth_sets=43, color=1280×720,OBFormat.RGB,ts=2517789399, depth=640×576,OBFormat.Y16,ts=2517789400
+[DEBUG] frames: total=49, depth_sets=44, color=1280×720,OBFormat.RGB,ts=2517789498, depth=640×576,OBFormat.Y16,ts=2517789499
+[DEBUG] frames: total=50, depth_sets=45, color=1280×720,OBFormat.RGB,ts=2517789565, depth=640×576,OBFormat.Y16,ts=2517789566
+[DEBUG] frames: total=51, depth_sets=46, color=1280×720,OBFormat.RGB,ts=2517789665, depth=640×576,OBFormat.Y16,ts=2517789666
+[DEBUG] frames: total=52, depth_sets=47, color=1280×720,OBFormat.RGB,ts=2517789731, depth=640×576,OBFormat.Y16,ts=2517789732
+[DEBUG] frames: total=53, depth_sets=48, color=1280×720,OBFormat.RGB,ts=2517789831, depth=640×576,OBFormat.Y16,ts=2517789832
+[DEBUG] frames: total=54, depth_sets=49, color=1280×720,OBFormat.RGB,ts=2517789897, depth=640×576,OBFormat.Y16,ts=2517789898
+[DEBUG] frames: total=55, depth_sets=50, color=1280×720,OBFormat.RGB,ts=2517789997, depth=640×576,OBFormat.Y16,ts=2517789998
+[DEBUG] frames: total=56, depth_sets=51, color=1280×720,OBFormat.RGB,ts=2517790064, depth=640×576,OBFormat.Y16,ts=2517790065
+[DEBUG] frames: total=57, depth_sets=52, color=1280×720,OBFormat.RGB,ts=2517790163, depth=640×576,OBFormat.Y16,ts=2517790164
+[DEBUG] frames: total=58, depth_sets=53, color=1280×720,OBFormat.RGB,ts=2517790230, depth=640×576,OBFormat.Y16,ts=2517790231
+[DEBUG] frames: total=59, depth_sets=54, color=1280×720,OBFormat.RGB,ts=2517790330, depth=640×576,OBFormat.Y16,ts=2517790331
+[DEBUG] frames: total=60, depth_sets=55, color=1280×720,OBFormat.RGB,ts=2517790396, depth=640×576,OBFormat.Y16,ts=2517790397
+[DEBUG] frames: total=61, depth_sets=56, color=1280×720,OBFormat.RGB,ts=2517790463, depth=640×576,OBFormat.Y16,ts=2517790464
+[DEBUG] frames: total=62, depth_sets=57, color=1280×720,OBFormat.RGB,ts=2517790562, depth=640×576,OBFormat.Y16,ts=2517790563
+[DEBUG] frames: total=63, depth_sets=58, color=1280×720,OBFormat.RGB,ts=2517790629, depth=640×576,OBFormat.Y16,ts=2517790630
+[DEBUG] frames: total=64, depth_sets=59, color=1280×720,OBFormat.RGB,ts=2517790729, depth=640×576,OBFormat.Y16,ts=2517790730
+[DEBUG] frames: total=65, depth_sets=60, color=1280×720,OBFormat.RGB,ts=2517790795, depth=640×576,OBFormat.Y16,ts=2517790796
+[DEBUG] frames: total=66, depth_sets=61, color=1280×720,OBFormat.RGB,ts=2517790862, depth=640×576,OBFormat.Y16,ts=2517790863
+[DEBUG] frames: total=67, depth_sets=62, color=1280×720,OBFormat.RGB,ts=2517790961, depth=640×576,OBFormat.Y16,ts=2517790962
+[DEBUG] frames: total=68, depth_sets=63, color=1280×720,OBFormat.RGB,ts=2517791028, depth=640×576,OBFormat.Y16,ts=2517791029
+[DEBUG] frames: total=69, depth_sets=64, color=1280×720,OBFormat.RGB,ts=2517791128, depth=640×576,OBFormat.Y16,ts=2517791129
+[DEBUG] frames: total=70, depth_sets=65, color=1280×720,OBFormat.RGB,ts=2517791194, depth=640×576,OBFormat.Y16,ts=2517791195
+[DEBUG] frames: total=71, depth_sets=66, color=1280×720,OBFormat.RGB,ts=2517791294, depth=640×576,OBFormat.Y16,ts=2517791295
+[DEBUG] frames: total=72, depth_sets=67, color=1280×720,OBFormat.RGB,ts=2517791360, depth=640×576,OBFormat.Y16,ts=2517791361
+[DEBUG] frames: total=73, depth_sets=68, color=1280×720,OBFormat.RGB,ts=2517791460, depth=640×576,OBFormat.Y16,ts=2517791461
+[DEBUG] frames: total=74, depth_sets=69, color=1280×720,OBFormat.RGB,ts=2517791527, depth=640×576,OBFormat.Y16,ts=2517791528
+[DEBUG] frames: total=75, depth_sets=70, color=1280×720,OBFormat.RGB,ts=2517791593, depth=640×576,OBFormat.Y16,ts=2517791594
+[DEBUG] frames: total=76, depth_sets=71, color=1280×720,OBFormat.RGB,ts=2517791693, depth=640×576,OBFormat.Y16,ts=2517791694
+[DEBUG] frames: total=77, depth_sets=72, color=1280×720,OBFormat.RGB,ts=2517791759, depth=640×576,OBFormat.Y16,ts=2517791760
+[DEBUG] frames: total=78, depth_sets=73, color=1280×720,OBFormat.RGB,ts=2517791826, depth=640×576,OBFormat.Y16,ts=2517791827
+[DEBUG] frames: total=79, depth_sets=74, color=1280×720,OBFormat.RGB,ts=2517791925, depth=640×576,OBFormat.Y16,ts=2517791927
+[DEBUG] frames: total=80, depth_sets=75, color=1280×720,OBFormat.RGB,ts=2517791992, depth=640×576,OBFormat.Y16,ts=2517791993
+[DEBUG] frames: total=81, depth_sets=76, color=1280×720,OBFormat.RGB,ts=2517792092, depth=640×576,OBFormat.Y16,ts=2517792093
+[DEBUG] frames: total=82, depth_sets=77, color=1280×720,OBFormat.RGB,ts=2517792158, depth=640×576,OBFormat.Y16,ts=2517792159
+[DEBUG] frames: total=83, depth_sets=78, color=1280×720,OBFormat.RGB,ts=2517792258, depth=640×576,OBFormat.Y16,ts=2517792259
+[DEBUG] frames: total=84, depth_sets=79, color=1280×720,OBFormat.RGB,ts=2517792324, depth=640×576,OBFormat.Y16,ts=2517792326
+[DEBUG] frames: total=85, depth_sets=80, color=1280×720,OBFormat.RGB,ts=2517792424, depth=640×576,OBFormat.Y16,ts=2517792425
+[DEBUG] frames: total=86, depth_sets=81, color=1280×720,OBFormat.RGB,ts=2517792491, depth=640×576,OBFormat.Y16,ts=2517792492
+[DEBUG] frames: total=87, depth_sets=82, color=1280×720,OBFormat.RGB,ts=2517792590, depth=640×576,OBFormat.Y16,ts=2517792592
+[DEBUG] frames: total=88, depth_sets=83, color=1280×720,OBFormat.RGB,ts=2517792657, depth=640×576,OBFormat.Y16,ts=2517792658
+[DEBUG] frames: total=89, depth_sets=84, color=1280×720,OBFormat.RGB,ts=2517792723, depth=640×576,OBFormat.Y16,ts=2517792725
+[DEBUG] frames: total=90, depth_sets=85, color=1280×720,OBFormat.RGB,ts=2517792823, depth=640×576,OBFormat.Y16,ts=2517792824
+[DEBUG] frames: total=91, depth_sets=86, color=1280×720,OBFormat.RGB,ts=2517792923, depth=640×576,OBFormat.Y16,ts=2517792924
+[DEBUG] frames: total=92, depth_sets=87, color=1280×720,OBFormat.RGB,ts=2517792989, depth=640×576,OBFormat.Y16,ts=2517792991
+[DEBUG] frames: total=93, depth_sets=88, color=1280×720,OBFormat.RGB,ts=2517793089, depth=640×576,OBFormat.Y16,ts=2517793090
+[DEBUG] frames: total=94, depth_sets=89, color=1280×720,OBFormat.RGB,ts=2517793156, depth=640×576,OBFormat.Y16,ts=2517793157
+[DEBUG] frames: total=95, depth_sets=90, color=1280×720,OBFormat.RGB,ts=2517793256, depth=640×576,OBFormat.Y16,ts=2517793257
+[DEBUG] frames: total=96, depth_sets=91, color=1280×720,OBFormat.RGB,ts=2517793322, depth=640×576,OBFormat.Y16,ts=2517793323
+[DEBUG] frames: total=97, depth_sets=92, color=1280×720,OBFormat.RGB,ts=2517793422, depth=640×576,OBFormat.Y16,ts=2517793423
+[DEBUG] frames: total=98, depth_sets=93, color=1280×720,OBFormat.RGB,ts=2517793488, depth=640×576,OBFormat.Y16,ts=2517793489
+[DEBUG] frames: total=99, depth_sets=94, color=1280×720,OBFormat.RGB,ts=2517793588, depth=640×576,OBFormat.Y16,ts=2517793589
+[DEBUG] frames: total=100, depth_sets=95, color=1280×720,OBFormat.RGB,ts=2517793655, depth=640×576,OBFormat.Y16,ts=2517793656
+[DEBUG] frames: total=101, depth_sets=96, color=1280×720,OBFormat.RGB,ts=2517793754, depth=640×576,OBFormat.Y16,ts=2517793755
+[DEBUG] frames: total=102, depth_sets=97, color=1280×720,OBFormat.RGB,ts=2517793821, depth=640×576,OBFormat.Y16,ts=2517793822
+[DEBUG] frames: total=103, depth_sets=98, color=1280×720,OBFormat.RGB,ts=2517793921, depth=640×576,OBFormat.Y16,ts=2517793922
+[DEBUG] frames: total=104, depth_sets=99, color=1280×720,OBFormat.RGB,ts=2517794020, depth=640×576,OBFormat.Y16,ts=2517794021
+[DEBUG] frames: total=105, depth_sets=100, color=1280×720,OBFormat.RGB,ts=2517794087, depth=640×576,OBFormat.Y16,ts=2517794088
+[DEBUG] frames: total=106, depth_sets=101, color=1280×720,OBFormat.RGB,ts=2517794187, depth=640×576,OBFormat.Y16,ts=2517794188
+[DEBUG] frames: total=107, depth_sets=102, color=1280×720,OBFormat.RGB,ts=2517794253, depth=640×576,OBFormat.Y16,ts=2517794254
+[DEBUG] frames: total=108, depth_sets=103, color=1280×720,OBFormat.RGB,ts=2517794353, depth=640×576,OBFormat.Y16,ts=2517794354
+[DEBUG] frames: total=109, depth_sets=104, color=1280×720,OBFormat.RGB,ts=2517794419, depth=640×576,OBFormat.Y16,ts=2517794421
+[DEBUG] frames: total=110, depth_sets=105, color=1280×720,OBFormat.RGB,ts=2517794486, depth=640×576,OBFormat.Y16,ts=2517794487
+[DEBUG] frames: total=111, depth_sets=106, color=1280×720,OBFormat.RGB,ts=2517794586, depth=640×576,OBFormat.Y16,ts=2517794587
+[DEBUG] frames: total=112, depth_sets=107, color=1280×720,OBFormat.RGB,ts=2517794685, depth=640×576,OBFormat.Y16,ts=2517794687
+[DEBUG] frames: total=113, depth_sets=108, color=1280×720,OBFormat.RGB,ts=2517794752, depth=640×576,OBFormat.Y16,ts=2517794753
+[DEBUG] frames: total=114, depth_sets=109, color=1280×720,OBFormat.RGB,ts=2517794852, depth=640×576,OBFormat.Y16,ts=2517794853
+[DEBUG] frames: total=115, depth_sets=110, color=1280×720,OBFormat.RGB,ts=2517794918, depth=640×576,OBFormat.Y16,ts=2517794919
+[DEBUG] frames: total=116, depth_sets=111, color=1280×720,OBFormat.RGB,ts=2517795018, depth=640×576,OBFormat.Y16,ts=2517795019
+[DEBUG] frames: total=117, depth_sets=112, color=1280×720,OBFormat.RGB,ts=2517795085, depth=640×576,OBFormat.Y16,ts=2517795086
+[DEBUG] frames: total=118, depth_sets=113, color=1280×720,OBFormat.RGB,ts=2517795184, depth=640×576,OBFormat.Y16,ts=2517795185
+[DEBUG] frames: total=119, depth_sets=114, color=1280×720,OBFormat.RGB,ts=2517795251, depth=640×576,OBFormat.Y16,ts=2517795252
+[DEBUG] frames: total=120, depth_sets=115, color=1280×720,OBFormat.RGB,ts=2517795351, depth=640×576,OBFormat.Y16,ts=2517795352
+[DEBUG] frames: total=121, depth_sets=116, color=1280×720,OBFormat.RGB,ts=2517795417, depth=640×576,OBFormat.Y16,ts=2517795418
+[DEBUG] frames: total=122, depth_sets=117, color=1280×720,OBFormat.RGB,ts=2517795517, depth=640×576,OBFormat.Y16,ts=2517795518
+[DEBUG] frames: total=123, depth_sets=118, color=1280×720,OBFormat.RGB,ts=2517795583, depth=640×576,OBFormat.Y16,ts=2517795585
+[DEBUG] frames: total=124, depth_sets=119, color=1280×720,OBFormat.RGB,ts=2517795683, depth=640×576,OBFormat.Y16,ts=2517795684
+[DEBUG] frames: total=125, depth_sets=120, color=1280×720,OBFormat.RGB,ts=2517795750, depth=640×576,OBFormat.Y16,ts=2517795751
+[DEBUG] frames: total=126, depth_sets=121, color=1280×720,OBFormat.RGB,ts=2517795849, depth=640×576,OBFormat.Y16,ts=2517795851
+[DEBUG] frames: total=127, depth_sets=122, color=1280×720,OBFormat.RGB,ts=2517795916, depth=640×576,OBFormat.Y16,ts=2517795917
+[DEBUG] frames: total=128, depth_sets=123, color=1280×720,OBFormat.RGB,ts=2517796016, depth=640×576,OBFormat.Y16,ts=2517796017
+[DEBUG] frames: total=129, depth_sets=124, color=1280×720,OBFormat.RGB,ts=2517796082, depth=640×576,OBFormat.Y16,ts=2517796083
+[DEBUG] frames: total=130, depth_sets=125, color=1280×720,OBFormat.RGB,ts=2517796182, depth=640×576,OBFormat.Y16,ts=2517796183
+[DEBUG] frames: total=131, depth_sets=126, color=1280×720,OBFormat.RGB,ts=2517796248, depth=640×576,OBFormat.Y16,ts=2517796250
+[DEBUG] frames: total=132, depth_sets=127, color=1280×720,OBFormat.RGB,ts=2517796348, depth=640×576,OBFormat.Y16,ts=2517796349
+[DEBUG] frames: total=133, depth_sets=128, color=1280×720,OBFormat.RGB,ts=2517796415, depth=640×576,OBFormat.Y16,ts=2517796416
+[DEBUG] frames: total=134, depth_sets=129, color=1280×720,OBFormat.RGB,ts=2517796514, depth=640×576,OBFormat.Y16,ts=2517796516
+[DEBUG] frames: total=135, depth_sets=130, color=1280×720,OBFormat.RGB,ts=2517796581, depth=640×576,OBFormat.Y16,ts=2517796582
+[DEBUG] frames: total=136, depth_sets=131, color=1280×720,OBFormat.RGB,ts=2517796681, depth=640×576,OBFormat.Y16,ts=2517796682
+[DEBUG] frames: total=137, depth_sets=132, color=1280×720,OBFormat.RGB,ts=2517796747, depth=640×576,OBFormat.Y16,ts=2517796748
+[DEBUG] frames: total=138, depth_sets=133, color=1280×720,OBFormat.RGB,ts=2517796847, depth=640×576,OBFormat.Y16,ts=2517796848
+[DEBUG] frames: total=139, depth_sets=134, color=1280×720,OBFormat.RGB,ts=2517796913, depth=640×576,OBFormat.Y16,ts=2517796915
+[DEBUG] frames: total=140, depth_sets=135, color=1280×720,OBFormat.RGB,ts=2517797013, depth=640×576,OBFormat.Y16,ts=2517797014
+[DEBUG] frames: total=141, depth_sets=136, color=1280×720,OBFormat.RGB,ts=2517797146, depth=640×576,OBFormat.Y16,ts=2517797147
+[DEBUG] frames: total=142, depth_sets=137, color=1280×720,OBFormat.RGB,ts=2517797213, depth=640×576,OBFormat.Y16,ts=2517797214
+[DEBUG] frames: total=143, depth_sets=138, color=1280×720,OBFormat.RGB,ts=2517797312, depth=640×576,OBFormat.Y16,ts=2517797314
+[DEBUG] frames: total=144, depth_sets=139, color=1280×720,OBFormat.RGB,ts=2517797379, depth=640×576,OBFormat.Y16,ts=2517797380
+[DEBUG] frames: total=145, depth_sets=140, color=1280×720,OBFormat.RGB,ts=2517797479, depth=640×576,OBFormat.Y16,ts=2517797480
+[DEBUG] frames: total=146, depth_sets=141, color=1280×720,OBFormat.RGB,ts=2517797545, depth=640×576,OBFormat.Y16,ts=2517797546
+[DEBUG] frames: total=147, depth_sets=142, color=1280×720,OBFormat.RGB,ts=2517797645, depth=640×576,OBFormat.Y16,ts=2517797646
+[DEBUG] frames: total=148, depth_sets=143, color=1280×720,OBFormat.RGB,ts=2517797711, depth=640×576,OBFormat.Y16,ts=2517797713
+[DEBUG] frames: total=149, depth_sets=144, color=1280×720,OBFormat.RGB,ts=2517797811, depth=640×576,OBFormat.Y16,ts=2517797812
+[DEBUG] frames: total=150, depth_sets=145, color=1280×720,OBFormat.RGB,ts=2517797878, depth=640×576,OBFormat.Y16,ts=2517797879
+[DEBUG] frames: total=151, depth_sets=146, color=1280×720,OBFormat.RGB,ts=2517797977, depth=640×576,OBFormat.Y16,ts=2517797979
+[DEBUG] frames: total=152, depth_sets=147, color=1280×720,OBFormat.RGB,ts=2517798077, depth=640×576,OBFormat.Y16,ts=2517798078
+[DEBUG] frames: total=153, depth_sets=148, color=1280×720,OBFormat.RGB,ts=2517798144, depth=640×576,OBFormat.Y16,ts=2517798145
+[DEBUG] frames: total=154, depth_sets=149, color=1280×720,OBFormat.RGB,ts=2517798243, depth=640×576,OBFormat.Y16,ts=2517798245
+[DEBUG] frames: total=155, depth_sets=150, color=1280×720,OBFormat.RGB,ts=2517798310, depth=640×576,OBFormat.Y16,ts=2517798311
+[DEBUG] frames: total=156, depth_sets=151, color=1280×720,OBFormat.RGB,ts=2517798410, depth=640×576,OBFormat.Y16,ts=2517798411
+[DEBUG] frames: total=157, depth_sets=152, color=1280×720,OBFormat.RGB,ts=2517798476, depth=640×576,OBFormat.Y16,ts=2517798477
+[DEBUG] frames: total=158, depth_sets=153, color=1280×720,OBFormat.RGB,ts=2517798576, depth=640×576,OBFormat.Y16,ts=2517798577
+[DEBUG] frames: total=159, depth_sets=154, color=1280×720,OBFormat.RGB,ts=2517798642, depth=640×576,OBFormat.Y16,ts=2517798644
+[DEBUG] frames: total=160, depth_sets=155, color=1280×720,OBFormat.RGB,ts=2517798742, depth=640×576,OBFormat.Y16,ts=2517798743
+[DEBUG] frames: total=161, depth_sets=156, color=1280×720,OBFormat.RGB,ts=2517798809, depth=640×576,OBFormat.Y16,ts=2517798810
+[DEBUG] frames: total=162, depth_sets=157, color=1280×720,OBFormat.RGB,ts=2517798875, depth=640×576,OBFormat.Y16,ts=2517798876
+****[DEBUG] RGB shape: (720, 1280, 3), Depth shape: (576, 640)
+[DEBUG] RGB shape: (720, 510, 3)
+[DEBUG] Depth shape: (576, 640)
+[DEBUG] Depth dtype: uint16
+[DEBUG] Depth min/max: 0, 1513
+[DEBUG] Valid depth pixels: 258654
+[DEBUG] Valid depth pixels after filtering: 258648
+[DEBUG] Full point cloud has 258648 points.
+[INFO] Plane equation: 0.01x + -0.16y + 0.99z + -0.48 = 0
+[DEBUG] Plane inliers: 214098
+[DEBUG] Non-plane points: 44550
+[DEBUG] Residual stats: median=0.0019, mad=0.0013, adaptive_threshold=0.0120
+[DEBUG] Mask projection: base_threshold=0.0120, adaptive_threshold=0.0120, projected foreground=42212
+[DEBUG] Mask cleanup: raw foreground=42212
+[DEBUG] Mask cleanup: after morphology=44674
+[DEBUG] Mask cleanup candidate: idx=5 area=23107 bbox=(504, 105, 132, 363) centroid=(578.9, 283.6) touches_border=False strip_like=False mean_residual=0.1486 max_residual=0.4842 residual_ok=True score=88.8807
+[DEBUG] Mask cleanup candidate: idx=6 area=5546 bbox=(256, 114, 90, 96) centroid=(301.6, 166.8) touches_border=False strip_like=False mean_residual=0.0239 max_residual=0.4842 residual_ok=True score=44.8665
+[DEBUG] Mask cleanup candidate: idx=1 area=3661 bbox=(405, 12, 149, 101) centroid=(487.6, 74.5) touches_border=False strip_like=False mean_residual=0.0357 max_residual=0.4842 residual_ok=True score=13.4378
+[DEBUG] Mask cleanup: connected components=11, min_area=368, selected_indices=[1, 2, 5, 6], selected_area=32736
+[DEBUG] Mask cleanup: keeping 4 components before hull
+[DEBUG] Mask cleanup: final area after dilation=49142
+[DEBUG] Mask projection: cleaned foreground=49142
+[WARNING] Mask/image shape mismatch: mask=(576, 640), image=(720, 510). Resizing mask for overlay/export.
+[DEBUG] Overlay saved to dataset/debug/img0928_overlay.png
+[MASK-QA] shape=(576, 640) foreground=49142 ratio=0.133306 components=3 largest_area=33787 border_pixels=0 border_ratio=0.000000
+[INFO] Info saved to dataset/info/img0928.txt
+[WARNING] Mask/image shape mismatch: mask=(576, 640), image=(720, 510). Resizing mask for overlay/export.
+[DEBUG] Capture QA report saved to dataset/debug/img0928.txt
+[INFO] Frame captured for class: 0
+[WARNING] Mask/image shape mismatch: mask=(576, 640), image=(720, 510). Resizing mask for overlay/export.
+[SAVED] Mask image saved to dataset/masks/img0928.png
+[SAVED] Point cloud saved to dataset/pointcloud/img0928.ply
+[SAVED] img0928
+[COUNT] images=868, depth=868, labels=868, masks=1, pointcloud=868, info=871, debug=1
+[DEBUG] frames: total=163, depth_sets=158, color=1280×720,OBFormat.RGB,ts=2517803297, depth=640×576,OBFormat.Y16,ts=2517803298
+[DEBUG] frames: total=164, depth_sets=159, color=1280×720,OBFormat.RGB,ts=2517803364, depth=640×576,OBFormat.Y16,ts=2517803365
+[DEBUG] frames: total=165, depth_sets=160, color=1280×720,OBFormat.RGB,ts=2517803497, depth=640×576,OBFormat.Y16,ts=2517803498
+[DEBUG] frames: total=166, depth_sets=161, color=1280×720,OBFormat.RGB,ts=2517803563, depth=640×576,OBFormat.Y16,ts=2517803564
+[DEBUG] frames: total=167, depth_sets=162, color=1280×720,OBFormat.RGB,ts=2517803663, depth=640×576,OBFormat.Y16,ts=2517803664
+[DEBUG] frames: total=168, depth_sets=163, color=1280×720,OBFormat.RGB,ts=2517803763, depth=640×576,OBFormat.Y16,ts=2517803764
+[DEBUG] frames: total=169, depth_sets=164, color=1280×720,OBFormat.RGB,ts=2517803829, depth=640×576,OBFormat.Y16,ts=2517803830
+[DEBUG] frames: total=170, depth_sets=165, color=1280×720,OBFormat.RGB,ts=2517803962, depth=640×576,OBFormat.Y16,ts=2517803963
+[DEBUG] frames: total=171, depth_sets=166, color=1280×720,OBFormat.RGB,ts=2517804029, depth=640×576,OBFormat.Y16,ts=2517804030
+[DEBUG] frames: total=172, depth_sets=167, color=1280×720,OBFormat.RGB,ts=2517804129, depth=640×576,OBFormat.Y16,ts=2517804130
+[DEBUG] frames: total=173, depth_sets=168, color=1280×720,OBFormat.RGB,ts=2517804195, depth=640×576,OBFormat.Y16,ts=2517804196
+[DEBUG] frames: total=174, depth_sets=169, color=1280×720,OBFormat.RGB,ts=2517804295, depth=640×576,OBFormat.Y16,ts=2517804296
+[DEBUG] frames: total=175, depth_sets=170, color=1280×720,OBFormat.RGB,ts=2517804361, depth=640×576,OBFormat.Y16,ts=2517804362
+[DEBUG] frames: total=176, depth_sets=171, color=1280×720,OBFormat.RGB,ts=2517804461, depth=640×576,OBFormat.Y16,ts=2517804462
+[DEBUG] frames: total=177, depth_sets=172, color=1280×720,OBFormat.RGB,ts=2517804527, depth=640×576,OBFormat.Y16,ts=2517804529
+[DEBUG] frames: total=178, depth_sets=173, color=1280×720,OBFormat.RGB,ts=2517804627, depth=640×576,OBFormat.Y16,ts=2517804628
+[DEBUG] frames: total=179, depth_sets=174, color=1280×720,OBFormat.RGB,ts=2517804694, depth=640×576,OBFormat.Y16,ts=2517804695
+[DEBUG] frames: total=180, depth_sets=175, color=1280×720,OBFormat.RGB,ts=2517804760, depth=640×576,OBFormat.Y16,ts=2517804761
+[DEBUG] frames: total=181, depth_sets=176, color=1280×720,OBFormat.RGB,ts=2517804860, depth=640×576,OBFormat.Y16,ts=2517804861
+[DEBUG] frames: total=182, depth_sets=177, color=1280×720,OBFormat.RGB,ts=2517804926, depth=640×576,OBFormat.Y16,ts=2517804928
+[DEBUG] frames: total=183, depth_sets=178, color=1280×720,OBFormat.RGB,ts=2517804993, depth=640×576,OBFormat.Y16,ts=2517804994
+[DEBUG] frames: total=184, depth_sets=179, color=1280×720,OBFormat.RGB,ts=2517805060, depth=640×576,OBFormat.Y16,ts=2517805061
+[DEBUG] frames: total=185, depth_sets=180, color=1280×720,OBFormat.RGB,ts=2517805126, depth=640×576,OBFormat.Y16,ts=2517805127
+[INFO] Quitting application.

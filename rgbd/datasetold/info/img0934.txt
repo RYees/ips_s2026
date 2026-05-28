@@ -1,0 +1,21 @@
+RGB shape: (720, 510, 3)
+Depth shape: (576, 640)
+Depth dtype: uint16
+Depth min/max: 0/1504
+Valid depth pixels: 258190
+Intrinsics matrix:
+  750.147949 0.000000 386.178772
+  0.000000 749.789551 366.085907
+  0.000000 0.000000 1.000000
+Plane equation: 0.013267x + -0.157891y + 0.987367z + -0.483681 = 0
+Plane inliers: 216781
+Non-plane points: 23185
+Mask QA:
+  Foreground pixels: 9737
+  Foreground ratio: 0.02641330
+  Connected components: 1
+  Largest component area: 9737
+  Border pixels: 0
+  Border ratio: 0.00000000
+  Largest bbox: (500, 199, 65, 195)
+  Largest centroid: (530.6136386977508, 290.1877374961487)

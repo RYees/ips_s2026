@@ -102,5 +102,5 @@ def analyze_raw_geometry(ply_path):
 if __name__ == "__main__":
     # Point directly to your captured PLY data file
     analyze_raw_geometry(
-        "/home/cpsstudent/Documents/ips_s2026/rgbd/dataset/pointcloud/img0937.ply"
+        "/home/cpsstudent/Documents/ips_s2026/rgbd/dataset/pointcloud/img0941.ply"
     )

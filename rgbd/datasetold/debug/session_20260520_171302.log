@@ -1,0 +1,79 @@
+[INFO] Session log file: dataset/debug/session_20260520_171302.log
+[DEBUG] frames: total=1, depth_sets=0, color=1280×720,OBFormat.RGB,ts=2618133627, depth=None
+[WARNING] Align filter returned None
+[DEBUG] frames: total=2, depth_sets=0, color=1280×720,OBFormat.RGB,ts=2618133727, depth=None
+[WARNING] Align filter returned None
+[DEBUG] frames: total=3, depth_sets=1, color=1280×720,OBFormat.RGB,ts=2618133860, depth=640×576,OBFormat.Y16,ts=2618133861
+[DEBUG] frames: total=4, depth_sets=2, color=1280×720,OBFormat.RGB,ts=2618134159, depth=640×576,OBFormat.Y16,ts=2618134160
+[DEBUG] frames: total=5, depth_sets=3, color=1280×720,OBFormat.RGB,ts=2618134259, depth=640×576,OBFormat.Y16,ts=2618134260
+[DEBUG] frames: total=6, depth_sets=4, color=1280×720,OBFormat.RGB,ts=2618134359, depth=640×576,OBFormat.Y16,ts=2618134360
+[DEBUG] frames: total=7, depth_sets=5, color=1280×720,OBFormat.RGB,ts=2618134458, depth=640×576,OBFormat.Y16,ts=2618134460
+[DEBUG] frames: total=8, depth_sets=6, color=1280×720,OBFormat.RGB,ts=2618134558, depth=640×576,OBFormat.Y16,ts=2618134559
+[DEBUG] frames: total=9, depth_sets=7, color=1280×720,OBFormat.RGB,ts=2618134658, depth=640×576,OBFormat.Y16,ts=2618134659
+[DEBUG] frames: total=10, depth_sets=8, color=1280×720,OBFormat.RGB,ts=2618134724, depth=640×576,OBFormat.Y16,ts=2618134726
+[DEBUG] frames: total=11, depth_sets=9, color=1280×720,OBFormat.RGB,ts=2618134791, depth=640×576,OBFormat.Y16,ts=2618134792
+[DEBUG] frames: total=12, depth_sets=10, color=1280×720,OBFormat.RGB,ts=2618134924, depth=640×576,OBFormat.Y16,ts=2618134925
+[DEBUG] frames: total=13, depth_sets=11, color=1280×720,OBFormat.RGB,ts=2618135090, depth=640×576,OBFormat.Y16,ts=2618135091
+[DEBUG] frames: total=14, depth_sets=12, color=1280×720,OBFormat.RGB,ts=2618135257, depth=640×576,OBFormat.Y16,ts=2618135258
+[DEBUG] frames: total=15, depth_sets=13, color=1280×720,OBFormat.RGB,ts=2618135423, depth=640×576,OBFormat.Y16,ts=2618135424
+[DEBUG] frames: total=16, depth_sets=14, color=1280×720,OBFormat.RGB,ts=2618135523, depth=640×576,OBFormat.Y16,ts=2618135524
+[DEBUG] frames: total=17, depth_sets=15, color=1280×720,OBFormat.RGB,ts=2618135656, depth=640×576,OBFormat.Y16,ts=2618135657
+[DEBUG] frames: total=18, depth_sets=16, color=1280×720,OBFormat.RGB,ts=2618135755, depth=640×576,OBFormat.Y16,ts=2618135756
+[DEBUG] frames: total=19, depth_sets=17, color=1280×720,OBFormat.RGB,ts=2618135822, depth=640×576,OBFormat.Y16,ts=2618135823
+[DEBUG] frames: total=20, depth_sets=18, color=1280×720,OBFormat.RGB,ts=2618135888, depth=640×576,OBFormat.Y16,ts=2618135889
+[DEBUG] frames: total=21, depth_sets=19, color=1280×720,OBFormat.RGB,ts=2618135988, depth=640×576,OBFormat.Y16,ts=2618135989
+[DEBUG] frames: total=22, depth_sets=20, color=1280×720,OBFormat.RGB,ts=2618136055, depth=640×576,OBFormat.Y16,ts=2618136056
+[DEBUG] frames: total=23, depth_sets=21, color=1280×720,OBFormat.RGB,ts=2618136121, depth=640×576,OBFormat.Y16,ts=2618136122
+[DEBUG] frames: total=24, depth_sets=22, color=1280×720,OBFormat.RGB,ts=2618136221, depth=640×576,OBFormat.Y16,ts=2618136222
+[DEBUG] frames: total=25, depth_sets=23, color=1280×720,OBFormat.RGB,ts=2618136287, depth=640×576,OBFormat.Y16,ts=2618136288
+[DEBUG] frames: total=26, depth_sets=24, color=1280×720,OBFormat.RGB,ts=2618136354, depth=640×576,OBFormat.Y16,ts=2618136355
+[INIT] Utilizing local OpenCV Contrast Gate Engine. (Network Bypass Active)
+[DYNAMIC ENGINE] Floor Noise Cutoff: 6.75mm
+[FILTERED] Cluster #0: 20 pts. Base=12.2mm, Overlap=100.0%. Dropped.
+[FILTERED] Cluster #1: 442 pts. Base=14.6mm, Overlap=100.0%. Dropped.
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/tkinter/__init__.py", line 1967, in __call__
+    return self.func(*args)
+           ^^^^^^^^^^^^^^^^
+  File "/home/cpsstudent/Documents/ips_s2026/rgbd/main.py", line 166, in <lambda>
+    self.root.bind("<Return>", lambda e: self.capture_frame())
+                                         ^^^^^^^^^^^^^^^^^^^^
+  File "/home/cpsstudent/Documents/ips_s2026/rgbd/main.py", line 371, in capture_frame
+    mask, plane_model, inlier_count, outlier_count, _ = self.seg.segment(depth, rgb)
+                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/cpsstudent/Documents/ips_s2026/rgbd/processing/segmentation_helper.py", line 131, in segment
+    if visual_gate_mask[v, u] > 0:
+       ~~~~~~~~~~~~~~~~^^^^^^
+IndexError: index 519 is out of bounds for axis 1 with size 510
+[DEBUG] frames: total=27, depth_sets=25, color=1280×720,OBFormat.RGB,ts=2618147260, depth=640×576,OBFormat.Y16,ts=2618147261
+[DEBUG] frames: total=28, depth_sets=26, color=1280×720,OBFormat.RGB,ts=2618147293, depth=640×576,OBFormat.Y16,ts=2618147294
+[DEBUG] frames: total=29, depth_sets=27, color=1280×720,OBFormat.RGB,ts=2618147393, depth=640×576,OBFormat.Y16,ts=2618147394
+[DEBUG] frames: total=30, depth_sets=28, color=1280×720,OBFormat.RGB,ts=2618147526, depth=640×576,OBFormat.Y16,ts=2618147527
+[DEBUG] frames: total=31, depth_sets=29, color=1280×720,OBFormat.RGB,ts=2618147592, depth=640×576,OBFormat.Y16,ts=2618147593
+[DEBUG] frames: total=32, depth_sets=30, color=1280×720,OBFormat.RGB,ts=2618147692, depth=640×576,OBFormat.Y16,ts=2618147693
+[DEBUG] frames: total=33, depth_sets=31, color=1280×720,OBFormat.RGB,ts=2618147759, depth=640×576,OBFormat.Y16,ts=2618147760
+[DEBUG] frames: total=34, depth_sets=32, color=1280×720,OBFormat.RGB,ts=2618147858, depth=640×576,OBFormat.Y16,ts=2618147859
+[DEBUG] frames: total=35, depth_sets=33, color=1280×720,OBFormat.RGB,ts=2618147925, depth=640×576,OBFormat.Y16,ts=2618147926
+[DEBUG] frames: total=36, depth_sets=34, color=1280×720,OBFormat.RGB,ts=2618147991, depth=640×576,OBFormat.Y16,ts=2618147992
+[DEBUG] frames: total=37, depth_sets=35, color=1280×720,OBFormat.RGB,ts=2618148091, depth=640×576,OBFormat.Y16,ts=2618148092
+[DEBUG] frames: total=38, depth_sets=36, color=1280×720,OBFormat.RGB,ts=2618148157, depth=640×576,OBFormat.Y16,ts=2618148159
+[DEBUG] frames: total=39, depth_sets=37, color=1280×720,OBFormat.RGB,ts=2618148257, depth=640×576,OBFormat.Y16,ts=2618148258
+[DEBUG] frames: total=40, depth_sets=38, color=1280×720,OBFormat.RGB,ts=2618148324, depth=640×576,OBFormat.Y16,ts=2618148325
+[DEBUG] frames: total=41, depth_sets=39, color=1280×720,OBFormat.RGB,ts=2618148423, depth=640×576,OBFormat.Y16,ts=2618148425
+[DEBUG] frames: total=42, depth_sets=40, color=1280×720,OBFormat.RGB,ts=2618148490, depth=640×576,OBFormat.Y16,ts=2618148491
+[DEBUG] frames: total=43, depth_sets=41, color=1280×720,OBFormat.RGB,ts=2618148590, depth=640×576,OBFormat.Y16,ts=2618148591
+[DEBUG] frames: total=44, depth_sets=42, color=1280×720,OBFormat.RGB,ts=2618148656, depth=640×576,OBFormat.Y16,ts=2618148657
+[DEBUG] frames: total=45, depth_sets=43, color=1280×720,OBFormat.RGB,ts=2618148723, depth=640×576,OBFormat.Y16,ts=2618148724
+[DEBUG] frames: total=46, depth_sets=44, color=1280×720,OBFormat.RGB,ts=2618148822, depth=640×576,OBFormat.Y16,ts=2618148824
+[DEBUG] frames: total=47, depth_sets=45, color=1280×720,OBFormat.RGB,ts=2618148889, depth=640×576,OBFormat.Y16,ts=2618148890
+[DEBUG] frames: total=48, depth_sets=46, color=1280×720,OBFormat.RGB,ts=2618148955, depth=640×576,OBFormat.Y16,ts=2618148957
+[DEBUG] frames: total=49, depth_sets=47, color=1280×720,OBFormat.RGB,ts=2618149055, depth=640×576,OBFormat.Y16,ts=2618149056
+[DEBUG] frames: total=50, depth_sets=48, color=1280×720,OBFormat.RGB,ts=2618149122, depth=640×576,OBFormat.Y16,ts=2618149123
+[DEBUG] frames: total=51, depth_sets=49, color=1280×720,OBFormat.RGB,ts=2618149221, depth=640×576,OBFormat.Y16,ts=2618149222
+[DEBUG] frames: total=52, depth_sets=50, color=1280×720,OBFormat.RGB,ts=2618149288, depth=640×576,OBFormat.Y16,ts=2618149289
+[DEBUG] frames: total=53, depth_sets=51, color=1280×720,OBFormat.RGB,ts=2618149354, depth=640×576,OBFormat.Y16,ts=2618149355
+[DEBUG] frames: total=54, depth_sets=52, color=1280×720,OBFormat.RGB,ts=2618149454, depth=640×576,OBFormat.Y16,ts=2618149455
+[DEBUG] frames: total=55, depth_sets=53, color=1280×720,OBFormat.RGB,ts=2618149554, depth=640×576,OBFormat.Y16,ts=2618149555
+[DEBUG] frames: total=56, depth_sets=54, color=1280×720,OBFormat.RGB,ts=2618149620, depth=640×576,OBFormat.Y16,ts=2618149621
+[INFO] Quitting application.

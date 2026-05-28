@@ -1,0 +1,23 @@
+Image name: img0930
+RGB shape: (720, 510, 3)
+Depth shape: (576, 640)
+Mask shape: (720, 510)
+Mask foreground pixels: 9355
+Plane equation: [ 0.01655599 -0.15756364  0.98737004 -0.48285744]
+Plane inliers: 217829
+Non-plane points: 22305
+Mask QA:
+  Foreground pixels: 9369
+  Foreground ratio: 0.02541504
+  Connected components: 1
+  Largest component area: 9369
+  Border pixels: 0
+  Border ratio: 0.00000000
+  Largest bbox: (502, 199, 63, 192)
+  Largest centroid: (531.9563453943857, 289.4315295122212)
+
+Artifacts:
+  Overlay: dataset/debug/img0930_overlay.png
+  Mask: dataset/masks/img0930.png
+  Label: dataset/labels/img0930.txt
+  Info: dataset/info/img0930.txt

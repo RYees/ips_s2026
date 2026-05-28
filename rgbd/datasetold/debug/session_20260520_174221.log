@@ -1,0 +1,70 @@
+[INFO] Session log file: dataset/debug/session_20260520_174221.log
+[DEBUG] frames: total=1, depth_sets=0, color=1280×720,OBFormat.RGB,ts=2619892158, depth=None
+[WARNING] Align filter returned None
+[DEBUG] frames: total=2, depth_sets=0, color=1280×720,OBFormat.RGB,ts=2619892225, depth=None
+[WARNING] Align filter returned None
+[DEBUG] frames: total=3, depth_sets=0, color=1280×720,OBFormat.RGB,ts=2619892325, depth=None
+[WARNING] Align filter returned None
+[DEBUG] frames: total=4, depth_sets=0, color=1280×720,OBFormat.RGB,ts=2619892358, depth=None
+[WARNING] Align filter returned None
+[DEBUG] frames: total=5, depth_sets=0, color=1280×720,OBFormat.RGB,ts=2619892391, depth=None
+[WARNING] Align filter returned None
+[DEBUG] frames: total=6, depth_sets=0, color=1280×720,OBFormat.RGB,ts=2619892425, depth=None
+[WARNING] Align filter returned None
+[DEBUG] frames: total=7, depth_sets=1, color=1280×720,OBFormat.RGB,ts=2619892458, depth=640×576,OBFormat.Y16,ts=2619892459
+[DEBUG] frames: total=8, depth_sets=2, color=1280×720,OBFormat.RGB,ts=2619892524, depth=640×576,OBFormat.Y16,ts=2619892525
+[DEBUG] frames: total=9, depth_sets=3, color=1280×720,OBFormat.RGB,ts=2619892624, depth=640×576,OBFormat.Y16,ts=2619892625
+[DEBUG] frames: total=10, depth_sets=4, color=1280×720,OBFormat.RGB,ts=2619892757, depth=640×576,OBFormat.Y16,ts=2619892758
+[DEBUG] frames: total=11, depth_sets=5, color=1280×720,OBFormat.RGB,ts=2619892890, depth=640×576,OBFormat.Y16,ts=2619892891
+[DEBUG] frames: total=12, depth_sets=6, color=1280×720,OBFormat.RGB,ts=2619892990, depth=640×576,OBFormat.Y16,ts=2619892991
+[DEBUG] frames: total=13, depth_sets=7, color=1280×720,OBFormat.RGB,ts=2619893090, depth=640×576,OBFormat.Y16,ts=2619893091
+[DEBUG] frames: total=14, depth_sets=8, color=1280×720,OBFormat.RGB,ts=2619893289, depth=640×576,OBFormat.Y16,ts=2619893290
+[DEBUG] frames: total=15, depth_sets=9, color=1280×720,OBFormat.RGB,ts=2619893422, depth=640×576,OBFormat.Y16,ts=2619893423
+[DEBUG] frames: total=16, depth_sets=10, color=1280×720,OBFormat.RGB,ts=2619893555, depth=640×576,OBFormat.Y16,ts=2619893556
+[DEBUG] frames: total=17, depth_sets=11, color=1280×720,OBFormat.RGB,ts=2619893622, depth=640×576,OBFormat.Y16,ts=2619893623
+[DEBUG] frames: total=18, depth_sets=12, color=1280×720,OBFormat.RGB,ts=2619893722, depth=640×576,OBFormat.Y16,ts=2619893723
+[DEBUG] frames: total=19, depth_sets=13, color=1280×720,OBFormat.RGB,ts=2619893821, depth=640×576,OBFormat.Y16,ts=2619893823
+[DEBUG] frames: total=20, depth_sets=14, color=1280×720,OBFormat.RGB,ts=2619893888, depth=640×576,OBFormat.Y16,ts=2619893889
+[DEBUG] frames: total=21, depth_sets=15, color=1280×720,OBFormat.RGB,ts=2619893954, depth=640×576,OBFormat.Y16,ts=2619893956
+[DEBUG] frames: total=22, depth_sets=16, color=1280×720,OBFormat.RGB,ts=2619894087, depth=640×576,OBFormat.Y16,ts=2619894089
+[DEBUG] frames: total=23, depth_sets=17, color=1280×720,OBFormat.RGB,ts=2619894154, depth=640×576,OBFormat.Y16,ts=2619894155
+[DYNAMIC ENGINE] Floor Noise Sigma=1.90mm. Adaptive Outlier Cutoff Threshold=6.64mm
+[REJECTED] Ghost Reflection Filtered (ID #0): Base sits at 13.0mm (Cutoff=6.64mm)
+[REJECTED] Ghost Reflection Filtered (ID #1): Base sits at 16.9mm (Cutoff=6.64mm)
+[REJECTED] Ghost Reflection Filtered (ID #2): Base sits at 12.3mm (Cutoff=6.64mm)
+[REJECTED] Ghost Reflection Filtered (ID #3): Base sits at 13.7mm (Cutoff=6.64mm)
+[REJECTED] Ghost Reflection Filtered (ID #4): Base sits at 15.0mm (Cutoff=6.64mm)
+[REJECTED] Ghost Reflection Filtered (ID #5): Base sits at 974.1mm (Cutoff=6.64mm)
+[REJECTED] Ghost Reflection Filtered (ID #6): Base sits at 9.1mm (Cutoff=6.64mm)
+[REJECTED] Ghost Reflection Filtered (ID #7): Base sits at 11.3mm (Cutoff=6.64mm)
+[REJECTED] Ghost Reflection Filtered (ID #8): Base sits at 11.9mm (Cutoff=6.64mm)
+[DEBUG] Mask Generation Complete. Active foreground pixels: 0
+
+[INFO] Saving data packages for: img0941...
+[SAVED] RGB image saved to: dataset/images/img0941.png
+[SAVED] Raw 16-bit depth map saved to: dataset/depth/img0941.png
+[WARNING] Mask/image shape mismatch: mask=(576, 640), image=(720, 510). Resizing mask for overlay/export.
+[SAVED] YOLO text file saved to: dataset/labels/img0941.txt
+[SAVED] Mask tracking image saved to: dataset/masks/img0941.png
+[SAVED] Verified 3D Point Cloud saved successfully (258889 points)
+[COUNT] images=8, depth=8, labels=6, masks=10, pointcloud=8, info=3, debug=7
+[SUCCESS] Packout cycle img0941 complete.
+
+[DEBUG] frames: total=24, depth_sets=18, color=1280×720,OBFormat.RGB,ts=2619915140, depth=640×576,OBFormat.Y16,ts=2619915141
+[DEBUG] frames: total=25, depth_sets=19, color=1280×720,OBFormat.RGB,ts=2619915239, depth=640×576,OBFormat.Y16,ts=2619915240
+[DEBUG] frames: total=26, depth_sets=20, color=1280×720,OBFormat.RGB,ts=2619915372, depth=640×576,OBFormat.Y16,ts=2619915373
+[DEBUG] frames: total=27, depth_sets=21, color=1280×720,OBFormat.RGB,ts=2619915472, depth=640×576,OBFormat.Y16,ts=2619915473
+[DEBUG] frames: total=28, depth_sets=22, color=1280×720,OBFormat.RGB,ts=2619915572, depth=640×576,OBFormat.Y16,ts=2619915573
+[DEBUG] frames: total=29, depth_sets=23, color=1280×720,OBFormat.RGB,ts=2619915672, depth=640×576,OBFormat.Y16,ts=2619915673
+[DEBUG] frames: total=30, depth_sets=24, color=1280×720,OBFormat.RGB,ts=2619915771, depth=640×576,OBFormat.Y16,ts=2619915772
+[DEBUG] frames: total=31, depth_sets=25, color=1280×720,OBFormat.RGB,ts=2619915871, depth=640×576,OBFormat.Y16,ts=2619915872
+[DEBUG] frames: total=32, depth_sets=26, color=1280×720,OBFormat.RGB,ts=2619915971, depth=640×576,OBFormat.Y16,ts=2619915972
+[DEBUG] frames: total=33, depth_sets=27, color=1280×720,OBFormat.RGB,ts=2619916037, depth=640×576,OBFormat.Y16,ts=2619916038
+[DEBUG] frames: total=34, depth_sets=28, color=1280×720,OBFormat.RGB,ts=2619916137, depth=640×576,OBFormat.Y16,ts=2619916138
+[DEBUG] frames: total=35, depth_sets=29, color=1280×720,OBFormat.RGB,ts=2619916204, depth=640×576,OBFormat.Y16,ts=2619916205
+[DEBUG] frames: total=36, depth_sets=30, color=1280×720,OBFormat.RGB,ts=2619916303, depth=640×576,OBFormat.Y16,ts=2619916305
+[DEBUG] frames: total=37, depth_sets=31, color=1280×720,OBFormat.RGB,ts=2619916370, depth=640×576,OBFormat.Y16,ts=2619916371
+[DEBUG] frames: total=38, depth_sets=32, color=1280×720,OBFormat.RGB,ts=2619916470, depth=640×576,OBFormat.Y16,ts=2619916471
+[DEBUG] frames: total=39, depth_sets=33, color=1280×720,OBFormat.RGB,ts=2619916536, depth=640×576,OBFormat.Y16,ts=2619916537
+[DEBUG] frames: total=40, depth_sets=34, color=1280×720,OBFormat.RGB,ts=2619916636, depth=640×576,OBFormat.Y16,ts=2619916637
+[INFO] Quitting application.
