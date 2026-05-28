@@ -1,0 +1,12 @@
+RGB shape: (1080, 1150, 3)
+Depth shape: (576, 640)
+Depth dtype: uint16
+Depth min/max: 0/1490
+Valid depth pixels: 253553
+Intrinsics matrix:
+  1125.221924 0.000000 704.268188
+  0.000000 1124.684326 549.128845
+  0.000000 0.000000 1.000000
+Plane equation: 0.024502x + -0.364771y + 0.930775z + -0.479743 = 0
+Plane inliers: 195516
+Non-plane points: 58037
