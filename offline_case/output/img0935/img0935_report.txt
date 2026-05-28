@@ -10,24 +10,29 @@ intrinsics:
   cx: 255.0
   cy: 360.0
 intrinsics_source: fallback_from_rgb_shape
+depth_path: offline_case/samples/depth/img0935.png
+depth_shape: (720, 510, 3)
+depth_mode: visualization
+depth_visualization:
+  shape: (720, 510, 3)
+  colormap: TURBO
 ply_path: offline_case/samples/pointcloud/img0935.ply
 pointcloud_plane:
-  a: 0.017993370386960174
-  b: -0.15775011888625157
-  c: 0.9873151161678277
-  d: -0.48313279112907503
-  inliers: 219177
-  outliers: 39283
+  a: 0.01426258353197686
+  b: -0.15822260977117117
+  c: 0.987300452986928
+  d: -0.4833272173513088
+  inliers: 220030
+  outliers: 38430
 pointcloud_mask:
   shape: (720, 510)
-  foreground: 26411
-  ratio: 0.07192538126361656
-  components: 4
-  largest_area: 20414
-  largest_bbox: (375, 109, 119, 348)
-  largest_centroid: (442.28465758792987, 280.5443323209562)
+  foreground: 26462
+  ratio: 0.07206427015250545
+  components: 3
+  largest_area: 21386
+  largest_bbox: (370, 109, 124, 348)
+  largest_centroid: (439.68053867015806, 280.4514168147386)
   border_pixels: 0
   border_ratio: 0.0
 pointcloud_depth_viz: generated with TURBO
-generated_depth_path: offline_case/samples/depth/img0935.png
 selected_mask_source: pointcloud
