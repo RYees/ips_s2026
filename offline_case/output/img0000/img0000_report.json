@@ -18,22 +18,22 @@
   "intrinsics_source": "fallback_from_rgb_shape",
   "ply_path": "offline_case/samples/pointcloud/img0000.ply",
   "pointcloud_plane": {
-    "a": 0.016171379476367834,
-    "b": -0.19031853349881794,
-    "c": 0.9815891922248791,
-    "d": -0.47914823085059893,
-    "inliers": 214918,
-    "outliers": 42608
+    "a": 0.016996815450654016,
+    "b": -0.19025553064750794,
+    "c": 0.9815874598437836,
+    "d": -0.4791350004815698,
+    "inliers": 214331,
+    "outliers": 43195
   },
   "pointcloud_mask": {
     "shape": [
       720,
       510
     ],
-    "foreground": 30504,
-    "ratio": 0.0830718954248366,
+    "foreground": 30541,
+    "ratio": 0.08317265795206971,
     "components": 2,
-    "largest_area": 21057,
+    "largest_area": 20972,
     "largest_bbox": [
       374,
       116,
@@ -41,8 +41,8 @@
       341
     ],
     "largest_centroid": [
-      441.70104953222204,
-      277.7984518212471
+      441.90635132557696,
+      277.95751478161355
     ],
     "border_pixels": 0,
     "border_ratio": 0.0
