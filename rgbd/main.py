@@ -529,7 +529,7 @@ class RGBDCollectorApp:
         depth_vis = cv2.normalize(
             self.captured_depth, None, 0, 255, cv2.NORM_MINMAX
         ).astype(np.uint8)
-        depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_TURBO)
+        depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
         cv2.imwrite(str(self.depth_dir / f"{img_name}.png"), depth_colored)
         print(
             f"[SAVED] Colored depth map saved to: {self.depth_dir / f'{img_name}.png'}"
