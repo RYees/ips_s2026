@@ -89,6 +89,7 @@ class RGBDCollectorApp:
         # Directories
         base_path = Path("dataset")
         self.img_dir = base_path / "images"
+        self.original_rgb_dir = base_path / "original_rgb"
         self.label_dir = base_path / "labels"
         self.depth_dir = base_path / "depth"
         self.mask_dir = base_path / "masks"
@@ -97,6 +98,7 @@ class RGBDCollectorApp:
         self.debug_dir = base_path / "debug"
         for d in [
             self.img_dir,
+            self.original_rgb_dir,
             self.label_dir,
             self.depth_dir,
             self.mask_dir,
@@ -244,6 +246,7 @@ class RGBDCollectorApp:
         indices = []
         for directory, suffixes in (
             (self.img_dir, [".png"]),
+            (self.original_rgb_dir, [".png"]),
             (self.label_dir, [".txt"]),
             (self.depth_dir, [".png"]),
             (self.mask_dir, [".png"]),
@@ -342,6 +345,7 @@ class RGBDCollectorApp:
             return
 
         rgb = frame_to_bgr_image(color_frame)
+        original_rgb = rgb.copy()
 
         # 1. Safely pull the raw 16-bit depth values
         depth_raw = np.frombuffer(depth_frame.get_data(), dtype=np.uint16)
@@ -415,6 +419,7 @@ class RGBDCollectorApp:
 
         # Save arrays into app memory state exactly as before
         self.captured_rgb = rgb
+        self.captured_original_rgb = original_rgb
         self.captured_depth = depth
         self.captured_mask = mask
         self.captured_pcd = pcd
@@ -525,6 +530,14 @@ class RGBDCollectorApp:
         cv2.imwrite(str(self.img_dir / f"{img_name}.png"), self.captured_rgb)
         print(f"[SAVED] RGB image saved to: {self.img_dir / f'{img_name}.png'}")
 
+        # 1b. Save original uncropped RGB image file
+        cv2.imwrite(
+            str(self.original_rgb_dir / f"{img_name}.png"), self.captured_original_rgb
+        )
+        print(
+            f"[SAVED] Original RGB image saved to: {self.original_rgb_dir / f'{img_name}.png'}"
+        )
+
         # 2. Save Raw 16-bit depth values mapping real metric millimeters
         depth_vis = cv2.normalize(
             self.captured_depth, None, 0, 255, cv2.NORM_MINMAX
@@ -605,6 +618,7 @@ class RGBDCollectorApp:
 
     def reset_capture_state(self):
         self.captured_rgb = None
+        self.captured_original_rgb = None
         self.captured_depth = None
         self.captured_mask = None
         self.captured_pcd = None
