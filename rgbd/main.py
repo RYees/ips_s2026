@@ -526,9 +526,13 @@ class RGBDCollectorApp:
         print(f"[SAVED] RGB image saved to: {self.img_dir / f'{img_name}.png'}")
 
         # 2. Save Raw 16-bit depth values mapping real metric millimeters
-        cv2.imwrite(str(self.depth_dir / f"{img_name}.png"), self.captured_depth)
+        depth_vis = cv2.normalize(
+            self.captured_depth, None, 0, 255, cv2.NORM_MINMAX
+        ).astype(np.uint8)
+        depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_TURBO)
+        cv2.imwrite(str(self.depth_dir / f"{img_name}.png"), depth_colored)
         print(
-            f"[SAVED] Raw 16-bit depth map saved to: {self.depth_dir / f'{img_name}.png'}"
+            f"[SAVED] Colored depth map saved to: {self.depth_dir / f'{img_name}.png'}"
         )
 
         # 3. Handle YOLO label text formatting
