@@ -8,10 +8,14 @@ import re
 import sys
 import open3d as o3d
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from camera.camera_interface import CameraInterface
-from processing.segmentation_helper import SegmentationHelper
 from processing.annotation_writer import AnnotationWriter
 from processing.utils import frame_to_bgr_image
+from offline_case.masking import CaptureInfo, run_masking_from_point_cloud
 from tkinter import ttk
 
 
@@ -394,9 +398,20 @@ class RGBDCollectorApp:
             depth_o3d, adjusted_intrinsics, depth_scale=1.0, depth_trunc=3.0, stride=1
         )
 
-        # 5. Send your clean data to your Segmentation backend helper
-        self.seg = SegmentationHelper(adjusted_intrinsics)
-        mask, plane_model, inlier_count, outlier_count, _ = self.seg.segment(depth, rgb)
+        # 5. Run the offline 3D masking pipeline on the live point cloud
+        live_info = CaptureInfo(
+            raw_depth_shape=self.raw_depth_shape,
+            rgb_shape=rgb.shape[:2],
+            crop_top=0,
+            crop_left=0,
+            fx=fx,
+            fy=fy,
+            cx=adjusted_intrinsics.intrinsic_matrix[0, 2],
+            cy=adjusted_intrinsics.intrinsic_matrix[1, 2],
+        )
+        mask, plane_model, inlier_count, outlier_count = run_masking_from_point_cloud(
+            pcd, live_info
+        )
 
         # Save arrays into app memory state exactly as before
         self.captured_rgb = rgb
@@ -444,6 +459,7 @@ class RGBDCollectorApp:
     def save_info_txt(
         self,
         img_name,
+        selected_class,
         crop,
         raw_rgb_shape,
         raw_depth_shape,
@@ -480,6 +496,7 @@ class RGBDCollectorApp:
             )
             f.write(f"Plane inliers: {plane_inliers}\n")
             f.write(f"Non-plane points: {non_plane_pts}\n")
+            f.write(f"Selected class: {selected_class}\n")
             if mask_stats is not None:
                 f.write("Mask QA:\n")
                 f.write(f"  Foreground pixels: {mask_stats['foreground']}\n")
@@ -548,6 +565,7 @@ class RGBDCollectorApp:
         if self.captured_plane_model is not None:
             self.save_info_txt(
                 img_name,
+                selected_class,
                 self.capture_crop,
                 self.raw_rgb_shape,
                 self.raw_depth_shape,

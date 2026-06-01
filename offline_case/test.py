@@ -32,17 +32,18 @@ import open3d as o3d
 # Info.txt parser  — reads every field from the capture metadata
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class CaptureInfo:
     # Crop applied to RGB only (depth is never cropped)
-    crop_top:    int = 0
+    crop_top: int = 0
     crop_bottom: int = 0
-    crop_left:   int = 0
-    crop_right:  int = 0
+    crop_left: int = 0
+    crop_right: int = 0
 
     # Frame dimensions
-    raw_rgb_shape:     Tuple[int, int, int] = (0, 0, 3)
-    raw_depth_shape:   Tuple[int, int]      = (0, 0)
+    raw_rgb_shape: Tuple[int, int, int] = (0, 0, 3)
+    raw_depth_shape: Tuple[int, int] = (0, 0)
     cropped_rgb_shape: Tuple[int, int, int] = (0, 0, 3)
 
     # Depth value range (used for accurate colormap normalization)
@@ -77,7 +78,9 @@ def parse_info(path: Path) -> CaptureInfo:
         return [int(x) for x in re.findall(r"-?\d+", s)]
 
     def _floats(s):
-        return [float(x) for x in re.findall(r"-?[\d]+\.[\d]+(?:[eE][+-]?\d+)?|-?[\d]+", s)]
+        return [
+            float(x) for x in re.findall(r"-?[\d]+\.[\d]+(?:[eE][+-]?\d+)?|-?[\d]+", s)
+        ]
 
     for i, line in enumerate(lines):
         s = line.strip()
@@ -85,66 +88,94 @@ def parse_info(path: Path) -> CaptureInfo:
         # Crop
         if s.startswith("top="):
             parts = dict(kv.split("=") for kv in s.split())
-            info.crop_top    = int(parts.get("top",    0))
+            info.crop_top = int(parts.get("top", 0))
             info.crop_bottom = int(parts.get("bottom", 0))
-            info.crop_left   = int(parts.get("left",   0))
-            info.crop_right  = int(parts.get("right",  0))
+            info.crop_left = int(parts.get("left", 0))
+            info.crop_right = int(parts.get("right", 0))
 
         # Shapes
         elif s.startswith("Raw RGB shape:"):
-            v = _ints(s); info.raw_rgb_shape = (v[0], v[1], v[2]) if len(v) >= 3 else info.raw_rgb_shape
+            v = _ints(s)
+            info.raw_rgb_shape = (
+                (v[0], v[1], v[2]) if len(v) >= 3 else info.raw_rgb_shape
+            )
         elif s.startswith("Raw depth shape:"):
-            v = _ints(s); info.raw_depth_shape = (v[0], v[1]) if len(v) >= 2 else info.raw_depth_shape
+            v = _ints(s)
+            info.raw_depth_shape = (v[0], v[1]) if len(v) >= 2 else info.raw_depth_shape
         elif s.startswith("Cropped RGB shape:"):
-            v = _ints(s); info.cropped_rgb_shape = (v[0], v[1], v[2]) if len(v) >= 3 else info.cropped_rgb_shape
+            v = _ints(s)
+            info.cropped_rgb_shape = (
+                (v[0], v[1], v[2]) if len(v) >= 3 else info.cropped_rgb_shape
+            )
 
         # Depth stats
         elif s.startswith("Depth min/max:"):
-            v = _ints(s); info.depth_min, info.depth_max = (v[0], v[1]) if len(v) >= 2 else (0, 0)
+            v = _ints(s)
+            info.depth_min, info.depth_max = (v[0], v[1]) if len(v) >= 2 else (0, 0)
         elif s.startswith("Valid depth pixels:"):
-            v = _ints(s); info.valid_depth_pixels = v[0] if v else 0
+            v = _ints(s)
+            info.valid_depth_pixels = v[0] if v else 0
 
         # Intrinsics matrix (3 rows follow)
         elif s.startswith("Intrinsics matrix:"):
             r0 = _floats(lines[i + 1]) if i + 1 < len(lines) else []
             r1 = _floats(lines[i + 2]) if i + 2 < len(lines) else []
-            if len(r0) >= 3: info.fx, info.cx = r0[0], r0[2]
-            if len(r1) >= 3: info.fy, info.cy = r1[1], r1[2]
+            if len(r0) >= 3:
+                info.fx, info.cx = r0[0], r0[2]
+            if len(r1) >= 3:
+                info.fy, info.cy = r1[1], r1[2]
 
         # Plane equation
         elif s.startswith("Plane equation:"):
-            v = _floats(s); 
+            v = _floats(s)
             if len(v) >= 4:
-                info.plane_a, info.plane_b, info.plane_c, info.plane_d = v[0], v[1], v[2], v[3]
+                info.plane_a, info.plane_b, info.plane_c, info.plane_d = (
+                    v[0],
+                    v[1],
+                    v[2],
+                    v[3],
+                )
 
         elif s.startswith("Plane inliers:"):
-            v = _ints(s); info.plane_inliers = v[0] if v else 0
+            v = _ints(s)
+            info.plane_inliers = v[0] if v else 0
         elif s.startswith("Non-plane points:"):
-            v = _ints(s); info.non_plane_points = v[0] if v else 0
+            v = _ints(s)
+            info.non_plane_points = v[0] if v else 0
         elif s.startswith("Foreground pixels:"):
-            v = _ints(s); info.foreground_pixels = v[0] if v else 0
+            v = _ints(s)
+            info.foreground_pixels = v[0] if v else 0
 
     return info
 
 
 def print_info(info: CaptureInfo):
-    print(f"  Crop          : top={info.crop_top} bottom={info.crop_bottom} "
-          f"left={info.crop_left} right={info.crop_right}")
+    print(
+        f"  Crop          : top={info.crop_top} bottom={info.crop_bottom} "
+        f"left={info.crop_left} right={info.crop_right}"
+    )
     print(f"  Raw RGB       : {info.raw_rgb_shape}")
     print(f"  Raw depth     : {info.raw_depth_shape}")
     print(f"  Depth range   : {info.depth_min} – {info.depth_max} mm")
     print(f"  Valid px      : {info.valid_depth_pixels}")
-    print(f"  Intrinsics    : fx={info.fx:.3f} fy={info.fy:.3f} "
-          f"cx={info.cx:.3f} cy={info.cy:.3f}")
-    print(f"  Plane eq      : {info.plane_a:.6f}x + {info.plane_b:.6f}y + "
-          f"{info.plane_c:.6f}z + {info.plane_d:.6f} = 0")
-    print(f"  Plane inliers : {info.plane_inliers}   non-plane: {info.non_plane_points}")
+    print(
+        f"  Intrinsics    : fx={info.fx:.3f} fy={info.fy:.3f} "
+        f"cx={info.cx:.3f} cy={info.cy:.3f}"
+    )
+    print(
+        f"  Plane eq      : {info.plane_a:.6f}x + {info.plane_b:.6f}y + "
+        f"{info.plane_c:.6f}z + {info.plane_d:.6f} = 0"
+    )
+    print(
+        f"  Plane inliers : {info.plane_inliers}   non-plane: {info.non_plane_points}"
+    )
     print(f"  Foreground px : {info.foreground_pixels}")
 
 
 # ---------------------------------------------------------------------------
 # Depth loading / reconstruction
 # ---------------------------------------------------------------------------
+
 
 def load_depth_png(path: Path) -> np.ndarray:
     depth = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
@@ -162,7 +193,7 @@ def depth_from_ply(ply_path: Path, info: CaptureInfo) -> np.ndarray:
         print("[WARNING] PLY is empty — depth image will be blank.")
         return np.zeros((H, W), dtype=np.uint16)
 
-    pts = np.asarray(pcd.points)            # (N, 3) metres
+    pts = np.asarray(pcd.points)  # (N, 3) metres
 
     # Filter invalid points
     valid = pts[:, 2] > 0
@@ -183,14 +214,17 @@ def depth_from_ply(ply_path: Path, info: CaptureInfo) -> np.ndarray:
     depth_img = np.zeros((H, W), dtype=np.float32)
     depth_img[v, u] = z_mm
 
-    print(f"[OK] Projected {len(u):,} PLY points → {W}×{H} depth image  "
-          f"non-zero px: {np.count_nonzero(depth_img):,}")
+    print(
+        f"[OK] Projected {len(u):,} PLY points → {W}×{H} depth image  "
+        f"non-zero px: {np.count_nonzero(depth_img):,}"
+    )
     return depth_img.astype(np.uint16)
 
 
 # ---------------------------------------------------------------------------
 # Visualization
 # ---------------------------------------------------------------------------
+
 
 def colorize_depth(depth):
 
@@ -201,17 +235,11 @@ def colorize_depth(depth):
     depth_vis = np.zeros(depth.shape, dtype=np.uint8)
 
     if np.any(valid):
-        normalized = cv2.normalize(
-            depth[valid],
-            None,
-            0,
-            255,
-            cv2.NORM_MINMAX
-        )
+        normalized = cv2.normalize(depth[valid], None, 0, 255, cv2.NORM_MINMAX)
 
         depth_vis[valid] = normalized.reshape(-1).astype(np.uint8)
 
-    return cv2.applyColorMap(depth_vis, cv2.COLORMAP_AUTUMN)
+    return cv2.applyColorMap(depth_vis, cv2.COLORMAP_WINTER)
 
 
 def build_mask_panel(mask: np.ndarray) -> np.ndarray:
@@ -231,12 +259,13 @@ def build_mask_panel(mask: np.ndarray) -> np.ndarray:
 # Entry point
 # ---------------------------------------------------------------------------
 
+
 def run(name: str, base: Path, save: bool):
-    rgb_path   = base / "images"     / f"{name}.png"
-    depth_path = base / "depth"      / f"{name}.png"
-    mask_path  = base / "masks"      / f"{name}.png"
-    ply_path   = base / "pointcloud" / f"{name}.ply"
-    info_path  = base / "info"       / f"{name}.txt"
+    rgb_path = base / "images" / f"{name}.png"
+    depth_path = base / "depth" / f"{name}.png"
+    mask_path = base / "masks" / f"{name}.png"
+    ply_path = base / "pointcloud" / f"{name}.ply"
+    info_path = base / "info" / f"{name}.txt"
 
     # 1. Parse metadata
     if not info_path.exists():
@@ -254,20 +283,23 @@ def run(name: str, base: Path, save: bool):
     # 3. Load or reconstruct depth
     if depth_path.exists():
         depth = load_depth_png(depth_path)
-        print(f"[OK] Depth loaded from PNG  {depth.shape}  "
-              f"min={depth.min()} max={depth.max()}")
+        print(
+            f"[OK] Depth loaded from PNG  {depth.shape}  "
+            f"min={depth.min()} max={depth.max()}"
+        )
     elif ply_path.exists():
         print("[INFO] No depth PNG — reconstructing from PLY...")
         depth = depth_from_ply(ply_path, info)
     else:
         raise FileNotFoundError(
-            f"Neither depth PNG ({depth_path}) nor PLY ({ply_path}) found.")
+            f"Neither depth PNG ({depth_path}) nor PLY ({ply_path}) found."
+        )
 
     # 4. Load mask (optional)
     if mask_path.exists():
         mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
         print(f"[OK] Mask loaded  foreground px: {np.count_nonzero(mask):,}")
-    else: 
+    else:
         print("[INFO] No mask file — using blank mask.")
         mask = np.zeros(depth.shape[:2], dtype=np.uint8)
 
@@ -275,11 +307,11 @@ def run(name: str, base: Path, save: bool):
     depth_colored = colorize_depth(depth)
 
     # 6. Build panels — use native sizes, no forced resize
-    panel_rgb   = rgb_bgr
-    panel_mask  = cv2.resize(build_mask_panel(mask),
-                             (rgb_bgr.shape[1], rgb_bgr.shape[0]))
-    panel_depth = cv2.resize(depth_colored,
-                             (rgb_bgr.shape[1], rgb_bgr.shape[0]))
+    panel_rgb = rgb_bgr
+    panel_mask = cv2.resize(
+        build_mask_panel(mask), (rgb_bgr.shape[1], rgb_bgr.shape[0])
+    )
+    panel_depth = cv2.resize(depth_colored, (rgb_bgr.shape[1], rgb_bgr.shape[0]))
 
     combined = np.hstack((panel_rgb, panel_mask, panel_depth))
 
@@ -299,7 +331,7 @@ def run(name: str, base: Path, save: bool):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Offline depth visualizer")
-    parser.add_argument("name",   nargs="?", default="img0000")
+    parser.add_argument("name", nargs="?", default="img0000")
     parser.add_argument("--base", default="offline_case/samples")
     parser.add_argument("--save", action="store_true")
     args = parser.parse_args()

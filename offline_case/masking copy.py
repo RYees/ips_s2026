@@ -159,12 +159,11 @@ def evaluate_gates(cid, pts, plane_a, plane_b, plane_c, plane_d, plane_norm):
     return all_pass, score
 
 
-def run_masking_from_point_cloud(
-    pcd: o3d.geometry.PointCloud, info: CaptureInfo
-) -> tuple[np.ndarray, tuple[float, float, float, float] | None, int, int]:
+def run_masking(ply_path: Path, info: CaptureInfo) -> np.ndarray:
     target_H, target_W = info.rgb_shape[0], info.rgb_shape[1]
 
     print("\n━━━ [STAGE 1] Loading Point Cloud Array", flush=True)
+    pcd = o3d.io.read_point_cloud(str(ply_path))
     print(f"  [INFO] Total raw points loaded: {len(pcd.points):,}", flush=True)
 
     print("\n━━━ [STAGE 2] Statistical Outlier Demolition", flush=True)
@@ -201,6 +200,37 @@ def run_masking_from_point_cloud(
         f"  [INFO] Non-plane points going to workspace filter: {len(pts_out):,}",
         flush=True,
     )
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # TEMPORARY GEOMETRIC DEBUGGER
+    # ─────────────────────────────────────────────────────────────────────────────
+    print("\n🔍 DEBUGGING RANSAC OVER-EATING:")
+    # Calculate distances of ALL points to the plane model
+    all_pts = np.asarray(pcd_clean.points)
+    all_dists_mm = (
+        (a * all_pts[:, 0] + b * all_pts[:, 1] + c * all_pts[:, 2] + d) / plane_norm
+    ) * 1000.0
+
+    print(f"Total points evaluated: {len(all_pts):,}")
+    print(
+        f"Points inside plane tolerance (< 12mm): {np.count_nonzero(np.abs(all_dists_mm) < 12.0):,}"
+    )
+    print(
+        f"Points slightly above plane (3mm to 12mm): {np.count_nonzero((all_dists_mm >= 3.0) & (all_dists_mm < 12.0)):,}"
+    )
+    print(
+        f"Points strictly above plane (> 12mm): {np.count_nonzero(all_dists_mm >= 12.0):,}"
+    )
+
+    # Project a quick coordinate check on points between 3mm and 12mm to find the screw
+    high_inliers = all_pts[(all_dists_mm >= 3.0) & (all_dists_mm < 12.0)]
+    if len(high_inliers) > 0:
+        print(
+            f"Found {len(high_inliers)} points floating just above the belt floor surface!"
+        )
+        print(
+            f"Bounding Box of these hidden points: Min={high_inliers.min(axis=0)} | Max={high_inliers.max(axis=0)}"
+        )
 
     print(f"\n━━━ [STAGE 5] Direction-Enforced Spatial Pre-Filtering", flush=True)
     dist_out_mm = (
@@ -243,12 +273,7 @@ def run_masking_from_point_cloud(
             "  [WARNING] Zero clusters passed true 3D volumetric threshold gates.",
             flush=True,
         )
-        return (
-            np.zeros((target_H, target_W), dtype=np.uint8),
-            tuple(ransac_model),
-            int(len(inlier_idx)),
-            int(len(outlier_cloud.points)),
-        )
+        return np.zeros((target_H, target_W), dtype=np.uint8)
 
     candidates.sort(key=lambda x: x[1], reverse=True)
     best_pts, best_score, best_id = candidates[0]
@@ -295,12 +320,7 @@ def run_masking_from_point_cloud(
             "  [WARNING] Array allocation bypassed: Zero projected indices matched bounds.",
             flush=True,
         )
-        return (
-            mask,
-            tuple(ransac_model),
-            int(len(inlier_idx)),
-            int(len(outlier_cloud.points)),
-        )
+        return mask
 
     mask[v_valid, u_valid] = 255
 
@@ -318,17 +338,6 @@ def run_masking_from_point_cloud(
             flush=True,
         )
 
-    return (
-        mask,
-        tuple(ransac_model),
-        int(len(inlier_idx)),
-        int(len(outlier_cloud.points)),
-    )
-
-
-def run_masking(ply_path: Path, info: CaptureInfo) -> np.ndarray:
-    pcd = o3d.io.read_point_cloud(str(ply_path))
-    mask, _, _, _ = run_masking_from_point_cloud(pcd, info)
     return mask
 
 
@@ -340,7 +349,7 @@ def run(name: str, samples: Path, out_dir: Path):
     mask = run_masking(ply_path, info)
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    mask_target_path = out_dir / f"{name}.png"
+    mask_target_path = out_dir / f"{name}_mask.png"
     cv2.imwrite(str(mask_target_path), mask)
 
     fg_px = int(np.count_nonzero(mask))
