@@ -435,7 +435,7 @@ class RGBDCollectorApp:
             cv2.drawContours(mask_bgr, [largest], -1, (0, 255, 0), 2)
 
         depth_vis = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-        depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_TURBO)
+        depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
 
         w, h = 320, 240
         combined = np.hstack(
