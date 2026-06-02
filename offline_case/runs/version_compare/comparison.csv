@@ -1,0 +1,4 @@
+model,status,epoch,time,train/box_loss,train/seg_loss,train/cls_loss,train/dfl_loss,train/sem_loss,metrics/precision(B),metrics/recall(B),metrics/mAP50(B),metrics/mAP50-95(B),metrics/precision(M),metrics/recall(M),metrics/mAP50(M),metrics/mAP50-95(M),val/box_loss,val/seg_loss,val/cls_loss,val/dfl_loss,val/sem_loss,lr/pg0,lr/pg1,lr/pg2
+yolov8n-seg.pt,success,100.0,179.718,1.1869,2.62056,0.75064,1.26242,0.0,0.82457,0.8426,0.87598,0.5047,0.66673,0.68715,0.63641,0.26199,1.68891,3.44008,0.97795,1.61144,0.0,3.31733e-05,3.31733e-05,3.31733e-05
+yolo11n-seg.pt,success,100.0,197.016,1.22781,2.60763,0.76966,1.27035,0.0,0.84932,0.84268,0.85401,0.48277,0.69414,0.69447,0.608,0.27509,1.63393,3.19309,0.9185,1.56145,0.0,3.31733e-05,3.31733e-05,3.31733e-05
+yolo26n-seg.pt,success,100.0,267.211,1.28638,2.52653,0.64708,0.01128,0.41052,0.88889,0.9187,0.9339,0.47856,0.71401,0.76413,0.71266,0.29951,1.7762,3.10244,0.74538,0.0174,0.0,3.31733e-05,3.31733e-05,3.31733e-05
