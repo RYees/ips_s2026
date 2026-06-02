@@ -89,7 +89,7 @@ class RGBDCollectorApp:
         # Directories
         base_path = Path("dataset")
         self.img_dir = base_path / "images"
-        self.original_rgb_dir = base_path / "original_rgb"
+        self.crop_rgb_dir = base_path / "cropped_rgb"
         self.label_dir = base_path / "labels"
         self.depth_dir = base_path / "depth"
         self.mask_dir = base_path / "masks"
@@ -98,7 +98,7 @@ class RGBDCollectorApp:
         self.debug_dir = base_path / "debug"
         for d in [
             self.img_dir,
-            self.original_rgb_dir,
+            self.crop_rgb_dir,
             self.label_dir,
             self.depth_dir,
             self.mask_dir,
@@ -123,6 +123,7 @@ class RGBDCollectorApp:
         self.capture_crop = {"top": 0, "bottom": 0, "left": 250, "right": 520}
 
         self.captured_rgb = None
+        self.captured_original_rgb = None
         self.captured_depth = None
         self.captured_mask = None
         self.captured_pcd = None
@@ -246,7 +247,7 @@ class RGBDCollectorApp:
         indices = []
         for directory, suffixes in (
             (self.img_dir, [".png"]),
-            (self.original_rgb_dir, [".png"]),
+            (self.crop_rgb_dir, [".png"]),
             (self.label_dir, [".txt"]),
             (self.depth_dir, [".png"]),
             (self.mask_dir, [".png"]),
@@ -298,6 +299,7 @@ class RGBDCollectorApp:
     def print_dataset_counts(self):
         counts = {
             "images": len(list(self.img_dir.glob("*.png"))),
+            "cropped_rgb": len(list(self.crop_rgb_dir.glob("*.png"))),
             "depth": len(list(self.depth_dir.glob("*.png"))),
             "labels": len(list(self.label_dir.glob("*.txt"))),
             "masks": len(list(self.mask_dir.glob("*.png"))),
@@ -445,7 +447,7 @@ class RGBDCollectorApp:
         w, h = 320, 240
         combined = np.hstack(
             (
-                cv2.resize(rgb, (w, h)),
+                cv2.resize(original_rgb, (w, h)),
                 cv2.resize(mask_bgr, (w, h)),
                 cv2.resize(depth_colored, (w, h)),
             )
@@ -526,16 +528,18 @@ class RGBDCollectorApp:
         img_name = self.current_img_name or f"img{self.counter:04d}"
         print(f"\n[INFO] Saving data packages for: {img_name}...")
 
-        # 1. Save clean RGB image file
-        cv2.imwrite(str(self.img_dir / f"{img_name}.png"), self.captured_rgb)
+        # 1. Save original uncropped RGB image file
+        cv2.imwrite(
+            str(self.img_dir / f"{img_name}.png"), self.captured_original_rgb
+        )
         print(f"[SAVED] RGB image saved to: {self.img_dir / f'{img_name}.png'}")
 
-        # 1b. Save original uncropped RGB image file
+        # 1b. Save cropped RGB image file
         cv2.imwrite(
-            str(self.original_rgb_dir / f"{img_name}.png"), self.captured_original_rgb
+            str(self.crop_rgb_dir / f"{img_name}.png"), self.captured_rgb
         )
         print(
-            f"[SAVED] Original RGB image saved to: {self.original_rgb_dir / f'{img_name}.png'}"
+            f"[SAVED] Cropped RGB image saved to: {self.crop_rgb_dir / f'{img_name}.png'}"
         )
 
         # 2. Save Raw 16-bit depth values mapping real metric millimeters
