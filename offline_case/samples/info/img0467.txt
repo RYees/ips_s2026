@@ -1,0 +1,28 @@
+Crop:
+  top=0 bottom=0 left=250 right=520
+Raw RGB shape: (720, 1280, 3)
+Raw depth shape: (576, 640)
+Cropped RGB shape: (720, 510, 3)
+Cropped depth shape: (576, 640)
+RGB shape: (720, 510, 3)
+Depth shape: (576, 640)
+Depth dtype: uint16
+Depth min/max: 0/1489
+Valid depth pixels: 258290
+Intrinsics matrix:
+  750.147949 0.000000 386.178772
+  0.000000 749.789551 366.085907
+  0.000000 0.000000 1.000000
+Plane equation: 0.014571x + -0.279235y + 0.960112z + -0.470792 = 0
+Plane inliers: 224366
+Non-plane points: 27807
+Selected class: 0
+Mask QA:
+  Foreground pixels: 5210
+  Foreground ratio: 0.01262847
+  Connected components: 1
+  Largest component area: 5210
+  Border pixels: 71
+  Border ratio: 0.01362764
+  Largest bbox: (512, 176, 61, 164)
+  Largest centroid: (545.985604606526, 256.83147792706336)
