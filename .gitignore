@@ -27,5 +27,6 @@ TestResults.xml
 **/datasetmask/
 **/datasetold/
 **/dataset_orbbec/
+**/offline_case/samples/
 
 .env/

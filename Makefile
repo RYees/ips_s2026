@@ -70,3 +70,10 @@ test-eval:
 	$(PYTHON) offline_case/eval_mask.py \
 		$(TEST_STEM) \
 		--base $(TEST_BASE)
+
+
+.PHONY: live
+
+live:
+	@echo "Launching real-time sorting system with Orbbec camera..."
+	PYTHONPATH=. $(PYTHON) live/live_inference.py
