@@ -29,8 +29,8 @@ IOU_THRESHOLD  = 0.40
 MIN_MASK_AREA  = 0.002
 
 # Output directories
-DIR_IMAGES = Path("/live-data/images")
-DIR_VIDEOS = Path("/live-data/videos")
+DIR_IMAGES = Path("live-data/images")
+DIR_VIDEOS = Path("live-data/videos")
 DIR_IMAGES.mkdir(parents=True, exist_ok=True)
 DIR_VIDEOS.mkdir(parents=True, exist_ok=True)
 
@@ -185,8 +185,8 @@ def capture_worker(cam, frame_q, stop_event):
 # MAIN
 # ─────────────────────────────────────────────────────────────
 def main():
-    model      = YOLO(MODEL_PATH)
-    model_imgsz = 640   # your model was trained at 640
+    model       = YOLO(MODEL_PATH)
+    model_imgsz = 640   
 
     print("[INFO] Initializing Orbbec Camera...")
     cam = CameraInterface()
@@ -201,14 +201,17 @@ def main():
     print("[INFO] System ready.")
     print("[INFO] S = screenshot   R = start/stop recording   Q = quit")
 
-    # State
-    debug_printed  = False
+    # State variables
     frame_count    = 0
     video_writer   = None
     recording      = False
     fps_timer      = time.time()
     fps            = 0.0
     fps_frames     = 0
+
+    # Cache variables to prevent flickering during skipped frames
+    cached_polygons = []   # Format: (polygon, color, label)
+    detected_classes = []  # For screenshots/HUD
 
     try:
         while True:
@@ -218,19 +221,12 @@ def main():
                 continue
 
             orig_h, orig_w = bgr.shape[:2]
-
-            # Print letterbox numbers once so you can verify alignment
-            if not debug_printed:
-                print_letterbox_debug(orig_h, orig_w, model_imgsz)
-                debug_printed = True
-
-            # ── Frame skip: infer every other frame ──────────────────
             frame_count += 1
             skip = (frame_count % 2 != 0)
 
-            detected_classes = []
-            annotated        = bgr.copy()
+            annotated = bgr.copy()
 
+            # Only run heavy AI inference every 2nd frame
             if not skip:
                 results = model.predict(
                     source=bgr,
@@ -241,12 +237,19 @@ def main():
                     verbose=False,
                 )
 
+                # Reset cache for new detections
+                cached_polygons = []
+                detected_classes = []
+
                 for result in results:
                     if result.masks is None or len(result.boxes) == 0:
                         continue
+                    
+                    # result.masks.xy is ALREADY scaled to orig_w and orig_h by Ultralytics
                     for mask_xy, box in zip(result.masks.xy, result.boxes):
-                        polygon = unletterbox(mask_xy, orig_h, orig_w, model_imgsz)
+                        polygon = mask_xy.astype(np.int32)
 
+                        # Filter out tiny noise artifacts
                         if cv2.contourArea(polygon) / (orig_w * orig_h) < MIN_MASK_AREA:
                             continue
 
@@ -256,8 +259,13 @@ def main():
                         label      = f"{name} {conf_score:.2f}"
                         color      = CLASS_COLORS.get(class_id, (0, 255, 0))
 
-                        draw_detection(annotated, polygon, color, label)
+                        # Store in cache
+                        cached_polygons.append((polygon, color, label))
                         detected_classes.append(name)
+
+            # ── DRAWING (Happens EVERY frame using current or cached data) ──
+            for polygon, color, label in cached_polygons:
+                draw_detection(annotated, polygon, color, label)
 
             # ── FPS counter ──────────────────────────────────────────
             fps_frames += 1
@@ -267,11 +275,9 @@ def main():
                 fps_timer = time.time()
                 fps_frames = 0
 
-            # ── HUD ──────────────────────────────────────────────────
-            draw_hud(annotated, recording, video_writer,
-                     len(detected_classes), fps)
+            # ── HUD & Display ────────────────────────────────────────
+            draw_hud(annotated, recording, video_writer, len(detected_classes), fps)
 
-            # ── Write to video if recording ──────────────────────────
             if recording and video_writer is not None:
                 video_writer.write(annotated)
 
@@ -279,21 +285,15 @@ def main():
 
             # ── Keyboard input ───────────────────────────────────────
             key = cv2.waitKey(1) & 0xFF
-
             if key == ord('q'):
                 break
-
             elif key == ord('s'):
-                # Screenshot — saves current annotated frame
                 save_snapshot(annotated, detected_classes)
-
             elif key == ord('r'):
                 if not recording:
-                    # Start recording
                     video_writer = make_video_writer(annotated)
                     recording    = True
                 else:
-                    # Stop recording
                     video_writer.release()
                     video_writer = None
                     recording    = False
@@ -309,7 +309,6 @@ def main():
         cam.stop()
         cv2.destroyAllWindows()
         print("[INFO] Closed safely.")
-
 
 if __name__ == "__main__":
     main()
