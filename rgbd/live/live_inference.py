@@ -12,9 +12,7 @@ if str(ROOT) not in sys.path:
 import cv2
 import numpy as np
 from ultralytics import YOLO
-
-# CHANGE HERE: Import the newly separated alignment camera interface
-from camera.camera_interface_aligned import CameraInterfaceAligned
+from live_camera_interface_aligned import CameraInterfaceAligned
 from pyorbbecsdk import OBFormat
 
 # ─────────────────────────────────────────────────────────────
@@ -36,7 +34,7 @@ DIR_VIDEOS.mkdir(parents=True, exist_ok=True)
 
 
 # ─────────────────────────────────────────────────────────────
-# FRAME CONVERSION EXTRACTOR
+# SAFE FRAME CONVERTER
 # ─────────────────────────────────────────────────────────────
 def orbbec_frame_to_bgr(frame) -> np.ndarray | None:
     if frame is None:
@@ -49,13 +47,13 @@ def orbbec_frame_to_bgr(frame) -> np.ndarray | None:
         return cv2.cvtColor(np.frombuffer(data, dtype=np.uint8).reshape((h, w, 3)), cv2.COLOR_RGB2BGR)
     elif fmt == OBFormat.BGR:
         return np.frombuffer(data, dtype=np.uint8).reshape((h, w, 3)).copy()
-    elif fmt in (OBFormat.MJPG, OBFormat.JPEG):
+    elif fmt == OBFormat.MJPG:
         return cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
     return None
 
 
 # ─────────────────────────────────────────────────────────────
-# CAPTURE THREAD WORKER
+# THREAD CAPTURE
 # ─────────────────────────────────────────────────────────────
 def live_capture_worker(cam, frame_q, stop_event):
     while not stop_event.is_set():
@@ -73,7 +71,7 @@ def live_capture_worker(cam, frame_q, stop_event):
 
 
 # ─────────────────────────────────────────────────────────────
-# UI DRAWING UTILITIES
+# UI AND HUD DRAWING
 # ─────────────────────────────────────────────────────────────
 def draw_detection(frame: np.ndarray, polygon: np.ndarray, color: tuple, label: str) -> None:
     if len(polygon) < 3:
@@ -107,7 +105,6 @@ def save_snapshot(frame: np.ndarray, detections: list) -> str:
     names = "_".join(sorted(set(detections))) if detections else "no_detection"
     path = DIR_IMAGES / f"{ts}_{names}.jpg"
     cv2.imwrite(str(path), frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
-    print(f"[SNAPSHOT] Saved → {path}")
     return str(path)
 
 
@@ -126,8 +123,7 @@ def main():
     print("[INFO] Loading Segmentation Model...")
     model = YOLO(MODEL_PATH)
 
-    print("[INFO] Initializing Isolated Alignment Camera Module...")
-    # Using the new class
+    print("[INFO] Initializing Aligned Camera System Instance...")
     cam = CameraInterfaceAligned()
     cam.setup_streams()
 
@@ -135,8 +131,6 @@ def main():
     frame_q = queue.Queue(maxsize=1)
     cap_thread = threading.Thread(target=live_capture_worker, args=(cam, frame_q, stop_evt), daemon=True)
     cap_thread.start()
-
-    print("[INFO] Live aligned tracking operational.")
 
     frame_count = 0
     video_writer = None
@@ -204,7 +198,7 @@ def main():
             if recording and video_writer is not None:
                 video_writer.write(annotated)
 
-            cv2.imshow("Industrial Sorting Feed - Aligned Mode", annotated)
+            cv2.imshow("Industrial Sorting Feed - Aligned Tracking Mode", annotated)
 
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
@@ -221,7 +215,7 @@ def main():
                     recording = False
 
     except Exception as e:
-        print(f"[SYSTEM CRASH] Error: {e}")
+        print(f"[SYSTEM ERROR] Loop exception: {e}")
         raise
     finally:
         if video_writer is not None:

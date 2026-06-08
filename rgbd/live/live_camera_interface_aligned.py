@@ -28,49 +28,43 @@ class CameraInterfaceAligned:
         self.intrinsics = None
         self.align_filter = AlignFilter(align_to_stream=OBStreamType.COLOR_STREAM)
         self.consecutive_missed_frames = 0
+        self.total_frames_seen = 0
+        self.total_frame_sets_with_depth = 0
 
     def setup_streams(self):
         color_sensor_list = self.pipeline.get_stream_profile_list(OBSensorType.COLOR_SENSOR)
+        
+        # Keep your exact working resolution preferences
+        try:
+            self.color_profile = color_sensor_list.get_video_stream_profile(1280, 720, OBFormat.RGB, 30)
+            print("[INFO] Aligned Mode: Using explicit RGB888 1280x720 profile.")
+        except OBError:
+            try:
+                self.color_profile = color_sensor_list.get_video_stream_profile(640, 480, OBFormat.RGB, 30)
+                print("[INFO] Aligned Mode: Using explicit RGB888 640x480 profile.")
+            except OBError:
+                self.color_profile = color_sensor_list.get_default_video_stream_profile()
+
         depth_sensor_list = self.pipeline.get_stream_profile_list(OBSensorType.DEPTH_SENSOR)
-
-        # CRITICAL FIX: Force matching resolution (640x480) for both streams.
-        # This gives them a shared aspect ratio (4:3), matching your model's 640x640 letterbox.
-        try:
-            self.color_profile = color_sensor_list.get_video_stream_profile(640, 480, OBFormat.RGB, 30)
-            print("[ALIGN INFOTRONIC] Loaded 640x480 RGB profile successfully.")
-        except OBError:
-            self.color_profile = color_sensor_list.get_default_video_stream_profile()
-            print("[ALIGN WARNING] 640x480 RGB profile failed. Loaded default.")
-
-        try:
-            depth_profile = depth_sensor_list.get_video_stream_profile(640, 480, OBFormat.Y16, 30)
-            print("[ALIGN INFOTRONIC] Loaded matching 640x480 Depth profile.")
-        except OBError:
-            depth_profile = depth_sensor_list.get_default_video_stream_profile()
-            print("[ALIGN WARNING] Fixed 640x480 depth profile unavailable; using default.")
+        depth_profile = depth_sensor_list.get_default_video_stream_profile()
 
         device = self.pipeline.get_device()
         try:
             device.set_bool_property(OBPropertyID.OB_PROP_COLOR_AUTO_EXPOSURE_BOOL, False)
             device.set_int_property(OBPropertyID.OB_PROP_COLOR_EXPOSURE_INT, 100)
             device.set_int_property(OBPropertyID.OB_PROP_COLOR_GAIN_INT, 64)
-            print("[ALIGN INFO] Manual exposures mapped perfectly.")
         except OBError:
-            print("[ALIGN WARNING] Custom camera register modifications rejected by hardware properties.")
+            pass
 
-        # Enable matching array streams
         self.config.enable_stream(self.color_profile)
         self.config.enable_stream(depth_profile)
         self.config.set_frame_aggregate_output_mode(OBFrameAggregateOutputMode.ANY_SITUATION)
-        
-        # Turn on hardware/software translation matrix mode
         self.config.set_align_mode(OBAlignMode.SW_MODE)
 
         self.pipeline.enable_frame_sync()
         self.pipeline.start(self.config)
 
-        # Retrieve intrinsic camera metrics for open3d pipeline integrity
-        frames = self.pipeline.wait_for_frames(1500)
+        frames = self.pipeline.wait_for_frames(1000)
         if frames:
             color_frame = frames.get_color_frame()
             if color_frame:
@@ -82,20 +76,19 @@ class CameraInterfaceAligned:
                 )
 
     def get_frames(self):
-        """Fetches frames directly through the active structural alignment matrix."""
         frames = self.pipeline.wait_for_frames(1000)
         if not frames:
             return None, None
 
+        # Force alignment tracking layer execution first
         try:
             aligned = self.align_filter.process(frames)
             if aligned is not None:
-                aligned_set = aligned.as_frame_set()
-                return aligned_set.get_color_frame(), aligned_set.get_depth_frame()
+                aligned_frames = aligned.as_frame_set()
+                return aligned_frames.get_color_frame(), aligned_frames.get_depth_frame()
         except Exception as e:
-            print(f"[ALIGN FILTER SUB-ROUTINE CRASH] Matrix calculation error: {e}")
+            print(f"[WARNING] Live alignment filter exception: {e}")
 
-        # Fallback to direct stream pairs if filter yields empty output
         return frames.get_color_frame(), frames.get_depth_frame()
 
     def stop(self):
