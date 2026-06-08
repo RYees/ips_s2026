@@ -217,11 +217,11 @@ class CameraInterface:
             self.last_depth_frame = raw_depth
             self.last_depth_ts = raw_depth.get_timestamp() if hasattr(raw_depth, 'get_timestamp') else None
 
-        print(
-            f"[DEBUG] frames: total={self.total_frames_seen}, "
-            f"depth_sets={self.total_frame_sets_with_depth}, "
-            f"color={frame_info(raw_color)}, depth={frame_info(raw_depth)}"
-        )
+        # print(
+        #     f"[DEBUG] frames: total={self.total_frames_seen}, "
+        #     f"depth_sets={self.total_frame_sets_with_depth}, "
+        #     f"color={frame_info(raw_color)}, depth={frame_info(raw_depth)}"
+        # )
         if raw_color is not None and raw_depth is not None:
             return raw_color, raw_depth
 
@@ -251,7 +251,7 @@ class CameraInterface:
 
         aligned_color = aligned_frames.get_color_frame() if hasattr(aligned_frames, 'get_color_frame') else None
         aligned_depth = aligned_frames.get_depth_frame() if hasattr(aligned_frames, 'get_depth_frame') else None
-        print(f"[DEBUG] aligned frames: color={bool(aligned_color)}({frame_info(aligned_color)}), depth={bool(aligned_depth)}({frame_info(aligned_depth)})")
+        # print(f"[DEBUG] aligned frames: color={bool(aligned_color)}({frame_info(aligned_color)}), depth={bool(aligned_depth)}({frame_info(aligned_depth)})")
         if aligned_color is not None and aligned_depth is not None:
             return aligned_color, aligned_depth
 

@@ -31,6 +31,7 @@ TestResults.xml
 **/dataset-multiple-img-only-final/
 **/dataset-multiple-masked-taken-lena-110/
 **/dataset-single-obj-masked-final/
+**/offline_case/samples/
 
 
 .env/
