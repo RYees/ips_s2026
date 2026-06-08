@@ -27,6 +27,10 @@ TestResults.xml
 **/datasetmask/
 **/datasetold/
 **/dataset_orbbec/
-**/offline_case/samples/
+**/dataset-466/
+**/dataset-multiple-img-only-final/
+**/dataset-multiple-masked-taken-lena-110/
+**/dataset-single-obj-masked-final/
+
 
 .env/

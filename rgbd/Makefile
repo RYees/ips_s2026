@@ -15,6 +15,10 @@ run:
 	@echo "Running main.py with Orbbec SDK environment..."
 	PYTHONPATH=$(PYTHONPATH):$$PYTHONPATH LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$$LD_LIBRARY_PATH $(VENV) main.py
 
+demo:
+	@echo "Launching real-time sorting system with Orbbec camera..."
+	PYTHONPATH=$(PYTHONPATH):$$PYTHONPATH LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$$LD_LIBRARY_PATH $(VENV) live/live_inference.py
+
 run-preview:
 	@echo "Running camera preview tool with Orbbec SDK environment..."
 	PYTHONPATH=$(PYTHONPATH):$$PYTHONPATH LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$$LD_LIBRARY_PATH $(VENV) tools/camera_preview.py

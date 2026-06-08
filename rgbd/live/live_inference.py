@@ -14,7 +14,7 @@ from processing.utils import frame_to_bgr_image
 
 def main():
     # 1. Load your custom YOLOv8 Segmentation weights
-    MODEL_PATH = "/Users/rzapp/Documents/A{sp}A/ips_s2026/offline_case/samples/runs/segment/runs/version_compare/yolov8n-seg/weights/best.pt"
+    MODEL_PATH = "/home/cpsstudent/Documents/ips_s2026/rgbd/live/best.pt"
     model = YOLO(MODEL_PATH)
 
     # 2. Map custom industrial labels and colors explicitly
