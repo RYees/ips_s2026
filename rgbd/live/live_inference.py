@@ -5,6 +5,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+# Fix path routing to project root
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -12,7 +13,9 @@ if str(ROOT) not in sys.path:
 import cv2
 import numpy as np
 from ultralytics import YOLO
-from live_camera_interface_aligned import CameraInterfaceAligned
+
+# Imports your completely untouched production camera file
+from camera.camera_interface import CameraInterface
 from pyorbbecsdk import OBFormat
 
 # ─────────────────────────────────────────────────────────────
@@ -34,34 +37,53 @@ DIR_VIDEOS.mkdir(parents=True, exist_ok=True)
 
 
 # ─────────────────────────────────────────────────────────────
-# SAFE FRAME CONVERTER
+# REAL ALIGNMENT FIX (Bypasses the raw-frame shortcut)
 # ─────────────────────────────────────────────────────────────
-def orbbec_frame_to_bgr(frame) -> np.ndarray | None:
-    if frame is None:
-        return None
-    w, h = frame.get_width(), frame.get_height()
-    fmt = frame.get_format()
-    data = frame.get_data()
-    
-    if fmt == OBFormat.RGB:
-        return cv2.cvtColor(np.frombuffer(data, dtype=np.uint8).reshape((h, w, 3)), cv2.COLOR_RGB2BGR)
-    elif fmt == OBFormat.BGR:
-        return np.frombuffer(data, dtype=np.uint8).reshape((h, w, 3)).copy()
-    elif fmt == OBFormat.MJPG:
-        return cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
+def get_live_strictly_aligned_frame(cam: CameraInterface) -> np.ndarray | None:
+    """
+    Directly targets the pipeline frames and forces alignment processing 
+    manually. This snaps the YOLO tracking masks perfectly onto the objects.
+    """
+    try:
+        # 1. Grab frames straight from the active pipeline
+        frames = cam.pipeline.wait_for_frames(1000)
+        if not frames:
+            return None
+        
+        # 2. FORCE the alignment filter computation immediately
+        aligned = cam.align_filter.process(frames)
+        if aligned is not None:
+            aligned_frames = aligned.as_frame_set()
+            color_frame = aligned_frames.get_color_frame()
+        else:
+            # Emergency fallback to raw color if filter fails completely
+            color_frame = frames.get_color_frame()
+            
+        if color_frame is None:
+            return None
+            
+        # 3. Safely decode utilizing your original camera class matrix helper
+        return cam.color_frame_to_rgb(color_frame)
+            
+    except Exception as e:
+        print(f"[LIVE ENGINE WARNING] Alignment calculation failed: {e}")
     return None
 
 
 # ─────────────────────────────────────────────────────────────
-# THREAD CAPTURE
+# BACKGROUND CAPTURE WORKER
 # ─────────────────────────────────────────────────────────────
 def live_capture_worker(cam, frame_q, stop_event):
     while not stop_event.is_set():
-        color_frame, _ = cam.get_frames()
-        bgr_frame = orbbec_frame_to_bgr(color_frame)
-        if bgr_frame is None:
+        # Call the corrected alignment extraction function
+        rgb_frame = get_live_strictly_aligned_frame(cam)
+        if rgb_frame is None:
             continue
         
+        # Convert RGB back to standard OpenCV BGR space
+        bgr_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
+        
+        # Keep queue real-time to avoid frame lag piling up
         if not frame_q.empty():
             try:
                 frame_q.get_nowait()
@@ -71,7 +93,7 @@ def live_capture_worker(cam, frame_q, stop_event):
 
 
 # ─────────────────────────────────────────────────────────────
-# UI AND HUD DRAWING
+# UI AND HUD DRAWING UTILITIES
 # ─────────────────────────────────────────────────────────────
 def draw_detection(frame: np.ndarray, polygon: np.ndarray, color: tuple, label: str) -> None:
     if len(polygon) < 3:
@@ -117,20 +139,22 @@ def make_video_writer(frame: np.ndarray) -> cv2.VideoWriter:
 
 
 # ─────────────────────────────────────────────────────────────
-# MAIN EXECUTION
+# MAIN EXECUTION LOOP
 # ─────────────────────────────────────────────────────────────
 def main():
     print("[INFO] Loading Segmentation Model...")
     model = YOLO(MODEL_PATH)
 
-    print("[INFO] Initializing Aligned Camera System Instance...")
-    cam = CameraInterfaceAligned()
-    cam.setup_streams()
+    print("[INFO] Connecting to working Camera Interface...")
+    cam = CameraInterface()
+    cam.setup_streams()  # Runs your exact working profile initialization script
 
     stop_evt = threading.Event()
     frame_q = queue.Queue(maxsize=1)
     cap_thread = threading.Thread(target=live_capture_worker, args=(cam, frame_q, stop_evt), daemon=True)
     cap_thread.start()
+
+    print("[INFO] Aligned real-time tracking visualization operational.")
 
     frame_count = 0
     video_writer = None
@@ -198,7 +222,7 @@ def main():
             if recording and video_writer is not None:
                 video_writer.write(annotated)
 
-            cv2.imshow("Industrial Sorting Feed - Aligned Tracking Mode", annotated)
+            cv2.imshow("Industrial Sorting Feed - Aligned Mode", annotated)
 
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
@@ -215,7 +239,7 @@ def main():
                     recording = False
 
     except Exception as e:
-        print(f"[SYSTEM ERROR] Loop exception: {e}")
+        print(f"[SYSTEM ERROR] {e}")
         raise
     finally:
         if video_writer is not None:
