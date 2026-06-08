@@ -2,9 +2,11 @@ import sys
 import threading
 import queue
 import time
+import atexit
 from datetime import datetime
 from pathlib import Path
 
+# Fix path routing to project root
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -12,7 +14,9 @@ if str(ROOT) not in sys.path:
 import cv2
 import numpy as np
 from ultralytics import YOLO
-from live_camera_interface_aligned import CameraInterfaceAligned
+
+# Imports your completely untouched production camera file
+from camera.camera_interface import CameraInterface
 from pyorbbecsdk import OBFormat
 
 # ─────────────────────────────────────────────────────────────
@@ -32,34 +36,75 @@ DIR_VIDEOS = Path("live-data/videos")
 DIR_IMAGES.mkdir(parents=True, exist_ok=True)
 DIR_VIDEOS.mkdir(parents=True, exist_ok=True)
 
+# Global reference for clean shutdown
+cam_instance = None
 
 # ─────────────────────────────────────────────────────────────
-# SAFE FRAME CONVERTER
+# GLOBAL CLEANUP SAFETY NET
 # ─────────────────────────────────────────────────────────────
-def orbbec_frame_to_bgr(frame) -> np.ndarray | None:
-    if frame is None:
-        return None
-    w, h = frame.get_width(), frame.get_height()
-    fmt = frame.get_format()
-    data = frame.get_data()
-    
-    if fmt == OBFormat.RGB:
-        return cv2.cvtColor(np.frombuffer(data, dtype=np.uint8).reshape((h, w, 3)), cv2.COLOR_RGB2BGR)
-    elif fmt == OBFormat.BGR:
-        return np.frombuffer(data, dtype=np.uint8).reshape((h, w, 3)).copy()
-    elif fmt == OBFormat.MJPG:
-        return cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
+def cleanup_camera_hardware():
+    global cam_instance
+    if cam_instance is not None:
+        print("\n[CLEANUP] Releasing camera interface...")
+        try:
+            cam_instance.stop()
+        except Exception:
+            pass
+        cam_instance = None
+
+atexit.register(cleanup_camera_hardware)
+
+
+# ─────────────────────────────────────────────────────────────
+# STREAM ALIGNMENT ENGINE
+# ─────────────────────────────────────────────────────────────
+def get_strictly_aligned_bgr_frame(cam: CameraInterface) -> np.ndarray | None:
+    try:
+        frames = cam.pipeline.wait_for_frames(1000)
+        if not frames:
+            return None
+        
+        # Pull strict software alignment matrix to correct coordinate shifts
+        aligned = cam.align_filter.process(frames)
+        if aligned is not None:
+            aligned_frames = aligned.as_frame_set()
+            color_frame = aligned_frames.get_color_frame()
+        else:
+            color_frame = frames.get_color_frame()
+            
+        if color_frame is None:
+            return None
+            
+        vf = color_frame.as_video_frame()
+        fmt = vf.get_format()
+        w = vf.get_width()
+        h = vf.get_height()
+        data = np.frombuffer(vf.get_data(), dtype=np.uint8)
+        
+        if fmt == OBFormat.RGB:
+            return cv2.cvtColor(data.reshape((h, w, 3)), cv2.COLOR_RGB2BGR)
+        elif fmt == OBFormat.BGR:
+            return data.reshape((h, w, 3)).copy()
+        elif fmt == OBFormat.MJPG:
+            return cv2.imdecode(data, cv2.IMREAD_COLOR)
+        elif fmt in (OBFormat.YUYV, OBFormat.YUY2):
+            rgb = cv2.cvtColor(data.reshape((h, w, 2)), cv2.COLOR_YUV2RGB_YUYV)
+            return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+            
+    except Exception:
+        pass
     return None
 
 
 # ─────────────────────────────────────────────────────────────
-# THREAD CAPTURE
+# BACKGROUND CAPTURE WORKER (Throttled to optimize CPU usage)
 # ─────────────────────────────────────────────────────────────
 def live_capture_worker(cam, frame_q, stop_event):
     while not stop_event.is_set():
-        color_frame, _ = cam.get_frames()
-        bgr_frame = orbbec_frame_to_bgr(color_frame)
+        bgr_frame = get_strictly_aligned_bgr_frame(cam)
         if bgr_frame is None:
+            # Yield control if hardware didn't deliver a frame
+            time.sleep(0.001)
             continue
         
         if not frame_q.empty():
@@ -68,10 +113,14 @@ def live_capture_worker(cam, frame_q, stop_event):
             except queue.Empty:
                 pass
         frame_q.put(bgr_frame)
+        
+        # CRITICAL LATENCY FIX: Yield thread execution back to OS to prevent 
+        # background thread from consuming 100% of core CPU cycles.
+        time.sleep(0.005)
 
 
 # ─────────────────────────────────────────────────────────────
-# UI AND HUD DRAWING
+# UI DRAWING UTILITIES
 # ─────────────────────────────────────────────────────────────
 def draw_detection(frame: np.ndarray, polygon: np.ndarray, color: tuple, label: str) -> None:
     if len(polygon) < 3:
@@ -117,20 +166,24 @@ def make_video_writer(frame: np.ndarray) -> cv2.VideoWriter:
 
 
 # ─────────────────────────────────────────────────────────────
-# MAIN EXECUTION
+# MAIN EXECUTION LOOP
 # ─────────────────────────────────────────────────────────────
 def main():
+    global cam_instance
+    
     print("[INFO] Loading Segmentation Model...")
     model = YOLO(MODEL_PATH)
 
-    print("[INFO] Initializing Aligned Camera System Instance...")
-    cam = CameraInterfaceAligned()
-    cam.setup_streams()
+    print("[INFO] Initializing Production Camera Backend...")
+    cam_instance = CameraInterface()
+    cam_instance.setup_streams()  
 
     stop_evt = threading.Event()
     frame_q = queue.Queue(maxsize=1)
-    cap_thread = threading.Thread(target=live_capture_worker, args=(cam, frame_q, stop_evt), daemon=True)
+    cap_thread = threading.Thread(target=live_capture_worker, args=(cam_instance, frame_q, stop_evt), daemon=True)
     cap_thread.start()
+
+    print("[INFO] Real-time tracking ready.")
 
     frame_count = 0
     video_writer = None
@@ -144,7 +197,19 @@ def main():
 
     try:
         while True:
-            bgr = frame_q.get()
+            # Latency Optimization: Flush old frames out of the queue so that 
+            # we always extract the freshest image possible when a new item arrives.
+            bgr = None
+            while not frame_q.empty():
+                try:
+                    bgr = frame_q.get_nowait()
+                except queue.Empty:
+                    break
+                    
+            if bgr is None:
+                # If queue was completely empty, block until a new frame arrives
+                bgr = frame_q.get()
+
             orig_h, orig_w = bgr.shape[:2]
 
             frame_count += 1
@@ -198,7 +263,7 @@ def main():
             if recording and video_writer is not None:
                 video_writer.write(annotated)
 
-            cv2.imshow("Industrial Sorting Feed - Aligned Tracking Mode", annotated)
+            cv2.imshow("Industrial Sorting Feed - Aligned Mode", annotated)
 
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
@@ -214,14 +279,16 @@ def main():
                     video_writer = None
                     recording = False
 
+    except KeyboardInterrupt:
+        print("\n[INFO] Interface stopped cleanly by user.")
     except Exception as e:
-        print(f"[SYSTEM ERROR] Loop exception: {e}")
+        print(f"[SYSTEM ERROR] {e}")
         raise
     finally:
         if video_writer is not None:
             video_writer.release()
         stop_evt.set()
-        cam.stop()
+        cleanup_camera_hardware()
         cv2.destroyAllWindows()
 
 
