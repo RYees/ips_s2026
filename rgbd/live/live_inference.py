@@ -5,7 +5,6 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-# Fix path routing to project root
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -13,7 +12,9 @@ if str(ROOT) not in sys.path:
 import cv2
 import numpy as np
 from ultralytics import YOLO
-from camera.camera_interface import CameraInterface
+
+# CHANGE HERE: Import the newly separated alignment camera interface
+from camera.camera_interface_aligned import CameraInterfaceAligned
 from pyorbbecsdk import OBFormat
 
 # ─────────────────────────────────────────────────────────────
@@ -28,7 +29,6 @@ CONF_THRESHOLD = 0.45
 IOU_THRESHOLD  = 0.40
 MIN_MASK_AREA  = 0.002
 
-# Safe output directory using User Home Directory
 DIR_IMAGES = Path("live-data/images")
 DIR_VIDEOS = Path("live-data/videos")
 DIR_IMAGES.mkdir(parents=True, exist_ok=True)
@@ -36,45 +36,21 @@ DIR_VIDEOS.mkdir(parents=True, exist_ok=True)
 
 
 # ─────────────────────────────────────────────────────────────
-# OVERIDDEN FRAME STREAMING ENGINE (Fixes the offset bug)
+# FRAME CONVERSION EXTRACTOR
 # ─────────────────────────────────────────────────────────────
-def get_aligned_live_frame(cam: CameraInterface) -> np.ndarray | None:
-    """
-    Bypasses the buggy caching order in the original script.
-    Forces Orbbec SDK to actively compute the spatial 
-    alignment matrix between depth and RGB lenses.
-    """
-    try:
-        frames = cam.pipeline.wait_for_frames(1000)
-        if not frames:
-            return None
-        
-        # 1. Force alignment filter computation FIRST
-        aligned = cam.align_filter.process(frames)
-        if aligned is not None:
-            aligned_frames = aligned.as_frame_set()
-            color_frame = aligned_frames.get_color_frame()
-        else:
-            # Fallback directly to raw frame if alignment engine fails
-            color_frame = frames.get_color_frame()
-            
-        if color_frame is None:
-            return None
-            
-        # 2. Parse frame to BGR matrix
-        w, h = color_frame.get_width(), color_frame.get_height()
-        fmt = color_frame.get_format()
-        data = color_frame.get_data()
-        
-        if fmt == OBFormat.RGB:
-            return cv2.cvtColor(np.frombuffer(data, dtype=np.uint8).reshape((h, w, 3)), cv2.COLOR_RGB2BGR)
-        elif fmt == OBFormat.BGR:
-            return np.frombuffer(data, dtype=np.uint8).reshape((h, w, 3)).copy()
-        elif fmt in (OBFormat.MJPG, OBFormat.JPEG):
-            return cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
-            
-    except Exception as e:
-        print(f"[LIVE ENGINE ERROR] Frame handling failed: {e}")
+def orbbec_frame_to_bgr(frame) -> np.ndarray | None:
+    if frame is None:
+        return None
+    w, h = frame.get_width(), frame.get_height()
+    fmt = frame.get_format()
+    data = frame.get_data()
+    
+    if fmt == OBFormat.RGB:
+        return cv2.cvtColor(np.frombuffer(data, dtype=np.uint8).reshape((h, w, 3)), cv2.COLOR_RGB2BGR)
+    elif fmt == OBFormat.BGR:
+        return np.frombuffer(data, dtype=np.uint8).reshape((h, w, 3)).copy()
+    elif fmt in (OBFormat.MJPG, OBFormat.JPEG):
+        return cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
     return None
 
 
@@ -83,11 +59,11 @@ def get_aligned_live_frame(cam: CameraInterface) -> np.ndarray | None:
 # ─────────────────────────────────────────────────────────────
 def live_capture_worker(cam, frame_q, stop_event):
     while not stop_event.is_set():
-        bgr_frame = get_aligned_live_frame(cam)
+        color_frame, _ = cam.get_frames()
+        bgr_frame = orbbec_frame_to_bgr(color_frame)
         if bgr_frame is None:
             continue
         
-        # Drop stale frames to keep the queue real-time
         if not frame_q.empty():
             try:
                 frame_q.get_nowait()
@@ -150,8 +126,9 @@ def main():
     print("[INFO] Loading Segmentation Model...")
     model = YOLO(MODEL_PATH)
 
-    print("[INFO] Initializing Orbbec Camera via base Interface...")
-    cam = CameraInterface()
+    print("[INFO] Initializing Isolated Alignment Camera Module...")
+    # Using the new class
+    cam = CameraInterfaceAligned()
     cam.setup_streams()
 
     stop_evt = threading.Event()
@@ -159,9 +136,8 @@ def main():
     cap_thread = threading.Thread(target=live_capture_worker, args=(cam, frame_q, stop_evt), daemon=True)
     cap_thread.start()
 
-    print("[INFO] Live tracking interface operational.")
+    print("[INFO] Live aligned tracking operational.")
 
-    # Application state
     frame_count = 0
     video_writer = None
     recording = False
@@ -169,7 +145,6 @@ def main():
     fps = 0.0
     fps_frames = 0
 
-    # Persistence cache variables to eliminate drawing stutters
     cached_polygons = []
     detected_classes = []
 
@@ -214,11 +189,9 @@ def main():
                         cached_polygons.append((polygon, color, label))
                         detected_classes.append(name)
 
-            # Draw visual tracking tracking layers frame-by-frame smoothly
             for polygon, color, label in cached_polygons:
                 draw_detection(annotated, polygon, color, label)
 
-            # Track processing speed
             fps_frames += 1
             elapsed = time.time() - fps_timer
             if elapsed >= 1.0:
@@ -242,15 +215,13 @@ def main():
                 if not recording:
                     video_writer = make_video_writer(annotated)
                     recording = True
-                    print("[RECORD] Streaming feed recording started.")
                 else:
                     video_writer.release()
                     video_writer = None
                     recording = False
-                    print("[RECORD] Streaming feed recording stopped.")
 
     except Exception as e:
-        print(f"[SYSTEM CRASH] Error in live loop: {e}")
+        print(f"[SYSTEM CRASH] Error: {e}")
         raise
     finally:
         if video_writer is not None:
@@ -258,7 +229,6 @@ def main():
         stop_evt.set()
         cam.stop()
         cv2.destroyAllWindows()
-        print("[INFO] Camera resources released and windows destroyed clean.")
 
 
 if __name__ == "__main__":
