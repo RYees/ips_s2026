@@ -19,6 +19,10 @@ demo:
 	@echo "Launching real-time sorting system with Orbbec camera..."
 	PYTHONPATH=$(PYTHONPATH):$$PYTHONPATH LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$$LD_LIBRARY_PATH $(VENV) live/live_inference.py
 
+demo1:
+	@echo "Launching real-time sorting system with Orbbec camera..."
+	PYTHONPATH=$(PYTHONPATH):$$PYTHONPATH LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$$LD_LIBRARY_PATH $(VENV) live/live.py
+
 run-preview:
 	@echo "Running camera preview tool with Orbbec SDK environment..."
 	PYTHONPATH=$(PYTHONPATH):$$PYTHONPATH LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$$LD_LIBRARY_PATH $(VENV) tools/camera_preview.py
