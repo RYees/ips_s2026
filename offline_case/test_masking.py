@@ -52,4 +52,4 @@ def verify_mask_alignment(img_name, base_dir="dataset"):
 
 # Run the alignment check on your latest capture
 if __name__ == "__main__":
-    verify_mask_alignment("img1452")
+    verify_mask_alignment("img1454")
