@@ -15,3 +15,31 @@
   [ALIGN]    Shifted Projection Matrix cx  : 386.18 px
   [ALIGN]    HORIZONTAL CENTER CAL MISMATCH: -131.18 pixels
 ================================================================================
+
+  [INFO] Points isolated on belt plane: 134,916
+  [INFO] Non-plane points going to workspace filter: 6,932
+
+━━━ [STAGE 5] Direction-Enforced Spatial Pre-Filtering
+  [DEBUG] Points passing directional spatial filters: 6,899
+
+━━━ [STAGE 6] Spatial Structural Isolation Clustering (DBSCAN)
+  [INFO] DBSCAN discovered 1 distinct point groups.
+
+━━━ [STAGE 7] Multi-Gate Geometric Evaluation
+  Cluster #00 -> Pts: 6899  | Dims(mm): X=115.9, Y=128.8, Z= 41.0 | VolRatio: 0.318 | Gates: [G1-4=1 G5_Size=1 G6_3D=1] -> PASSED
+  [INFO] Winning Cluster selected: ID #0 (Score=0.6405)
+
+━━━ [STAGE 8] Dynamic Mapping & Lens Axis Projection
+  [DIAGNOSTIC] Raw Projection Coordinate Range:
+    u shifted min/max : 105 to 263
+    v shifted min/max : 242 to 512
+  [INFO] Total candidate points projected: 6,899
+  [INFO] Adaptive Canvas Boundary Finalized To: Height=720 px, Width=510 px
+  [INFO] Projected pixels inside image frame boundary limits: 6,899
+  [INFO] Generated Mask Bounding Shape: Width=158 px, Height=270 px
+
+[INFO] Saving data packages for: img1451...
+[SAVED] Verified 3D Point Cloud saved successfully (146190 points)
+[INFO] Info saved to dataset/info/img1451.txt
+[COUNT] images=1452, cropped_rgb=1452, depth=1452, labels=1452, masks=1452, pointcloud=1452, info=1452
+[SUCCESS] Packout cycle img1451 complete.
