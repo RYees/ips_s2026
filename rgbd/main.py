@@ -105,10 +105,9 @@ class IndustrialSortingApp:
 
         print(f"[INIT] Session logger initialized. Writing to {log_filename}")
 
-        # Hardware interface initialization
+        # Hardware interface initialization (REVERTED TO UNTOUCHED DESIGN)
         print("[INIT] Attaching camera sensor subsystem...")
         self.cam = CameraInterface()
-        self.cam.start()
         print("[INIT] Camera stream activated successfully.")
 
         self.setup_ui()
@@ -340,7 +339,7 @@ class IndustrialSortingApp:
         self.captured_intrinsics = intrinsic_profile
 
         # ─────────────────────────────────────────────────────────────────────
-        # CRITICAL RE-ENGINEERED DIAGNOSTIC ENGINE & FILE LOGGING MODULE
+        # RE-ENGINEERED DIAGNOSTIC ENGINE & FILE LOGGING MODULE
         # ─────────────────────────────────────────────────────────────────────
         log_lines = [
             "\n" + "=" * 80,
