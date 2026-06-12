@@ -339,27 +339,24 @@ class RGBDCollectorApp:
         self.raw_rgb_shape = rgb.shape
         self.raw_depth_shape = depth.shape
 
-        # 2. Compute proportional depth cropping scales matching asymmetric sensor dimensions
-        # Color space: 1280x720 | Depth space: 640x576
+        # 2. Get the active crop values directly from your UI sliders
+        t = self.crop_top_var.get()
+        b = self.crop_bottom_var.get()
+        l = self.crop_left_var.get()
+        r = self.crop_right_var.get()
+
+        # Compute proportional depth cropping scales matching asymmetric sensor dimensions
         scale_x = depth.shape[1] / original_rgb.shape[1]  # 640 / 1280 = 0.5
         scale_y = depth.shape[0] / original_rgb.shape[0]  # 576 / 720 = 0.8
 
-        crop = self.capture_crop
-
         # Crop RGB image using the raw canvas pixel config
-        rgb, crop_x, crop_y = crop_manual(
-            rgb,
-            top=crop["top"],
-            bottom=crop["bottom"],
-            left=crop["left"],
-            right=crop["right"],
-        )
+        rgb, crop_x, crop_y = crop_manual(rgb, top=t, bottom=b, left=l, right=r)
 
-        # Scale the crop values proportionally down to depth resolution space
-        depth_t = int(round(crop["top"] * scale_y))
-        depth_b = int(round(crop["bottom"] * scale_y))
-        depth_l = int(round(crop["left"] * scale_x))
-        depth_r = int(round(crop["right"] * scale_x))
+        # Scale the slider values proportionally down to depth resolution space
+        depth_t = int(round(t * scale_y))
+        depth_b = int(round(b * scale_y))
+        depth_l = int(round(l * scale_x))
+        depth_r = int(round(r * scale_x))
 
         # Crop depth matrix using scaled bounds
         depth, d_crop_x, d_crop_y = crop_manual(
