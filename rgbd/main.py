@@ -58,13 +58,67 @@ class TeeStream:
                 pass
 
 
-class IndustrialSortingApp:
+class RGBDCollectorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Industrial Sorting Rig Control Panel")
         self.root.geometry("1400x900")
+        self.root.focus_force()
 
-        # Core state variables
+        # YOUR ORIGINAL UNTOUCHED HARDWARE SUB-SYSTEM CORES
+        self.cam = CameraInterface()
+        self.cam.setup_streams()
+        intrinsics = self.cam.get_intrinsics()
+
+        print("Width:", intrinsics.width)
+        print("Height:", intrinsics.height)
+        fx = intrinsics.intrinsic_matrix[0, 0]
+        fy = intrinsics.intrinsic_matrix[1, 1]
+        cx = intrinsics.intrinsic_matrix[0, 2]
+        cy = intrinsics.intrinsic_matrix[1, 2]
+        print("fx:", fx)
+        print("fy:", fy)
+        print("cx:", cx)
+        print("cy:", cy)
+
+        self.writer = AnnotationWriter()
+
+        # YOUR ORIGINAL REPOSITORIES
+        base_path = Path("dataset")
+        self.img_dir = base_path / "images"
+        self.crop_rgb_dir = base_path / "cropped_rgb"
+        self.label_dir = base_path / "labels"
+        self.depth_dir = base_path / "depth"
+        self.mask_dir = base_path / "masks"
+        self.info_dir = base_path / "info"
+        self.pc_dir = base_path / "pointcloud"
+        self.debug_dir = base_path / "debug"
+        for d in [
+            self.img_dir,
+            self.crop_rgb_dir,
+            self.label_dir,
+            self.depth_dir,
+            self.mask_dir,
+            self.info_dir,
+            self.pc_dir,
+            self.debug_dir,
+        ]:
+            d.mkdir(parents=True, exist_ok=True)
+
+        self.log_path = (
+            self.debug_dir / f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        )
+        self.log_file = open(self.log_path, "a", buffering=1)
+        self._orig_stdout = sys.stdout
+        self._orig_stderr = sys.stderr
+        sys.stdout = TeeStream(self._orig_stdout, self.log_file)
+        sys.stderr = TeeStream(self._orig_stderr, self.log_file)
+        print(f"[INFO] Session log file: {self.log_path}")
+
+        self.counter = self.next_capture_index()
+        self.current_img_name = None
+
+        # State buffers tracking hardware parameters
         self.captured_rgb = None
         self.captured_original_rgb = None
         self.captured_depth = None
@@ -79,42 +133,26 @@ class IndustrialSortingApp:
         self.raw_depth_shape = None
         self.cropped_rgb_shape = None
         self.cropped_depth_shape = None
-        self.current_img_name = None
         self.is_capturing = True
 
-        # Initialize folders
-        self.output_base = Path("offline_case/samples")
-        self.output_base.mkdir(parents=True, exist_ok=True)
-        (self.output_base / "images").mkdir(exist_ok=True)
-        (self.output_base / "depth").mkdir(exist_ok=True)
-        (self.output_base / "pointcloud").mkdir(exist_ok=True)
-        (self.output_base / "info").mkdir(exist_ok=True)
-        (self.output_base / "mask").mkdir(exist_ok=True)
+        # Build Upgraded Visual Panelling Structure
+        self.setup_ui_layout()
 
-        # Logging redirects
-        self.log_dir = Path("logs")
-        self.log_dir.mkdir(exist_ok=True)
-        log_filename = (
-            self.log_dir / f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-        )
-        self.log_file = open(log_filename, "w")
-        self._orig_stdout = sys.stdout
-        self._orig_stderr = sys.stderr
-        sys.stdout = TeeStream(sys.stdout, self.log_file)
-        sys.stderr = TeeStream(sys.stderr, self.log_file)
+        # Original Hotkeys Re-Bound Perfectly
+        self.root.bind("<Return>", lambda e: self.capture_frame())
+        self.root.bind("s", lambda e: self.save_data())
+        self.root.bind("S", lambda e: self.save_data())
+        self.root.bind("r", lambda e: self.retake_frame())
+        self.root.bind("R", lambda e: self.retake_frame())
+        self.root.bind("q", lambda e: self.quit_app())
+        self.root.bind("Q", lambda e: self.quit_app())
+        self.root.bind("p", lambda e: self.preview_pointcloud_interactive())
+        self.root.bind("P", lambda e: self.preview_pointcloud_interactive())
 
-        print(f"[INIT] Session logger initialized. Writing to {log_filename}")
+        self.Q()
 
-        # Hardware interface initialization
-        print("[INIT] Attaching camera sensor subsystem...")
-        self.cam = CameraInterface()
-        print("[INIT] Camera stream activated successfully.")
-
-        self.setup_ui()
-        self.update_live_feed()
-
-    def setup_ui(self):
-        # Master Layout Panels
+    def setup_ui_layout(self):
+        # Premium Dual Screen Panelling Layout
         self.left_panel = tk.Frame(self.root, width=950, bg="#2b2b2b")
         self.left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
@@ -123,11 +161,11 @@ class IndustrialSortingApp:
         )
         self.right_panel.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Canvas Displays
+        # Video Display Canvas
         self.video_label = tk.Label(self.left_panel, bg="black")
         self.video_label.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Interaction Control Panel
+        # Controllers Panel Block
         self.controls_frame = tk.LabelFrame(
             self.right_panel,
             text=" Execution Pipeline Controllers ",
@@ -138,17 +176,17 @@ class IndustrialSortingApp:
 
         self.capture_btn = tk.Button(
             self.controls_frame,
-            text="CAPTURE FRAME",
-            font=("Arial", 12, "bold"),
+            text="Capture Frame (Enter)",
+            font=("Arial", 11, "bold"),
             bg="#4CAF50",
             fg="black",
-            command=self.capture_current_frame,
+            command=self.capture_frame,
         )
         self.capture_btn.pack(fill=tk.X, padx=10, pady=5)
 
         self.retake_btn = tk.Button(
             self.controls_frame,
-            text="RETAKE FRAME",
+            text="Retake Frame (R)",
             font=("Arial", 11),
             state=tk.DISABLED,
             command=self.retake_frame,
@@ -164,12 +202,12 @@ class IndustrialSortingApp:
         )
         self.class_frame.pack(fill=tk.X, padx=10, pady=10)
 
-        self.selected_class = tk.IntVar(value=0)
+        self.class_var = tk.StringVar(value="0")
         tk.Radiobutton(
             self.class_frame,
             text="Class 00: Copper Mass Asset",
-            variable=self.selected_class,
-            value=0,
+            variable=self.class_var,
+            value="0",
             bg="#3c3f41",
             fg="white",
             selectcolor="#2b2b2b",
@@ -177,8 +215,8 @@ class IndustrialSortingApp:
         tk.Radiobutton(
             self.class_frame,
             text="Class 01: Steel Structural Scrap",
-            variable=self.selected_class,
-            value=1,
+            variable=self.class_var,
+            value="1",
             bg="#3c3f41",
             fg="white",
             selectcolor="#2b2b2b",
@@ -186,16 +224,16 @@ class IndustrialSortingApp:
 
         self.save_btn = tk.Button(
             self.right_panel,
-            text="COMMIT DATASET SNAPSHOT",
+            text="COMMIT DATASET SNAPSHOT (S)",
             font=("Arial", 12, "bold"),
             bg="#008CBA",
             fg="black",
             state=tk.DISABLED,
-            command=self.commit_snapshot,
+            command=self.save_data,
         )
         self.save_btn.pack(fill=tk.X, padx=20, pady=20)
 
-        # Realtime Dynamic Matrix Sliders
+        # Dynamic Tracking Crop Matrix Sliders
         self.crop_frame = tk.LabelFrame(
             self.right_panel,
             text=" Realtime Hardware Crop Adjustments (px) ",
@@ -204,10 +242,11 @@ class IndustrialSortingApp:
         )
         self.crop_frame.pack(fill=tk.X, padx=10, pady=10)
 
+        # Initialized cleanly using your exact working defaults: left: 250, right: 520
         self.crop_top_var = tk.IntVar(value=0)
         self.crop_bottom_var = tk.IntVar(value=0)
-        self.crop_left_var = tk.IntVar(value=0)
-        self.crop_right_var = tk.IntVar(value=0)
+        self.crop_left_var = tk.IntVar(value=250)
+        self.crop_right_var = tk.IntVar(value=520)
 
         self.create_slider(self.crop_frame, "Top Margin:", self.crop_top_var, 0, 500)
         self.create_slider(
@@ -215,17 +254,19 @@ class IndustrialSortingApp:
         )
         self.create_slider(self.crop_frame, "Left Margin:", self.crop_left_var, 0, 500)
         self.create_slider(
-            self.crop_frame, "Right Margin:", self.crop_right_var, 0, 500
+            self.crop_frame, "Right Margin:", self.crop_right_var, 0, 600
         )
 
         self.pcd_btn = tk.Button(
-            self.right_panel, text="Launch open3D Previewer", command=self.preview_pcd
+            self.right_panel,
+            text="Preview PointCloud (P)",
+            command=self.preview_pointcloud_interactive,
         )
         self.pcd_btn.pack(fill=tk.X, padx=20, pady=5)
 
         self.quit_btn = tk.Button(
             self.right_panel,
-            text="Shutdown Subsystem Enclosure",
+            text="Shutdown Subsystem Enclosure (Q)",
             command=self.quit_app,
             bg="#f44336",
             fg="black",
@@ -244,105 +285,125 @@ class IndustrialSortingApp:
         l.pack(side=tk.RIGHT)
         var.trace_add("write", lambda *args: l.config(text=str(var.get())))
 
-    def update_live_feed(self):
-        if self.is_capturing:
-            frames = self.cam.get_frames()
-            if frames is not None:
-                # REVERTED: Correct unpacking matching your actual production pipeline format
-                color_frame, depth_frame = frames
-                if color_frame is not None:
-                    img_bgr = frame_to_bgr_image(color_frame)
+    def update_video(self):
+        try:
+            if self.is_capturing:
+                frames = self.cam.get_frames()
+                if frames is not None and frames[0] is not None:
+                    color_frame = frames[0]
+                    rgb = frame_to_bgr_image(color_frame)
 
-                    # Read UI values dynamically
+                    # Pull slider variables live to dynamically preview crops
                     t = self.crop_top_var.get()
                     b = self.crop_bottom_var.get()
                     l = self.crop_left_var.get()
                     r = self.crop_right_var.get()
 
                     img_cropped, _, _ = crop_manual(
-                        img_bgr, top=t, bottom=b, left=l, right=r
+                        rgb, top=t, bottom=b, left=l, right=r
                     )
 
-                    # Frame rate sizing logic
-                    img_rgb = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2RGB)
-                    h, w = img_rgb.shape[:2]
-
-                    # Protect Tkinter allocation bounds
-                    max_h, max_w = 750, 900
+                    # Responsive visual rescaling
+                    h, w = img_cropped.shape[:2]
+                    max_h, max_w = 700, 930
                     scale = min(max_w / w, max_h / h, 1.0)
                     if scale < 1.0:
-                        img_rgb = cv2.resize(
-                            img_rgb,
+                        img_cropped = cv2.resize(
+                            img_cropped,
                             (int(w * scale), int(h * scale)),
                             interpolation=cv2.INTER_LINEAR,
                         )
 
-                    img_pil = Image.fromarray(img_rgb)
-                    img_tk = ImageTk.PhotoImage(image=img_pil)
-                    self.video_label.img_tk = img_tk
-                    self.video_label.config(image=img_tk)
+                    img = Image.fromarray(cv2.cvtColor(img_cropped, cv2.COLOR_BGR2RGB))
+                    imgtk = ImageTk.PhotoImage(image=img)
+                    self.video_label.imgtk = imgtk
+                    self.video_label.configure(image=imgtk)
+        except Exception as e:
+            print(f"[ERROR] update_video failed: {e}")
+        self.root.after(30, self.update_video)
 
-        self.root.after(30, self.update_live_feed)
+    def Q(self):
+        self.update_video()
 
-    def capture_current_frame(self):
-        print("\n[CAPTURE] Freezing live video frame buffer...")
+    def capture_frame(self):
+        if not self.is_capturing:
+            return
+
+        if self.current_img_name is None:
+            self.current_img_name = f"img{self.counter:04d}"
+
         frames = self.cam.get_frames()
-        if frames is None:
-            print("[ERROR] Hardware pipeline frame capture timed out or empty.")
+        if frames is None or frames[0] is None or frames[1] is None:
+            print("[ERROR] No frame available to capture")
             return
 
-        # REVERTED: Correct unpacking matching your actual production pipeline format
-        color_frame, depth_frame = frames
-        if color_frame is None or depth_frame is None:
-            print("[ERROR] Synchronized camera stream component array incomplete.")
-            return
+        color_frame, depth_frame = frames[0], frames[1]
+        rgb = frame_to_bgr_image(color_frame)
+        original_rgb = rgb.copy()
 
-        self.is_capturing = False
-        self.capture_btn.config(state=tk.DISABLED)
-        self.retake_btn.config(state=tk.NORMAL)
+        # Pure raw depth mapping architecture safely maintained
+        depth_raw = np.frombuffer(depth_frame.get_data(), dtype=np.uint16)
+        depth = depth_raw.reshape(
+            (depth_frame.get_height(), depth_frame.get_width())
+        ).copy()
 
-        # Step 1: Retain pristine uncropped original color matrix
-        self.captured_original_rgb = frame_to_bgr_image(color_frame)
-        self.raw_rgb_shape = self.captured_original_rgb.shape
+        self.raw_rgb_shape = rgb.shape
+        self.raw_depth_shape = depth.shape
 
-        # Step 2: Grab incoming spatial structures
-        self.captured_depth = np.asanyarray(depth_frame.get_data())
-        self.raw_depth_shape = self.captured_depth.shape
-
-        # Step 3: Parse slider crop boundaries
+        # Pull crop targets directly from slider widgets
         t = self.crop_top_var.get()
         b = self.crop_bottom_var.get()
         l = self.crop_left_var.get()
         r = self.crop_right_var.get()
 
-        # Step 4: Deduct cropped variants
-        self.captured_rgb, actual_left_offset, actual_top_offset = crop_manual(
-            self.captured_original_rgb, top=t, bottom=b, left=l, right=r
+        rgb, crop_x, crop_y = crop_manual(rgb, top=t, bottom=b, left=l, right=r)
+        depth, _, _ = crop_manual(depth, top=t, bottom=b, left=l, right=r)
+
+        self.cropped_rgb_shape = rgb.shape
+        self.cropped_depth_shape = depth.shape
+
+        # Adjust the intrinsics calculation exactly as your app expects
+        intrinsics = self.cam.get_intrinsics()
+        fx = intrinsics.intrinsic_matrix[0, 0]
+        fy = intrinsics.intrinsic_matrix[1, 1]
+        cx = intrinsics.intrinsic_matrix[0, 2]
+        cy = intrinsics.intrinsic_matrix[1, 2]
+
+        adjusted_intrinsics = o3d.camera.PinholeCameraIntrinsic(
+            width=rgb.shape[1],
+            height=rgb.shape[0],
+            fx=fx,
+            fy=fy,
+            cx=cx - crop_x,
+            cy=cy - crop_y,
         )
-        self.cropped_rgb_shape = self.captured_rgb.shape
-        self.cropped_depth_shape = (
-            self.captured_depth.shape
-        )  # Uncropped tracking variant
 
-        # Step 5: Extract point cloud profile data dynamically
-        pcd = self.cam.get_point_cloud()
-        self.captured_pcd = pcd
-        intrinsic_profile = self.cam.get_rgb_intrinsics()
+        # Generate 3D Point Cloud geometries
+        depth_m = depth.astype(np.float32) / 1000.0
+        depth_m = np.where((depth_m > 0.2) & (depth_m < 1.5), depth_m, 0.0)
 
-        info = CaptureInfo()
-        info.raw_depth_shape = (self.raw_depth_shape[0], self.raw_depth_shape[1])
-        info.rgb_shape = (self.cropped_rgb_shape[0], self.cropped_rgb_shape[1])
-        info.crop_top = actual_top_offset
-        info.crop_left = actual_left_offset
-        info.fx = intrinsic_profile.fx
-        info.fy = intrinsic_profile.fy
-        info.cx = intrinsic_profile.cx
-        info.cy = intrinsic_profile.cy
+        depth_o3d = o3d.geometry.Image(depth_m)
+        pcd = o3d.geometry.PointCloud.create_from_depth_image(
+            depth_o3d, adjusted_intrinsics, depth_scale=1.0, depth_trunc=3.0, stride=1
+        )
 
-        self.captured_intrinsics = intrinsic_profile
+        # Execute 3D masking loop
+        live_info = CaptureInfo(
+            raw_depth_shape=self.raw_depth_shape,
+            rgb_shape=rgb.shape[:2],
+            crop_top=crop_y,
+            crop_left=crop_x,
+            fx=fx,
+            fy=fy,
+            cx=adjusted_intrinsics.intrinsic_matrix[0, 2],
+            cy=adjusted_intrinsics.intrinsic_matrix[1, 2],
+        )
+        mask, plane_model, inlier_count, outlier_count = run_masking_from_point_cloud(
+            pcd, live_info
+        )
 
         # ─────────────────────────────────────────────────────────────────────
-        # CRITICAL SAFE DIAGNOSTIC TELEMETRY LOGGER
+        # CRITICAL REALTIME DIAGONAL DATA TELEMETRY LOG ENGINE
         # ─────────────────────────────────────────────────────────────────────
         log_lines = [
             "\n" + "=" * 80,
@@ -353,17 +414,14 @@ class IndustrialSortingApp:
             f"  [HARDWARE] Raw Depth Sensor Matrix Shape : {self.raw_depth_shape[1]}W x {self.raw_depth_shape[0]}H px",
             f"  [SLIDERS]  Active Crop Offsets Input     : Top={t}px, Bottom={b}px, Left={l}px, Right={r}px",
             f"  [PIPELINE] Cropped App Canvas Boundary  : {self.cropped_rgb_shape[1]}W x {self.cropped_rgb_shape[0]}H px",
-            f"  [MATRIX]   Intrinsic fx (Focal X)        : {intrinsic_profile.fx:.6f}",
-            f"  [MATRIX]   Intrinsic fy (Focal Y)        : {intrinsic_profile.fy:.6f}",
-            f"  [MATRIX]   Intrinsic cx (Center X)       : {intrinsic_profile.cx:.6f}",
-            f"  [MATRIX]   Intrinsic cy (Center Y)       : {intrinsic_profile.cy:.6f}",
+            f"  [MATRIX]   Intrinsic fx (Focal X)        : {fx:.6f}",
+            f"  [MATRIX]   Intrinsic fy (Focal Y)        : {fy:.6f}",
+            f"  [MATRIX]   Intrinsic cx (Center X)       : {cx:.6f}",
+            f"  [MATRIX]   Intrinsic cy (Center Y)       : {cy:.6f}",
         ]
 
-        # Calculate exact visual midpoint offsets
         visual_cx = self.cropped_rgb_shape[1] / 2
-        visual_cy = self.cropped_rgb_shape[0] / 2
-        shifted_math_cx = intrinsic_profile.cx - actual_left_offset
-        shifted_math_cy = intrinsic_profile.cy - actual_top_offset
+        shifted_math_cx = cx - crop_x
         h_mismatch = visual_cx - shifted_math_cx
 
         log_lines.extend(
@@ -375,144 +433,292 @@ class IndustrialSortingApp:
             ]
         )
 
-        # Write to screen and directly append to local file asset
         debug_output_string = "\n".join(log_lines)
         print(debug_output_string, flush=True)
 
         with open("live_capture_debug.log", "a") as f_debug:
             f_debug.write(debug_output_string)
-
         # ─────────────────────────────────────────────────────────────────────
 
-        print(
-            "[PROCESSING] Handing array data pointers over to Masking Pinhole Engine..."
-        )
-        mask, plane_model, inliers_count, non_plane_count = (
-            run_masking_from_point_cloud(pcd, info)
-        )
-
+        # Save values completely to local state arrays
+        self.captured_rgb = rgb
+        self.captured_original_rgb = original_rgb
+        self.captured_depth = depth
         self.captured_mask = mask
+        self.captured_pcd = pcd
+        self.captured_intrinsics = adjusted_intrinsics
         self.captured_plane_model = plane_model
-        self.captured_plane_inliers = inliers_count
-        self.captured_non_plane_pts = non_plane_count
+        self.captured_plane_inliers = inlier_count
+        self.captured_non_plane_pts = outlier_count
+        self.captured_mask_stats = self.analyze_mask(mask)
 
-        # Post Process Mask Overlay display logic
-        mask_rgb = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
-        mask_rgb[mask > 0] = [
-            0,
-            255,
-            0,
-        ]  # Light up winning object in vibrant emerald green
+        # Multi-Window Output Display Rendering Logic
+        mask_viz = (mask * 255).astype(np.uint8)
+        mask_bgr = cv2.cvtColor(mask_viz, cv2.COLOR_GRAY2BGR)
+        contours, _ = cv2.findContours(
+            mask_viz, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+        if contours:
+            largest = max(contours, key=cv2.contourArea)
+            cv2.drawContours(mask_bgr, [largest], -1, (0, 255, 0), 2)
 
-        overlay_img = cv2.addWeighted(self.captured_rgb, 0.7, mask_rgb, 0.3, 0)
-        overlay_rgb = cv2.cvtColor(overlay_img, cv2.COLOR_BGR2RGB)
+        depth_vis = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+        depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
 
-        h, w = overlay_rgb.shape[:2]
-        max_h, max_w = 750, 900
-        scale = min(max_w / w, max_h / h, 1.0)
-        if scale < 1.0:
-            overlay_rgb = cv2.resize(
-                overlay_rgb,
-                (int(w * scale), int(h * scale)),
-                interpolation=cv2.INTER_LINEAR,
+        w_panel, h_panel = 320, 240
+        combined = np.hstack(
+            (
+                cv2.resize(original_rgb, (w_panel, h_panel)),
+                cv2.resize(mask_bgr, (w_panel, h_panel)),
+                cv2.resize(depth_colored, (w_panel, h_panel)),
             )
+        )
 
-        img_pil = Image.fromarray(overlay_rgb)
-        img_tk = ImageTk.PhotoImage(image=img_pil)
-        self.video_label.img_tk = img_tk
-        self.video_label.config(image=img_tk)
+        img = Image.fromarray(cv2.cvtColor(combined, cv2.COLOR_BGR2RGB))
+        imgtk = ImageTk.PhotoImage(image=img)
+        self.video_label.imgtk = imgtk
+        self.video_label.configure(image=imgtk)
 
+        self.is_capturing = False
+        self.capture_btn.config(state=tk.DISABLED)
         self.save_btn.config(state=tk.NORMAL)
+        self.retake_btn.config(state=tk.NORMAL)
 
-    def commit_snapshot(self):
-        if self.captured_rgb is None:
+    def save_data(self):
+        if (
+            self.captured_rgb is None
+            or self.captured_mask is None
+            or self.captured_depth is None
+        ):
+            print("[WARNING] No complete data frames available to save.")
             return
 
-        # Sequential file indexing locator
-        img_idx = 0
-        while True:
-            name = f"img{img_idx:04d}"
-            if not (self.output_base / "images" / f"{name}.png").exists():
-                self.current_img_name = name
-                break
-            img_idx += 1
+        img_name = self.current_img_name or f"img{self.counter:04d}"
+        print(f"\n[INFO] Saving data packages for: {img_name}...")
 
-        name = self.current_img_name
-        print(f"\n[DATASET] Committing pipeline record arrays as index token: {name}")
+        cv2.imwrite(str(self.img_dir / f"{img_name}.png"), self.captured_original_rgb)
+        cv2.imwrite(str(self.crop_rgb_dir / f"{img_name}.png"), self.captured_rgb)
 
-        cv2.imwrite(str(self.output_base / "images" / f"{name}.png"), self.captured_rgb)
-        cv2.imwrite(str(self.output_base / "mask" / f"{name}.png"), self.captured_mask)
-        np.save(str(self.output_base / "depth" / f"{name}.npy"), self.captured_depth)
-        o3d.io.write_point_cloud(
-            str(self.output_base / "pointcloud" / f"{name}.ply"), self.captured_pcd
+        depth_vis = cv2.normalize(
+            self.captured_depth, None, 0, 255, cv2.NORM_MINMAX
+        ).astype(np.uint8)
+        depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
+        cv2.imwrite(str(self.depth_dir / f"{img_name}.png"), depth_colored)
+
+        selected_class = int(self.class_var.get())
+        label_mask = self.match_mask_to_image(
+            self.captured_mask, self.captured_rgb.shape[:2]
+        )
+        self.writer.write(
+            str(self.label_dir / f"{img_name}.txt"),
+            label_mask,
+            self.captured_rgb.shape[:2],
+            label_class=selected_class,
         )
 
-        # Extract intrinsic profile details
-        fx = self.captured_intrinsics.fx
-        fy = self.captured_intrinsics.fy
-        cx = self.captured_intrinsics.cx
-        cy = self.captured_intrinsics.cy
+        cv2.imwrite(str(self.mask_dir / f"{img_name}.png"), label_mask * 255)
 
-        t = self.crop_top_var.get()
-        b = self.crop_bottom_var.get()
-        l = self.crop_left_var.get()
-        r = self.crop_right_var.get()
-
-        info_text = (
-            f"Crop:\n  top={t} bottom={b} left={l} right={r}\n"
-            f"Raw RGB shape: {self.raw_rgb_shape}\n"
-            f"Raw depth shape: {self.raw_depth_shape}\n"
-            f"Cropped RGB shape: {self.cropped_rgb_shape}\n"
-            f"Cropped depth shape: {self.cropped_depth_shape}\n"
-            f"RGB shape: {self.cropped_rgb_shape}\n"
-            f"Depth shape: {self.raw_depth_shape}\n"
-            f"Depth dtype: {self.captured_depth.dtype}\n"
-            f"Depth min/max: {self.captured_depth.min()}/{self.captured_depth.max()}\n"
-            f"Valid depth pixels: {np.count_nonzero(self.captured_depth)}\n"
-            f"Intrinsics matrix:\n"
-            f"  {fx:.6f} 0.000000 {cx:.6f}\n"
-            f"  0.000000 {fy:.6f} {cy:.6f}\n"
-            f"  0.000000 0.000000 1.000000\n"
-        )
-
-        if self.captured_plane_model is not None:
-            pa, pb, pc, pd = self.captured_plane_model
-            info_text += (
-                f"Plane equation: {pa:.6f}x + {pb:.6f}y + {pc:.6f}z + {pd:.6f} = 0\n"
-            )
-            info_text += f"Plane inliers: {self.captured_plane_inliers}\n"
-            info_text += f"Non-plane points: {self.captured_non_plane_pts}\n"
-
-        info_text += f"Selected class: {self.selected_class.get()}\n"
-
-        # Structural validation verification metrics
-        fg_pixels = np.count_nonzero(self.captured_mask)
-        total_pixels = self.captured_mask.size
-        fg_ratio = fg_pixels / total_pixels if total_pixels > 0 else 0
-
-        info_text += (
-            f"Mask QA:\n"
-            f"  Foreground pixels: {fg_pixels}\n"
-            f"  Foreground ratio: {fg_ratio:.8f}\n"
-        )
-
-        (self.output_base / "info" / f"{name}.txt").write_text(info_text)
-        print(f"[DATASET] Commit sequence successful for image token context: {name}")
-
-        self.save_btn.config(state=tk.DISABLED)
-        self.reset_capture_state()
-
-    def preview_pcd(self):
-        if self.captured_pcd is not None:
-            print("[VISUALIZATION] Spawning Open3D parallel renderer viewport...")
-            o3d.visualization.draw_geometries(
-                [self.captured_pcd], window_name="Rig Core Spatial Point Cloud Profile"
+        pcd_path = self.pc_dir / f"{img_name}.ply"
+        if self.captured_pcd is not None and len(self.captured_pcd.points) > 0:
+            o3d.io.write_point_cloud(str(pcd_path), self.captured_pcd)
+            print(
+                f"[SAVED] Verified 3D Point Cloud saved successfully ({len(self.captured_pcd.points)} points)"
             )
         else:
-            print("[WARNING] Active point cloud buffer empty. Capture a frame first.")
+            print("[ERROR] Cannot save .ply file: tracked cloud is empty!")
+
+        current_crop = {
+            "top": self.crop_top_var.get(),
+            "bottom": self.crop_bottom_var.get(),
+            "left": self.crop_left_var.get(),
+            "right": self.crop_right_var.get(),
+        }
+
+        if self.captured_plane_model is not None:
+            self.save_info_txt(
+                img_name,
+                selected_class,
+                current_crop,
+                self.raw_rgb_shape,
+                self.raw_depth_shape,
+                self.cropped_rgb_shape,
+                self.cropped_depth_shape,
+                self.captured_rgb,
+                self.captured_depth,
+                self.captured_intrinsics or self.cam.get_intrinsics(),
+                self.captured_plane_model,
+                self.captured_plane_inliers,
+                self.captured_non_plane_pts,
+                mask_stats=self.captured_mask_stats,
+            )
+        else:
+            print(
+                "[WARNING] Skipping info.txt save because capture metadata is missing."
+            )
+
+        self.print_dataset_counts()
+        self.counter = self.next_capture_index()
+        self.current_img_name = None
+        self.reset_capture_state()
+        print(f"[SUCCESS] Packout cycle {img_name} complete.\n")
+
+    def save_info_txt(
+        self,
+        img_name,
+        selected_class,
+        crop,
+        raw_rgb_shape,
+        raw_depth_shape,
+        cropped_rgb_shape,
+        cropped_depth_shape,
+        rgb,
+        depth,
+        intrinsics,
+        plane_eq,
+        plane_inliers,
+        non_plane_pts,
+        mask_stats=None,
+    ):
+        txt_path = self.info_dir / f"{img_name}.txt"
+        with open(txt_path, "w") as f:
+            f.write("Crop:\n")
+            f.write(
+                f"  top={crop['top']} bottom={crop['bottom']} left={crop['left']} right={crop['right']}\n"
+            )
+            f.write(f"Raw RGB shape: {raw_rgb_shape}\n")
+            f.write(f"Raw depth shape: {raw_depth_shape}\n")
+            f.write(f"Cropped RGB shape: {cropped_rgb_shape}\n")
+            f.write(f"Cropped depth shape: {cropped_depth_shape}\n")
+            f.write(f"RGB shape: {rgb.shape}\n")
+            f.write(f"Depth shape: {depth.shape}\n")
+            f.write(f"Depth dtype: {depth.dtype}\n")
+            f.write(f"Depth min/max: {depth.min()}/{depth.max()}\n")
+            f.write(f"Valid depth pixels: {np.count_nonzero(depth)}\n")
+            f.write("Intrinsics matrix:\n")
+            for row in intrinsics.intrinsic_matrix:
+                f.write("  " + " ".join(f"{val:.6f}" for val in row) + "\n")
+            f.write(
+                f"Plane equation: {plane_eq[0]:.6f}x + {plane_eq[1]:.6f}y + {plane_eq[2]:.6f}z + {plane_eq[3]:.6f} = 0\n"
+            )
+            f.write(f"Plane inliers: {plane_inliers}\n")
+            f.write(f"Non-plane points: {non_plane_pts}\n")
+            f.write(f"Selected class: {selected_class}\n")
+            if mask_stats is not None:
+                f.write("Mask QA:\n")
+                f.write(f"  Foreground pixels: {mask_stats['foreground']}\n")
+                f.write(f"  Foreground ratio: {mask_stats['ratio']:.8f}\n")
+                f.write(f"  Connected components: {mask_stats['components']}\n")
+                f.write(f"  Largest component area: {mask_stats['largest_area']}\n")
+                f.write(f"  Border pixels: {mask_stats['border_pixels']}\n")
+                f.write(f"  Border ratio: {mask_stats['border_ratio']:.8f}\n")
+                f.write(f"  Largest bbox: {mask_stats['largest_bbox']}\n")
+                f.write(f"  Largest centroid: {mask_stats['largest_centroid']}\n")
+        print(f"[INFO] Info saved to {txt_path}")
+
+    def analyze_mask(self, mask):
+        mask_u8 = (mask > 0).astype(np.uint8)
+        h, w = mask_u8.shape
+        foreground = int(np.count_nonzero(mask_u8))
+        total = int(mask_u8.size)
+        ratio = float(foreground / total) if total else 0.0
+
+        num_labels, _labels, stats, centroids = cv2.connectedComponentsWithStats(
+            mask_u8, connectivity=8
+        )
+        component_areas = (
+            stats[1:, cv2.CC_STAT_AREA] if num_labels > 1 else np.array([])
+        )
+        largest_area = int(component_areas.max()) if component_areas.size else 0
+        largest_idx = (
+            int(np.argmax(component_areas)) + 1 if component_areas.size else -1
+        )
+        largest_bbox, largest_centroid = None, None
+        if largest_idx > 0:
+            x = int(stats[largest_idx, cv2.CC_STAT_LEFT])
+            y = int(stats[largest_idx, cv2.CC_STAT_TOP])
+            bw = int(stats[largest_idx, cv2.CC_STAT_WIDTH])
+            bh = int(stats[largest_idx, cv2.CC_STAT_HEIGHT])
+            largest_bbox = (x, y, bw, bh)
+            largest_centroid = (
+                float(centroids[largest_idx][0]),
+                float(centroids[largest_idx][1]),
+            )
+
+        border_mask = np.zeros_like(mask_u8, dtype=bool)
+        border_mask[0, :] = True
+        border_mask[-1, :] = True
+        border_mask[:, 0] = True
+        border_mask[:, -1] = True
+        border_pixels = int(np.count_nonzero(mask_u8 & border_mask))
+        border_ratio = float(border_pixels / foreground) if foreground else 0.0
+
+        return {
+            "shape": (h, w),
+            "foreground": foreground,
+            "ratio": ratio,
+            "components": int(num_labels - 1),
+            "largest_area": largest_area,
+            "largest_bbox": largest_bbox,
+            "largest_centroid": largest_centroid,
+            "border_pixels": border_pixels,
+            "border_ratio": border_ratio,
+        }
+
+    def next_capture_index(self):
+        pattern = re.compile(r"img(\d+)")
+        indices = []
+        for directory, suffixes in (
+            (self.img_dir, [".png"]),
+            (self.crop_rgb_dir, [".png"]),
+            (self.label_dir, [".txt"]),
+            (self.depth_dir, [".png"]),
+            (self.mask_dir, [".png"]),
+            (self.info_dir, [".txt"]),
+            (self.pc_dir, [".ply"]),
+            (self.debug_dir, [".png"]),
+        ):
+            if not directory.exists():
+                continue
+            for path in directory.iterdir():
+                if path.suffix not in suffixes:
+                    continue
+                match = pattern.match(path.stem)
+                if match:
+                    indices.append(int(match.group(1)))
+        return (max(indices) + 1) if indices else 0
+
+    def match_mask_to_image(self, mask, image_shape):
+        mask_u8 = (mask > 0).astype(np.uint8)
+        if mask_u8.shape == image_shape:
+            return mask_u8
+        return cv2.resize(
+            mask_u8, (image_shape[1], image_shape[0]), interpolation=cv2.INTER_NEAREST
+        )
+
+    def print_dataset_counts(self):
+        counts = {
+            "images": len(list(self.img_dir.glob("*.png"))),
+            "cropped_rgb": len(list(self.crop_rgb_dir.glob("*.png"))),
+            "depth": len(list(self.depth_dir.glob("*.png"))),
+            "labels": len(list(self.label_dir.glob("*.txt"))),
+            "masks": len(list(self.mask_dir.glob("*.png"))),
+            "pointcloud": len(list(self.pc_dir.glob("*.ply"))),
+            "info": len(list(self.info_dir.glob("*.txt"))),
+        }
+        print(
+            "[COUNT] " + ", ".join(f"{name}={value}" for name, value in counts.items())
+        )
+        return counts
+
+    def preview_pointcloud_interactive(self):
+        if self.captured_pcd is not None:
+            print("[INFO] Launching interactive 3D point cloud viewer...")
+            o3d.visualization.draw_geometries([self.captured_pcd])
+        else:
+            print("[WARNING] No point cloud to preview. Capture a frame first.")
 
     def retake_frame(self):
-        print("[RETAKE] Releasing frame buffer lock.")
+        print("[RETAKE] Retaking frame.")
         self.reset_capture_state()
 
     def reset_capture_state(self):
@@ -537,7 +743,7 @@ class IndustrialSortingApp:
         self.retake_btn.config(state=tk.DISABLED)
 
     def quit_app(self):
-        print("[INFO] Initiating camera enclosure hardware teardown...")
+        print("[INFO] Quitting application.")
         self.cam.stop()
         try:
             sys.stdout = self._orig_stdout
@@ -553,6 +759,9 @@ class IndustrialSortingApp:
 
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = IndustrialSortingApp(root)
-    root.mainloop()
+    try:
+        root = tk.Tk()
+        app = RGBDCollectorApp(root)
+        root.mainloop()
+    except Exception as e:
+        print(f"[FATAL ERROR] {e}")
