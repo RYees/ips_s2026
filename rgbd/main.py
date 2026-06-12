@@ -378,15 +378,15 @@ class RGBDCollectorApp:
         cy = intrinsics.intrinsic_matrix[1, 2]
 
         # Map principal points into depth sensor resolution space, then apply crop shifts
+        # CORRECT FIXED CODE:
         adjusted_intrinsics = o3d.camera.PinholeCameraIntrinsic(
-            width=depth.shape[1],
-            height=depth.shape[0],
-            fx=fx * scale_x,
-            fy=fy * scale_y,
-            cx=(cx * scale_x) - d_crop_x,
-            cy=(cy * scale_y) - d_crop_y,
+            width=rgb.shape[1],  # Target the RGB cropped width (510)
+            height=rgb.shape[0],  # Target the RGB cropped height (720)
+            fx=fx,  # Keep original fx (750.14)
+            fy=fy,  # Keep original fy (749.78)
+            cx=cx - crop_x,  # Original cx (636.17) minus slider crop_x (250)
+            cy=cy - crop_y,  # Original cy (366.08) minus slider crop_y (0)
         )
-
         # 4. Generate 3D Point Cloud geometry from cleanly mapped depth units
         depth_m = depth.astype(np.float32) / 1000.0  # Convert mm to meters
         depth_m = np.where(
