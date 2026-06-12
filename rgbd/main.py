@@ -19,16 +19,14 @@ from offline_case.masking import CaptureInfo, run_masking_from_point_cloud
 from tkinter import ttk
 
 
-# Crops the input image to a square region centered in the image, extra_crop pixels are removed from each side.
+# Crops the input image to a region; extra_crop pixels are removed from each side.
 def crop_manual(img, top=0, bottom=0, left=0, right=0):
     h, w = img.shape[:2]
-    # Enforce non-negative regions
     top = max(0, top)
     bottom = max(0, bottom)
     left = max(0, left)
     right = max(0, right)
 
-    # Prevent invalid crop bounds that would create an empty image
     if top + bottom >= h or left + right >= w:
         return img, 0, 0
 
@@ -65,7 +63,7 @@ class RGBDCollectorApp:
         self.root.geometry("1400x900")
         self.root.focus_force()
 
-        # YOUR ORIGINAL UNTOUCHED HARDWARE SUB-SYSTEM CORES
+        # Core Hardware Sub-System Initialization
         self.cam = CameraInterface()
         self.cam.setup_streams()
         intrinsics = self.cam.get_intrinsics()
@@ -76,14 +74,10 @@ class RGBDCollectorApp:
         fy = intrinsics.intrinsic_matrix[1, 1]
         cx = intrinsics.intrinsic_matrix[0, 2]
         cy = intrinsics.intrinsic_matrix[1, 2]
-        print("fx:", fx)
-        print("fy:", fy)
-        print("cx:", cx)
-        print("cy:", cy)
 
         self.writer = AnnotationWriter()
 
-        # YOUR ORIGINAL REPOSITORIES
+        # Dataset Storage Layout Routing
         base_path = Path("dataset")
         self.img_dir = base_path / "images"
         self.crop_rgb_dir = base_path / "cropped_rgb"
@@ -113,12 +107,11 @@ class RGBDCollectorApp:
         self._orig_stderr = sys.stderr
         sys.stdout = TeeStream(self._orig_stdout, self.log_file)
         sys.stderr = TeeStream(self._orig_stderr, self.log_file)
-        print(f"[INFO] Session log file: {self.log_path}")
 
         self.counter = self.next_capture_index()
         self.current_img_name = None
 
-        # State buffers tracking hardware parameters
+        # Application State Tracking Buffers
         self.captured_rgb = None
         self.captured_original_rgb = None
         self.captured_depth = None
@@ -135,10 +128,10 @@ class RGBDCollectorApp:
         self.cropped_depth_shape = None
         self.is_capturing = True
 
-        # Build Upgraded Visual Panelling Structure
+        # Build Layout Panelling with Sliders
         self.setup_ui_layout()
 
-        # Original Hotkeys Re-Bound Perfectly
+        # Keyboard Shortcuts
         self.root.bind("<Return>", lambda e: self.capture_frame())
         self.root.bind("s", lambda e: self.save_data())
         self.root.bind("S", lambda e: self.save_data())
@@ -152,7 +145,7 @@ class RGBDCollectorApp:
         self.Q()
 
     def setup_ui_layout(self):
-        # Premium Dual Screen Panelling Layout
+        # Dual Screen Panel Spacing Layout
         self.left_panel = tk.Frame(self.root, width=950, bg="#2b2b2b")
         self.left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
@@ -161,11 +154,11 @@ class RGBDCollectorApp:
         )
         self.right_panel.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Video Display Canvas
+        # Video Label
         self.video_label = tk.Label(self.left_panel, bg="black")
         self.video_label.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Controllers Panel Block
+        # Controllers Frame
         self.controls_frame = tk.LabelFrame(
             self.right_panel,
             text=" Execution Pipeline Controllers ",
@@ -193,7 +186,7 @@ class RGBDCollectorApp:
         )
         self.retake_btn.pack(fill=tk.X, padx=10, pady=5)
 
-        # Class Categorization Block
+        # Class Label Selection Block
         self.class_frame = tk.LabelFrame(
             self.right_panel,
             text=" Quality Assurance Label Classification ",
@@ -233,7 +226,7 @@ class RGBDCollectorApp:
         )
         self.save_btn.pack(fill=tk.X, padx=20, pady=20)
 
-        # Dynamic Tracking Crop Matrix Sliders
+        # Modern Slider Adjustments Frame
         self.crop_frame = tk.LabelFrame(
             self.right_panel,
             text=" Realtime Hardware Crop Adjustments (px) ",
@@ -242,7 +235,6 @@ class RGBDCollectorApp:
         )
         self.crop_frame.pack(fill=tk.X, padx=10, pady=10)
 
-        # Initialized cleanly using your exact working defaults: left: 250, right: 520
         self.crop_top_var = tk.IntVar(value=0)
         self.crop_bottom_var = tk.IntVar(value=0)
         self.crop_left_var = tk.IntVar(value=250)
@@ -293,7 +285,6 @@ class RGBDCollectorApp:
                     color_frame = frames[0]
                     rgb = frame_to_bgr_image(color_frame)
 
-                    # Pull slider variables live to dynamically preview crops
                     t = self.crop_top_var.get()
                     b = self.crop_bottom_var.get()
                     l = self.crop_left_var.get()
@@ -303,7 +294,6 @@ class RGBDCollectorApp:
                         rgb, top=t, bottom=b, left=l, right=r
                     )
 
-                    # Responsive visual rescaling
                     h, w = img_cropped.shape[:2]
                     max_h, max_w = 700, 930
                     scale = min(max_w / w, max_h / h, 1.0)
@@ -341,7 +331,6 @@ class RGBDCollectorApp:
         rgb = frame_to_bgr_image(color_frame)
         original_rgb = rgb.copy()
 
-        # Pure raw depth mapping architecture safely maintained
         depth_raw = np.frombuffer(depth_frame.get_data(), dtype=np.uint16)
         depth = depth_raw.reshape(
             (depth_frame.get_height(), depth_frame.get_width())
@@ -350,32 +339,49 @@ class RGBDCollectorApp:
         self.raw_rgb_shape = rgb.shape
         self.raw_depth_shape = depth.shape
 
-        # Pull crop targets directly from slider widgets
+        # Get values from sliders
         t = self.crop_top_var.get()
         b = self.crop_bottom_var.get()
         l = self.crop_left_var.get()
         r = self.crop_right_var.get()
 
+        # 1. Crop RGB image normally
         rgb, crop_x, crop_y = crop_manual(rgb, top=t, bottom=b, left=l, right=r)
-        depth, _, _ = crop_manual(depth, top=t, bottom=b, left=l, right=r)
+
+        # ─────────────────────────────────────────────────────────────────────
+        # CRITICAL RESOLUTION-PROPORTIONAL DEPTH CROPPING
+        # ─────────────────────────────────────────────────────────────────────
+        scale_x = depth.shape[1] / original_rgb.shape[1]  # e.g., 640 / 1280 = 0.5
+        scale_y = depth.shape[0] / original_rgb.shape[0]  # e.g., 576 / 720 = 0.8
+
+        depth_t = int(round(t * scale_y))
+        depth_b = int(round(b * scale_y))
+        depth_l = int(round(l * scale_x))
+        depth_r = int(round(r * scale_x))
+
+        depth, d_crop_x, d_crop_y = crop_manual(
+            depth, top=depth_t, bottom=depth_b, left=depth_l, right=depth_r
+        )
+        # ─────────────────────────────────────────────────────────────────────
 
         self.cropped_rgb_shape = rgb.shape
         self.cropped_depth_shape = depth.shape
 
-        # Adjust the intrinsics calculation exactly as your app expects
+        # Intrinsics handling
         intrinsics = self.cam.get_intrinsics()
         fx = intrinsics.intrinsic_matrix[0, 0]
         fy = intrinsics.intrinsic_matrix[1, 1]
         cx = intrinsics.intrinsic_matrix[0, 2]
         cy = intrinsics.intrinsic_matrix[1, 2]
 
+        # Coordinate adjustments matching depth scaling maps
         adjusted_intrinsics = o3d.camera.PinholeCameraIntrinsic(
-            width=rgb.shape[1],
-            height=rgb.shape[0],
-            fx=fx,
-            fy=fy,
-            cx=cx - crop_x,
-            cy=cy - crop_y,
+            width=depth.shape[1],
+            height=depth.shape[0],
+            fx=fx * scale_x,
+            fy=fy * scale_y,
+            cx=(cx * scale_x) - d_crop_x,
+            cy=(cy * scale_y) - d_crop_y,
         )
 
         # Generate 3D Point Cloud geometries
@@ -387,7 +393,7 @@ class RGBDCollectorApp:
             depth_o3d, adjusted_intrinsics, depth_scale=1.0, depth_trunc=3.0, stride=1
         )
 
-        # Execute 3D masking loop
+        # Map correct tracking telemetry variables down to the masking algorithm info block
         live_info = CaptureInfo(
             raw_depth_shape=self.raw_depth_shape,
             rgb_shape=rgb.shape[:2],
@@ -395,52 +401,14 @@ class RGBDCollectorApp:
             crop_left=crop_x,
             fx=fx,
             fy=fy,
-            cx=adjusted_intrinsics.intrinsic_matrix[0, 2],
-            cy=adjusted_intrinsics.intrinsic_matrix[1, 2],
+            cx=cx,
+            cy=cy,
         )
         mask, plane_model, inlier_count, outlier_count = run_masking_from_point_cloud(
             pcd, live_info
         )
 
-        # ─────────────────────────────────────────────────────────────────────
-        # CRITICAL REALTIME DIAGONAL DATA TELEMETRY LOG ENGINE
-        # ─────────────────────────────────────────────────────────────────────
-        log_lines = [
-            "\n" + "=" * 80,
-            "             REALTIME LIVE INTRINSICS MATRIX DIAGNOSTIC REPORT",
-            "=" * 80,
-            f"  Timestamp Code Generation : {datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]}",
-            f"  [HARDWARE] Raw Color Sensor Matrix Shape : {self.raw_rgb_shape[1]}W x {self.raw_rgb_shape[0]}H px",
-            f"  [HARDWARE] Raw Depth Sensor Matrix Shape : {self.raw_depth_shape[1]}W x {self.raw_depth_shape[0]}H px",
-            f"  [SLIDERS]  Active Crop Offsets Input     : Top={t}px, Bottom={b}px, Left={l}px, Right={r}px",
-            f"  [PIPELINE] Cropped App Canvas Boundary  : {self.cropped_rgb_shape[1]}W x {self.cropped_rgb_shape[0]}H px",
-            f"  [MATRIX]   Intrinsic fx (Focal X)        : {fx:.6f}",
-            f"  [MATRIX]   Intrinsic fy (Focal Y)        : {fy:.6f}",
-            f"  [MATRIX]   Intrinsic cx (Center X)       : {cx:.6f}",
-            f"  [MATRIX]   Intrinsic cy (Center Y)       : {cy:.6f}",
-        ]
-
-        visual_cx = self.cropped_rgb_shape[1] / 2
-        shifted_math_cx = cx - crop_x
-        h_mismatch = visual_cx - shifted_math_cx
-
-        log_lines.extend(
-            [
-                f"  [ALIGN]    Image Canvas Center Column    : {visual_cx} px",
-                f"  [ALIGN]    Shifted Projection Matrix cx  : {shifted_math_cx:.2f} px",
-                f"  [ALIGN]    HORIZONTAL CENTER CAL MISMATCH: {h_mismatch:.2f} pixels",
-                "=" * 80 + "\n",
-            ]
-        )
-
-        debug_output_string = "\n".join(log_lines)
-        print(debug_output_string, flush=True)
-
-        with open("live_capture_debug.log", "a") as f_debug:
-            f_debug.write(debug_output_string)
-        # ─────────────────────────────────────────────────────────────────────
-
-        # Save values completely to local state arrays
+        # Save values to local state arrays
         self.captured_rgb = rgb
         self.captured_original_rgb = original_rgb
         self.captured_depth = depth
