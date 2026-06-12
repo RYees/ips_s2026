@@ -105,7 +105,7 @@ class IndustrialSortingApp:
 
         print(f"[INIT] Session logger initialized. Writing to {log_filename}")
 
-        # Hardware interface initialization (REVERTED TO UNTOUCHED DESIGN)
+        # Hardware interface initialization
         print("[INIT] Attaching camera sensor subsystem...")
         self.cam = CameraInterface()
         print("[INIT] Camera stream activated successfully.")
@@ -248,7 +248,8 @@ class IndustrialSortingApp:
         if self.is_capturing:
             frames = self.cam.get_frames()
             if frames is not None:
-                color_frame, _, _ = frames
+                # REVERTED: Correct unpacking matching your actual production pipeline format
+                color_frame, depth_frame = frames
                 if color_frame is not None:
                     img_bgr = frame_to_bgr_image(color_frame)
 
@@ -290,8 +291,9 @@ class IndustrialSortingApp:
             print("[ERROR] Hardware pipeline frame capture timed out or empty.")
             return
 
-        color_frame, depth_frame, pcd = frames
-        if color_frame is None or depth_frame is None or pcd is None:
+        # REVERTED: Correct unpacking matching your actual production pipeline format
+        color_frame, depth_frame = frames
+        if color_frame is None or depth_frame is None:
             print("[ERROR] Synchronized camera stream component array incomplete.")
             return
 
@@ -322,7 +324,8 @@ class IndustrialSortingApp:
             self.captured_depth.shape
         )  # Uncropped tracking variant
 
-        # Step 5: Gather and package spatial tracking indices
+        # Step 5: Extract point cloud profile data dynamically
+        pcd = self.cam.get_point_cloud()
         self.captured_pcd = pcd
         intrinsic_profile = self.cam.get_rgb_intrinsics()
 
@@ -339,7 +342,7 @@ class IndustrialSortingApp:
         self.captured_intrinsics = intrinsic_profile
 
         # ─────────────────────────────────────────────────────────────────────
-        # RE-ENGINEERED DIAGNOSTIC ENGINE & FILE LOGGING MODULE
+        # CRITICAL SAFE DIAGNOSTIC TELEMETRY LOGGER
         # ─────────────────────────────────────────────────────────────────────
         log_lines = [
             "\n" + "=" * 80,
