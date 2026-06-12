@@ -322,15 +322,15 @@ class RGBDCollectorApp:
         if self.current_img_name is None:
             self.current_img_name = f"img{self.counter:04d}"
 
-        frames = self.cam.get_frames()
-        if frames is None or frames[0] is None or frames[1] is None:
+        color_frame, depth_frame = self.cam.get_frames()
+        if color_frame is None or depth_frame is None:
             print("[ERROR] No frame available to capture")
             return
 
-        color_frame, depth_frame = frames[0], frames[1]
         rgb = frame_to_bgr_image(color_frame)
         original_rgb = rgb.copy()
 
+        # 1. Pull the raw 16-bit depth values
         depth_raw = np.frombuffer(depth_frame.get_data(), dtype=np.uint16)
         depth = depth_raw.reshape(
             (depth_frame.get_height(), depth_frame.get_width())
@@ -339,42 +339,48 @@ class RGBDCollectorApp:
         self.raw_rgb_shape = rgb.shape
         self.raw_depth_shape = depth.shape
 
-        # Get values from sliders
-        t = self.crop_top_var.get()
-        b = self.crop_bottom_var.get()
-        l = self.crop_left_var.get()
-        r = self.crop_right_var.get()
+        # 2. Compute proportional depth cropping scales matching asymmetric sensor dimensions
+        # Color space: 1280x720 | Depth space: 640x576
+        scale_x = depth.shape[1] / original_rgb.shape[1]  # 640 / 1280 = 0.5
+        scale_y = depth.shape[0] / original_rgb.shape[0]  # 576 / 720 = 0.8
 
-        # 1. Crop RGB image normally
-        rgb, crop_x, crop_y = crop_manual(rgb, top=t, bottom=b, left=l, right=r)
+        crop = self.capture_crop
 
-        # ─────────────────────────────────────────────────────────────────────
-        # CRITICAL RESOLUTION-PROPORTIONAL DEPTH CROPPING
-        # ─────────────────────────────────────────────────────────────────────
-        scale_x = depth.shape[1] / original_rgb.shape[1]  # e.g., 640 / 1280 = 0.5
-        scale_y = depth.shape[0] / original_rgb.shape[0]  # e.g., 576 / 720 = 0.8
-
-        depth_t = int(round(t * scale_y))
-        depth_b = int(round(b * scale_y))
-        depth_l = int(round(l * scale_x))
-        depth_r = int(round(r * scale_x))
-
-        depth, d_crop_x, d_crop_y = crop_manual(
-            depth, top=depth_t, bottom=depth_b, left=depth_l, right=depth_r
+        # Crop RGB image using the raw canvas pixel config
+        rgb, crop_x, crop_y = crop_manual(
+            rgb,
+            top=crop["top"],
+            bottom=crop["bottom"],
+            left=crop["left"],
+            right=crop["right"],
         )
-        # ─────────────────────────────────────────────────────────────────────
+
+        # Scale the crop values proportionally down to depth resolution space
+        depth_t = int(round(crop["top"] * scale_y))
+        depth_b = int(round(crop["bottom"] * scale_y))
+        depth_l = int(round(crop["left"] * scale_x))
+        depth_r = int(round(crop["right"] * scale_x))
+
+        # Crop depth matrix using scaled bounds
+        depth, d_crop_x, d_crop_y = crop_manual(
+            depth,
+            top=depth_t,
+            bottom=depth_b,
+            left=depth_l,
+            right=depth_r,
+        )
 
         self.cropped_rgb_shape = rgb.shape
         self.cropped_depth_shape = depth.shape
 
-        # Intrinsics handling
+        # 3. Adjust camera intrinsics dynamically using scaled center points
         intrinsics = self.cam.get_intrinsics()
         fx = intrinsics.intrinsic_matrix[0, 0]
         fy = intrinsics.intrinsic_matrix[1, 1]
         cx = intrinsics.intrinsic_matrix[0, 2]
         cy = intrinsics.intrinsic_matrix[1, 2]
 
-        # Coordinate adjustments matching depth scaling maps
+        # Map principal points into depth sensor resolution space, then apply crop shifts
         adjusted_intrinsics = o3d.camera.PinholeCameraIntrinsic(
             width=depth.shape[1],
             height=depth.shape[0],
@@ -384,16 +390,18 @@ class RGBDCollectorApp:
             cy=(cy * scale_y) - d_crop_y,
         )
 
-        # Generate 3D Point Cloud geometries
-        depth_m = depth.astype(np.float32) / 1000.0
-        depth_m = np.where((depth_m > 0.2) & (depth_m < 1.5), depth_m, 0.0)
+        # 4. Generate 3D Point Cloud geometry from cleanly mapped depth units
+        depth_m = depth.astype(np.float32) / 1000.0  # Convert mm to meters
+        depth_m = np.where(
+            (depth_m > 0.2) & (depth_m < 1.5), depth_m, 0.0
+        )  # Filter out distance anomalies
 
         depth_o3d = o3d.geometry.Image(depth_m)
         pcd = o3d.geometry.PointCloud.create_from_depth_image(
             depth_o3d, adjusted_intrinsics, depth_scale=1.0, depth_trunc=3.0, stride=1
         )
 
-        # Map correct tracking telemetry variables down to the masking algorithm info block
+        # 5. Run masking engine using aligned coordinates
         live_info = CaptureInfo(
             raw_depth_shape=self.raw_depth_shape,
             rgb_shape=rgb.shape[:2],
@@ -408,7 +416,7 @@ class RGBDCollectorApp:
             pcd, live_info
         )
 
-        # Save values to local state arrays
+        # Update app memory matrices state for saving pipeline
         self.captured_rgb = rgb
         self.captured_original_rgb = original_rgb
         self.captured_depth = depth
@@ -420,7 +428,7 @@ class RGBDCollectorApp:
         self.captured_non_plane_pts = outlier_count
         self.captured_mask_stats = self.analyze_mask(mask)
 
-        # Multi-Window Output Display Rendering Logic
+        # 6. Render UI Preview layout stacks
         mask_viz = (mask * 255).astype(np.uint8)
         mask_bgr = cv2.cvtColor(mask_viz, cv2.COLOR_GRAY2BGR)
         contours, _ = cv2.findContours(
@@ -433,12 +441,12 @@ class RGBDCollectorApp:
         depth_vis = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
         depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
 
-        w_panel, h_panel = 320, 240
+        w, h = 320, 240
         combined = np.hstack(
             (
-                cv2.resize(original_rgb, (w_panel, h_panel)),
-                cv2.resize(mask_bgr, (w_panel, h_panel)),
-                cv2.resize(depth_colored, (w_panel, h_panel)),
+                cv2.resize(original_rgb, (w, h)),
+                cv2.resize(mask_bgr, (w, h)),
+                cv2.resize(depth_colored, (w, h)),
             )
         )
 
