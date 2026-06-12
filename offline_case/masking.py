@@ -257,17 +257,29 @@ def run_masking_from_point_cloud(
         flush=True,
     )
 
+    # ─────────────────────────────────────────────────────────────
+    # FIXED STAGE 8: AGNOSTIC TWO-AXIS ASPECT RESOLUTION PROJECTION
+    # ─────────────────────────────────────────────────────────────
     print(f"\n━━━ [STAGE 8] Dynamic Mapping & Lens Axis Projection", flush=True)
-    u_raw = np.round(best_pts[:, 0] * info.fx / best_pts[:, 2] + info.cx).astype(int)
-    v_raw = np.round(best_pts[:, 1] * info.fy / best_pts[:, 2] + info.cy).astype(int)
+    
+    # 1. Base Pinhole projection calculations
+    u_raw = (best_pts[:, 0] * info.fx / best_pts[:, 2] + info.cx)
+    v_raw = (best_pts[:, 1] * info.fy / best_pts[:, 2] + info.cy)
 
-    u = u_raw - info.crop_left
-    v = v_raw - info.crop_top
+    # 2. Complete Dual Axis Aspect Correction
+    # Dynamically scales alignment indices using your actual runtime camera feed structure
+    if info.raw_depth_shape[0] > 0 and info.raw_depth_shape[1] > 0:
+        scale_x = float(info.rgb_shape[1]) / float(info.raw_depth_shape[1])
+        scale_y = float(info.rgb_shape[0]) / float(info.raw_depth_shape[0])
+        
+        u_raw = u_raw * scale_x
+        v_raw = v_raw * scale_y
+
+    # 3. Deduct active window crop regions
+    u = np.round(u_raw - info.crop_left).astype(int)
+    v = np.round(v_raw - info.crop_top).astype(int)
 
     print(f"  [DIAGNOSTIC] Raw Projection Coordinate Range:")
-    print(f"    u_raw min/max : {u_raw.min()} to {u_raw.max()}")
-    print(f"    v_raw min/max : {v_raw.min()} to {v_raw.max()}")
-    print(f"    Metadata Window Limits (W={target_W}, H={target_H}):")
     print(f"    u shifted min/max : {u.min()} to {u.max()}")
     print(f"    v shifted min/max : {v.min()} to {v.max()}")
 
