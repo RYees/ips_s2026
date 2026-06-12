@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 def verify_mask_alignment(img_name, base_dir="dataset"):
-    base_path = Path(base_dir)
+    base_path = Path("/home/cpsstudent/Documents/ips_s2026/rgbd/dataset")
 
     # Locate the cropped RGB image and its corresponding mask
     rgb_path = base_path / "cropped_rgb" / f"{img_name}.png"
