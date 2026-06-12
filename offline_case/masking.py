@@ -1,577 +1,387 @@
+"""
+masking.py
+----------
+Production binary object masking pipeline utilizing 3D structural dimension
+aspect ratios to separate volumetric masses from flat surface noise.
+All mid-stage debug and diagnostic log sequences are preserved.
+
+Usage:
+    python3 offline_case/masking.py img0000 --base offline_case/samples
+"""
+
+import argparse
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Tuple
+
 import cv2
 import numpy as np
-import tkinter as tk
-from PIL import Image, ImageTk
-from pathlib import Path
-from datetime import datetime
-import re
-import sys
 import open3d as o3d
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# ─────────────────────────────────────────────────────────────────────────────
+# Tunable Thresholds & Safety Limits
+# ─────────────────────────────────────────────────────────────────────────────
+RANSAC_DISTANCE_THRESHOLD = 0.012  # m
+RANSAC_N = 3
+RANSAC_ITERATIONS = 2000
 
-from camera.camera_interface import CameraInterface
-from processing.annotation_writer import AnnotationWriter
-from processing.utils import frame_to_bgr_image
-from offline_case.masking import CaptureInfo, run_masking_from_point_cloud
-from tkinter import ttk
+DBSCAN_EPS = 0.015
+DBSCAN_MIN_PTS = 8
 
+GATE_MIN_POINTS = 20
+GATE_GROUND_MM = 20.0
+GATE_MIN_HEIGHT_MM = 0.8
+GATE_MIN_HEIGHT_RATIO = 0.02
+GATE_MIN_DENSITY = 10.0
 
-# Crops the input image to a region; extra_crop pixels are removed from each side.
-def crop_manual(img, top=0, bottom=0, left=0, right=0):
-    h, w = img.shape[:2]
-    top = max(0, top)
-    bottom = max(0, bottom)
-    left = max(0, left)
-    right = max(0, right)
+MIN_OBJECT_HEIGHT_MM = 4.0
+MAX_OBJECT_HEIGHT_MM = 500.0
 
-    if top + bottom >= h or left + right >= w:
-        return img, 0, 0
+# Permanent Geometric Constraints
+MIN_TRUE_3D_WIDTH_MM = 15.0  # Objects must have a realistic minimum width
+MIN_VOLUMETRIC_RATIO = 0.15  # Ratio between smallest and largest 3D dimensions
 
-    new_img = img[
-        top : h - bottom if bottom > 0 else h, left : w - right if right > 0 else w
-    ]
-    return new_img, left, top
+DIAG_LOGS = []
 
 
-class TeeStream:
-    def __init__(self, *streams):
-        self.streams = streams
-
-    def write(self, text):
-        for stream in self.streams:
-            try:
-                stream.write(text)
-                stream.flush()
-            except Exception:
-                pass
-
-    def flush(self):
-        for stream in self.streams:
-            try:
-                stream.flush()
-            except Exception:
-                pass
+@dataclass
+class CaptureInfo:
+    raw_depth_shape: Tuple[int, int] = (0, 0)
+    rgb_shape: Tuple[int, int] = (0, 0)
+    crop_top: int = 0
+    crop_left: int = 0
+    fx: float = 0.0
+    fy: float = 0.0
+    cx: float = 0.0
+    cy: float = 0.0
+    plane_a: float = 0.0
+    plane_b: float = 0.0
+    plane_c: float = 0.0
+    plane_d: float = 0.0
 
 
-class RGBDCollectorApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Industrial Sorting Rig Control Panel")
-        self.root.geometry("1400x900")
-        self.root.focus_force()
+def parse_info(path: Path) -> CaptureInfo:
+    info = CaptureInfo()
+    if not path.exists():
+        print(f"  [ERROR] Metadata file completely missing at: {path}", flush=True)
+        return info
+    lines = path.read_text().splitlines()
 
-        # Core Hardware Sub-System Initialization
-        self.cam = CameraInterface()  
-        self.cam.setup_streams()  
-        intrinsics = self.cam.get_intrinsics()
-        
-        print("Width:", intrinsics.width)
-        print("Height:", intrinsics.height)
-        fx = intrinsics.intrinsic_matrix[0, 0]
-        fy = intrinsics.intrinsic_matrix[1, 1]
-        cx = intrinsics.intrinsic_matrix[0, 2]
-        cy = intrinsics.intrinsic_matrix[1, 2]
-        
-        self.writer = AnnotationWriter()
+    def _floats(s):
+        return [
+            float(x) for x in re.findall(r"-?[\d]+\.[\d]+(?:[eE][+-]?\d+)?|-?\d+", s)
+        ]
 
-        # Dataset Storage Layout Routing
-        base_path = Path("dataset")
-        self.img_dir = base_path / "images"
-        self.crop_rgb_dir = base_path / "cropped_rgb"
-        self.label_dir = base_path / "labels"
-        self.depth_dir = base_path / "depth"
-        self.mask_dir = base_path / "masks"
-        self.info_dir = base_path / "info"
-        self.pc_dir = base_path / "pointcloud"
-        self.debug_dir = base_path / "debug"
-        for d in [
-            self.img_dir, self.crop_rgb_dir, self.label_dir, self.depth_dir,
-            self.mask_dir, self.info_dir, self.pc_dir, self.debug_dir,
-        ]:
-            d.mkdir(parents=True, exist_ok=True)
+    def _ints(s):
+        return [int(x) for x in re.findall(r"-\d+|\d+", s)]
 
-        self.log_path = self.debug_dir / f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-        self.log_file = open(self.log_path, "a", buffering=1)
-        self._orig_stdout = sys.stdout
-        self._orig_stderr = sys.stderr
-        sys.stdout = TeeStream(self._orig_stdout, self.log_file)
-        sys.stderr = TeeStream(self._orig_stderr, self.log_file)
+    for i, line in enumerate(lines):
+        s = line.strip()
+        if s.startswith("Crop:"):
+            v = _ints(s)
+            if len(v) >= 4:
+                info.crop_top, info.crop_left = v[0], v[2]
+        elif s.startswith("Cropped RGB shape:") or s.startswith("RGB shape:"):
+            v = _ints(s)
+            if len(v) >= 2:
+                info.rgb_shape = (v[0], v[1])
+        elif s.startswith("Raw depth shape:"):
+            v = _ints(s)
+            if len(v) >= 2:
+                info.raw_depth_shape = (v[0], v[1])
+        elif s.startswith("Intrinsics matrix:"):
+            r0 = _floats(lines[i + 1]) if i + 1 < len(lines) else []
+            r1 = _floats(lines[i + 2]) if i + 2 < len(lines) else []
+            if len(r0) >= 3:
+                info.fx, info.cx = r0[0], r0[2]
+            if len(r1) >= 3:
+                info.fy, info.cy = r1[1], r1[2]
+    return info
 
-        self.counter = self.next_capture_index()
-        self.current_img_name = None
 
-        # Application State Tracking Buffers
-        self.captured_rgb = None
-        self.captured_original_rgb = None
-        self.captured_depth = None
-        self.captured_mask = None
-        self.captured_pcd = None
-        self.captured_mask_stats = None
-        self.captured_plane_model = None
-        self.captured_plane_inliers = None
-        self.captured_non_plane_pts = None
-        self.captured_intrinsics = None
-        self.raw_rgb_shape = None
-        self.raw_depth_shape = None
-        self.cropped_rgb_shape = None
-        self.cropped_depth_shape = None
-        self.is_capturing = True
+def evaluate_gates(cid, pts, plane_a, plane_b, plane_c, plane_d, plane_norm):
+    n = len(pts)
+    dist = (
+        plane_a * pts[:, 0] + plane_b * pts[:, 1] + plane_c * pts[:, 2] + plane_d
+    ) / plane_norm
+    dist_mm = dist * 1000.0
 
-        # Build Layout Panelling with Sliders
-        self.setup_ui_layout()
+    base_mm = float(dist_mm.min())
+    height_mm = float(dist_mm.max() - dist_mm.min())
 
-        # Keyboard Shortcuts
-        self.root.bind("<Return>", lambda e: self.capture_frame())
-        self.root.bind("s", lambda e: self.save_data())
-        self.root.bind("S", lambda e: self.save_data())
-        self.root.bind("r", lambda e: self.retake_frame())
-        self.root.bind("R", lambda e: self.retake_frame())
-        self.root.bind("q", lambda e: self.quit_app())
-        self.root.bind("Q", lambda e: self.quit_app())
-        self.root.bind("p", lambda e: self.preview_pointcloud_interactive())
-        self.root.bind("P", lambda e: self.preview_pointcloud_interactive())
+    # Calculate strict physical 3D bounding sizes in millimeters
+    bb_min = pts.min(axis=0)
+    bb_max = pts.max(axis=0)
+    bb_size_mm = (bb_max - bb_min) * 1000.0  # [X_size, Y_size, Z_size]
 
-        self.Q()
+    dim_x, dim_y, dim_z = bb_size_mm[0], bb_size_mm[1], bb_size_mm[2]
 
-    def setup_ui_layout(self):
-        # Dual Screen Panel Spacing Layout
-        self.left_panel = tk.Frame(self.root, width=950, bg="#2b2b2b")
-        self.left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    # Structural Flatness Test: minimum dimension vs largest dimension
+    sorted_dims = sorted([dim_x, dim_y, dim_z])
+    volumetric_ratio = sorted_dims[0] / (sorted_dims[2] + 1e-9)
 
-        self.right_panel = tk.Frame(self.root, width=450, bg="#3c3f41", bd=2, relief=tk.SUNKEN)
-        self.right_panel.pack(side=tk.RIGHT, fill=tk.Y)
+    bb_vol = float(np.prod(bb_size_mm / 1000.0))
+    footprint = float(bb_size_mm[0] * bb_size_mm[1]) + 1e-9
+    height_ratio = height_mm / (np.sqrt(footprint) + 1e-9)
+    density = n / bb_vol if bb_vol > 1e-8 else float("inf")
 
-        # Video Label
-        self.video_label = tk.Label(self.left_panel, bg="black")
-        self.video_label.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+    # Core threshold gates
+    g1_pass = n >= GATE_MIN_POINTS
+    g2_pass = (base_mm >= -5.0) and (base_mm <= GATE_GROUND_MM)
+    g3_pass = (height_mm >= GATE_MIN_HEIGHT_MM) and (
+        height_ratio >= GATE_MIN_HEIGHT_RATIO
+    )
+    g4_pass = density >= GATE_MIN_DENSITY if density != float("inf") else False
 
-        # Controllers Frame
-        self.controls_frame = tk.LabelFrame(self.right_panel, text=" Execution Pipeline Controllers ", bg="#3c3f41", fg="white")
-        self.controls_frame.pack(fill=tk.X, padx=10, pady=10)
+    # Permanent 3D Shape Gates (Identifies thickness profiles)
+    g5_pass = (dim_x >= MIN_TRUE_3D_WIDTH_MM) and (dim_y >= MIN_TRUE_3D_WIDTH_MM)
+    g6_pass = volumetric_ratio >= MIN_VOLUMETRIC_RATIO
 
-        self.capture_btn = tk.Button(self.controls_frame, text="Capture Frame (Enter)", font=("Arial", 11, "bold"), bg="#4CAF50", fg="black", command=self.capture_frame)
-        self.capture_btn.pack(fill=tk.X, padx=10, pady=5)
+    all_pass = g1_pass and g2_pass and g3_pass and g4_pass and g5_pass and g6_pass
 
-        self.retake_btn = tk.Button(self.controls_frame, text="Retake Frame (R)", font=("Arial", 11), state=tk.DISABLED, command=self.retake_frame)
-        self.retake_btn.pack(fill=tk.X, padx=10, pady=5)
+    msg = (
+        f"Cluster #{cid:02d} -> Pts: {n:<5} | Dims(mm): X={dim_x:5.1f}, Y={dim_y:5.1f}, Z={dim_z:5.1f} | "
+        f"VolRatio: {volumetric_ratio:.3f} | Gates: [G1-4={int(g1_pass & g2_pass & g3_pass & g4_pass)} G5_Size={int(g5_pass)} G6_3D={int(g6_pass)}] -> {'PASSED' if all_pass else 'REJECTED'}"
+    )
+    DIAG_LOGS.append(msg)
+    print("  " + msg, flush=True)
 
-        # Class Label Selection Block
-        self.class_frame = tk.LabelFrame(self.right_panel, text=" Quality Assurance Label Classification ", bg="#3c3f41", fg="white")
-        self.class_frame.pack(fill=tk.X, padx=10, pady=10)
-        
-        self.class_var = tk.StringVar(value="0")
-        tk.Radiobutton(self.class_frame, text="Class 00: Copper Mass Asset", variable=self.class_var, value="0", bg="#3c3f41", fg="white", selectcolor="#2b2b2b").pack(anchor=tk.W, padx=10, pady=2)
-        tk.Radiobutton(self.class_frame, text="Class 01: Steel Structural Scrap", variable=self.class_var, value="1", bg="#3c3f41", fg="white", selectcolor="#2b2b2b").pack(anchor=tk.W, padx=10, pady=2)
+    if all_pass:
+        score = (
+            0.5 * min(n / 10000.0, 1.0)
+            + 0.3 * volumetric_ratio
+            + 0.2 * min(density / 30000.0, 1.0)
+        )
+    else:
+        score = 0.0
 
-        self.save_btn = tk.Button(self.right_panel, text="COMMIT DATASET SNAPSHOT (S)", font=("Arial", 12, "bold"), bg="#008CBA", fg="black", state=tk.DISABLED, command=self.save_data)
-        self.save_btn.pack(fill=tk.X, padx=20, pady=20)
+    return all_pass, score
 
-        # Modern Slider Adjustments Frame
-        self.crop_frame = tk.LabelFrame(self.right_panel, text=" Realtime Hardware Crop Adjustments (px) ", bg="#3c3f41", fg="white")
-        self.crop_frame.pack(fill=tk.X, padx=10, pady=10)
 
-        self.crop_top_var = tk.IntVar(value=0)
-        self.crop_bottom_var = tk.IntVar(value=0)
-        self.crop_left_var = tk.IntVar(value=250)
-        self.crop_right_var = tk.IntVar(value=520)
+def run_masking_from_point_cloud(
+    pcd: o3d.geometry.PointCloud, info: CaptureInfo
+) -> tuple[np.ndarray, tuple[float, float, float, float] | None, int, int]:
+    target_H, target_W = info.rgb_shape[0], info.rgb_shape[1]
 
-        self.create_slider(self.crop_frame, "Top Margin:", self.crop_top_var, 0, 500)
-        self.create_slider(self.crop_frame, "Bottom Margin:", self.crop_bottom_var, 0, 500)
-        self.create_slider(self.crop_frame, "Left Margin:", self.crop_left_var, 0, 500)
-        self.create_slider(self.crop_frame, "Right Margin:", self.crop_right_var, 0, 600)
+    print("\n━━━ [STAGE 1] Loading Point Cloud Array", flush=True)
+    print(f"  [INFO] Total raw points loaded: {len(pcd.points):,}", flush=True)
 
-        self.pcd_btn = tk.Button(self.right_panel, text="Preview PointCloud (P)", command=self.preview_pointcloud_interactive)
-        self.pcd_btn.pack(fill=tk.X, padx=20, pady=5)
+    print("\n━━━ [STAGE 2] Statistical Outlier Demolition", flush=True)
+    pcd_clean, _ = pcd.remove_statistical_outlier(nb_neighbors=25, std_ratio=2.0)
+    print(
+        f"  [INFO] Points surviving outlier filter: {len(pcd_clean.points):,}",
+        flush=True,
+    )
 
-        self.quit_btn = tk.Button(self.right_panel, text="Shutdown Subsystem Enclosure (Q)", command=self.quit_app, bg="#f44336", fg="black")
-        self.quit_btn.pack(fill=tk.X, padx=20, pady=5)
+    print(f"\n━━━ [STAGE 3] Live Plane Surface Isolation (RANSAC)", flush=True)
+    ransac_model, inlier_idx = pcd_clean.segment_plane(
+        distance_threshold=RANSAC_DISTANCE_THRESHOLD,
+        ransac_n=RANSAC_N,
+        num_iterations=RANSAC_ITERATIONS,
+    )
+    [a, b, c, d] = ransac_model
+    print(
+        f"  [INFO] Original RANSAC: a={a:.4f}, b={b:.4f}, c={c:.4f}, d={d:.4f}",
+        flush=True,
+    )
 
-    def create_slider(self, parent, label_text, var, from_, to):
-        f = tk.Frame(parent, bg="#3c3f41")
-        f.pack(fill=tk.X, padx=5, pady=2)
-        tk.Label(f, text=label_text, width=12, anchor=tk.W, bg="#3c3f41", fg="white").pack(side=tk.LEFT)
-        s = ttk.Scale(f, from_=from_, to=to, variable=var, orient=tk.HORIZONTAL)
-        s.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        l = tk.Label(f, text=str(var.get()), width=4, bg="#3c3f41", fg="white")
-        l.pack(side=tk.RIGHT)
-        var.trace_add("write", lambda *args: l.config(text=str(var.get())))
+    if c > 0:
+        print(
+            "  [INFO] Normal vector pointing down. Flipping coefficients up toward lens.",
+            flush=True,
+        )
+        a, b, c, d = -a, -b, -c, -d
 
-    def update_video(self):
-        try:
-            if self.is_capturing:
-                frames = self.cam.get_frames()
-                if frames is not None and frames[0] is not None:
-                    color_frame = frames[0]
-                    rgb = frame_to_bgr_image(color_frame)
-                    
-                    t = self.crop_top_var.get()
-                    b = self.crop_bottom_var.get()
-                    l = self.crop_left_var.get()
-                    r = self.crop_right_var.get()
-                    
-                    img_cropped, _, _ = crop_manual(rgb, top=t, bottom=b, left=l, right=r)
-                    
-                    h, w = img_cropped.shape[:2]
-                    max_h, max_w = 700, 930
-                    scale = min(max_w / w, max_h / h, 1.0)
-                    if scale < 1.0:
-                        img_cropped = cv2.resize(img_cropped, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_LINEAR)
+    plane_norm = np.sqrt(a**2 + b**2 + c**2) + 1e-9
+    outlier_cloud = pcd_clean.select_by_index(inlier_idx, invert=True)
+    pts_out = np.asarray(outlier_cloud.points)
+    print(f"  [INFO] Points isolated on belt plane: {len(inlier_idx):,}", flush=True)
+    print(
+        f"  [INFO] Non-plane points going to workspace filter: {len(pts_out):,}",
+        flush=True,
+    )
 
-                    img = Image.fromarray(cv2.cvtColor(img_cropped, cv2.COLOR_BGR2RGB))
-                    imgtk = ImageTk.PhotoImage(image=img)
-                    self.video_label.imgtk = imgtk
-                    self.video_label.configure(image=imgtk)
-        except Exception as e:
-            print(f"[ERROR] update_video failed: {e}")
-        self.root.after(30, self.update_video)
+    print(f"\n━━━ [STAGE 5] Direction-Enforced Spatial Pre-Filtering", flush=True)
+    dist_out_mm = (
+        (a * pts_out[:, 0] + b * pts_out[:, 1] + c * pts_out[:, 2] + d) / plane_norm
+    ) * 1000.0
 
-    def Q(self):
-        self.update_video()
+    valid_physical_window = (dist_out_mm > MIN_OBJECT_HEIGHT_MM) & (
+        dist_out_mm < MAX_OBJECT_HEIGHT_MM
+    )
+    pts_filtered = pts_out[valid_physical_window]
+    print(
+        f"  [DEBUG] Points passing directional spatial filters: {len(pts_filtered):,}",
+        flush=True,
+    )
 
-    def capture_frame(self):
-        if not self.is_capturing:
-            return
+    print(
+        f"\n━━━ [STAGE 6] Spatial Structural Isolation Clustering (DBSCAN)", flush=True
+    )
+    pcd_out = o3d.geometry.PointCloud()
+    pcd_out.points = o3d.utility.Vector3dVector(pts_filtered)
+    labels = np.array(
+        pcd_out.cluster_dbscan(
+            eps=DBSCAN_EPS, min_points=DBSCAN_MIN_PTS, print_progress=False
+        )
+    )
+    n_clusters = int(labels.max()) + 1 if labels.size > 0 and labels.max() >= 0 else 0
+    print(f"  [INFO] DBSCAN discovered {n_clusters} distinct point groups.", flush=True)
 
-        if self.current_img_name is None:
-            self.current_img_name = f"img{self.counter:04d}"
+    print(f"\n━━━ [STAGE 7] Multi-Gate Geometric Evaluation", flush=True)
+    candidates = []
+    for cid in range(n_clusters):
+        idx = np.where(labels == cid)[0]
+        c_pts = pts_filtered[idx]
+        passed, score = evaluate_gates(cid, c_pts, a, b, c, d, plane_norm)
+        if passed:
+            candidates.append((c_pts, score, cid))
 
-        frames = self.cam.get_frames()
-        if frames is None or frames[0] is None or frames[1] is None:
-            print("[ERROR] No frame available to capture")
-            return
-
-        color_frame, depth_frame = frames[0], frames[1]
-        rgb = frame_to_bgr_image(color_frame)
-        original_rgb = rgb.copy()
-
-        depth_raw = np.frombuffer(depth_frame.get_data(), dtype=np.uint16)
-        depth = depth_raw.reshape((depth_frame.get_height(), depth_frame.get_width())).copy()
-
-        self.raw_rgb_shape = rgb.shape
-        self.raw_depth_shape = depth.shape
-
-        # Get values from sliders
-        t = self.crop_top_var.get()
-        b = self.crop_bottom_var.get()
-        l = self.crop_left_var.get()
-        r = self.crop_right_var.get()
-
-        # 1. Crop RGB image normally
-        rgb, crop_x, crop_y = crop_manual(rgb, top=t, bottom=b, left=l, right=r)
-        
-        # ─────────────────────────────────────────────────────────────────────
-        # CRITICAL RESOLUTION-PROPORTIONAL DEPTH CROPPING
-        # ─────────────────────────────────────────────────────────────────────
-        scale_x = depth.shape[1] / original_rgb.shape[1]  # e.g., 640 / 1280 = 0.5
-        scale_y = depth.shape[0] / original_rgb.shape[0]  # e.g., 576 / 720 = 0.8
-        
-        depth_t = int(round(t * scale_y))
-        depth_b = int(round(b * scale_y))
-        depth_l = int(round(l * scale_x))
-        depth_r = int(round(r * scale_x))
-        
-        depth, d_crop_x, d_crop_y = crop_manual(depth, top=depth_t, bottom=depth_b, left=depth_l, right=depth_r)
-        # ─────────────────────────────────────────────────────────────────────
-        
-        self.cropped_rgb_shape = rgb.shape
-        self.cropped_depth_shape = depth.shape
-
-        # Intrinsics handling
-        intrinsics = self.cam.get_intrinsics()
-        fx = intrinsics.intrinsic_matrix[0, 0]
-        fy = intrinsics.intrinsic_matrix[1, 1]
-        cx = intrinsics.intrinsic_matrix[0, 2]
-        cy = intrinsics.intrinsic_matrix[1, 2]
-
-        # Coordinate adjustments matching depth scaling maps
-        # CORRECT FIXED CODE:
-        adjusted_intrinsics = o3d.camera.PinholeCameraIntrinsic(
-            width=rgb.shape[1],   # Target the RGB cropped width (510)
-            height=rgb.shape[0],  # Target the RGB cropped height (720)
-            fx=fx,                # Keep original fx (750.14)
-            fy=fy,                # Keep original fy (749.78)
-            cx=cx - crop_x,       # Original cx (636.17) minus slider crop_x (250)
-            cy=cy - crop_y,       # Original cy (366.08) minus slider crop_y (0)
+    if not candidates:
+        print(
+            "  [WARNING] Zero clusters passed true 3D volumetric threshold gates.",
+            flush=True,
+        )
+        return (
+            np.zeros((target_H, target_W), dtype=np.uint8),
+            tuple(ransac_model),
+            int(len(inlier_idx)),
+            int(len(outlier_cloud.points)),
         )
 
-        # Generate 3D Point Cloud geometries
-        depth_m = depth.astype(np.float32) / 1000.0  
-        depth_m = np.where((depth_m > 0.2) & (depth_m < 1.5), depth_m, 0.0)  
+    candidates.sort(key=lambda x: x[1], reverse=True)
+    best_pts, best_score, best_id = candidates[0]
+    print(
+        f"  [INFO] Winning Cluster selected: ID #{best_id} (Score={best_score:.4f})",
+        flush=True,
+    )
 
-        depth_o3d = o3d.geometry.Image(depth_m)
-        pcd = o3d.geometry.PointCloud.create_from_depth_image(
-            depth_o3d, adjusted_intrinsics, depth_scale=1.0, depth_trunc=3.0, stride=1
+    # ─────────────────────────────────────────────────────────────
+    # FIXED STAGE 8: AGNOSTIC TWO-AXIS ASPECT RESOLUTION PROJECTION
+    # ─────────────────────────────────────────────────────────────
+    print(f"\n━━━ [STAGE 8] Dynamic Mapping & Lens Axis Projection", flush=True)
+    
+    # 1. Base Pinhole projection calculations
+    u_raw = (best_pts[:, 0] * info.fx / best_pts[:, 2] + info.cx)
+    v_raw = (best_pts[:, 1] * info.fy / best_pts[:, 2] + info.cy)
+
+    # 2. Complete Dual Axis Aspect Correction
+    # Dynamically scales alignment indices using your actual runtime camera feed structure
+    if info.raw_depth_shape[0] > 0 and info.raw_depth_shape[1] > 0:
+        scale_x = float(info.rgb_shape[1]) / float(info.raw_depth_shape[1])
+        scale_y = float(info.rgb_shape[0]) / float(info.raw_depth_shape[0])
+        
+        u_raw = u_raw * scale_x
+        v_raw = v_raw * scale_y
+
+    # 3. Deduct active window crop regions
+    u = np.round(u_raw - info.crop_left).astype(int)
+    v = np.round(v_raw - info.crop_top).astype(int)
+
+    print(f"  [DIAGNOSTIC] Raw Projection Coordinate Range:")
+    print(f"    u shifted min/max : {u.min()} to {u.max()}")
+    print(f"    v shifted min/max : {v.min()} to {v.max()}")
+
+    # Safely handle canvas edge boundaries dynamically
+    if u.max() >= target_W:
+        target_W = int(u.max() + 1)
+    if v.max() >= target_H:
+        target_H = int(v.max() + 1)
+
+    in_bounds = (u >= 0) & (u < target_W) & (v >= 0) & (v < target_H)
+    u_valid, v_valid = u[in_bounds], v[in_bounds]
+
+    print(f"  [INFO] Total candidate points projected: {len(u):,}", flush=True)
+    print(
+        f"  [INFO] Adaptive Canvas Boundary Finalized To: Height={target_H} px, Width={target_W} px"
+    )
+    print(
+        f"  [INFO] Projected pixels inside image frame boundary limits: {len(u_valid):,}",
+        flush=True,
+    )
+
+    mask = np.zeros((target_H, target_W), dtype=np.uint8)
+    if len(u_valid) == 0:
+        print(
+            "  [WARNING] Array allocation bypassed: Zero projected indices matched bounds.",
+            flush=True,
+        )
+        return (
+            mask,
+            tuple(ransac_model),
+            int(len(inlier_idx)),
+            int(len(outlier_cloud.points)),
         )
 
-        # Map correct tracking telemetry variables down to the masking algorithm info block
-        live_info = CaptureInfo(
-            raw_depth_shape=self.raw_depth_shape,
-            rgb_shape=rgb.shape[:2],
-            crop_top=crop_y,
-            crop_left=crop_x,
-            fx=fx,
-            fy=fy,
-            cx=cx,
-            cy=cy,
+    mask[v_valid, u_valid] = 255
+
+    kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+    kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_open)
+
+    white_y, white_x = np.where(mask > 0)
+    if len(white_x) > 0:
+        box_w = white_x.max() - white_x.min()
+        box_h = white_y.max() - white_y.min()
+        print(
+            f"  [INFO] Generated Mask Bounding Shape: Width={box_w} px, Height={box_h} px",
+            flush=True,
         )
-        mask, plane_model, inlier_count, outlier_count = run_masking_from_point_cloud(pcd, live_info)
 
-        # Save values to local state arrays
-        self.captured_rgb = rgb
-        self.captured_original_rgb = original_rgb
-        self.captured_depth = depth
-        self.captured_mask = mask
-        self.captured_pcd = pcd
-        self.captured_intrinsics = adjusted_intrinsics
-        self.captured_plane_model = plane_model
-        self.captured_plane_inliers = inlier_count
-        self.captured_non_plane_pts = outlier_count
-        self.captured_mask_stats = self.analyze_mask(mask)
+    return (
+        mask,
+        tuple(ransac_model),
+        int(len(inlier_idx)),
+        int(len(outlier_cloud.points)),
+    )
 
-        # Multi-Window Output Display Rendering Logic
-        mask_viz = (mask * 255).astype(np.uint8)
-        mask_bgr = cv2.cvtColor(mask_viz, cv2.COLOR_GRAY2BGR)
-        contours, _ = cv2.findContours(mask_viz, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if contours:
-            largest = max(contours, key=cv2.contourArea)
-            cv2.drawContours(mask_bgr, [largest], -1, (0, 255, 0), 2)
 
-        depth_vis = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-        depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
+def run_masking(ply_path: Path, info: CaptureInfo) -> np.ndarray:
+    pcd = o3d.io.read_point_cloud(str(ply_path))
+    mask, _, _, _ = run_masking_from_point_cloud(pcd, info)
+    return mask
 
-        w_panel, h_panel = 320, 240
-        combined = np.hstack((
-            cv2.resize(original_rgb, (w_panel, h_panel)),
-            cv2.resize(mask_bgr, (w_panel, h_panel)),
-            cv2.resize(depth_colored, (w_panel, h_panel)),
-        ))
 
-        img = Image.fromarray(cv2.cvtColor(combined, cv2.COLOR_BGR2RGB))
-        imgtk = ImageTk.PhotoImage(image=img)
-        self.video_label.imgtk = imgtk
-        self.video_label.configure(image=imgtk)
+def run(name: str, samples: Path, out_dir: Path):
+    ply_path = samples / "pointcloud" / f"{name}.ply"
+    info_path = samples / "info" / f"{name}.txt"
 
-        self.is_capturing = False
-        self.capture_btn.config(state=tk.DISABLED)
-        self.save_btn.config(state=tk.NORMAL)
-        self.retake_btn.config(state=tk.NORMAL)
+    info = parse_info(info_path)
+    mask = run_masking(ply_path, info)
 
-    def save_data(self):
-        if self.captured_rgb is None or self.captured_mask is None or self.captured_depth is None:
-            print("[WARNING] No complete data frames available to save.")
-            return
+    out_dir.mkdir(parents=True, exist_ok=True)
+    mask_target_path = out_dir / f"{name}.png"
+    cv2.imwrite(str(mask_target_path), mask)
 
-        img_name = self.current_img_name or f"img{self.counter:04d}"
-        print(f"\n[INFO] Saving data packages for: {img_name}...")
+    fg_px = int(np.count_nonzero(mask))
 
-        cv2.imwrite(str(self.img_dir / f"{img_name}.png"), self.captured_original_rgb)
-        cv2.imwrite(str(self.crop_rgb_dir / f"{img_name}.png"), self.captured_rgb)
-
-        depth_vis = cv2.normalize(self.captured_depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-        depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
-        cv2.imwrite(str(self.depth_dir / f"{img_name}.png"), depth_colored)
-
-        selected_class = int(self.class_var.get())
-        label_mask = self.match_mask_to_image(self.captured_mask, self.captured_rgb.shape[:2])
-        self.writer.write(str(self.label_dir / f"{img_name}.txt"), label_mask, self.captured_rgb.shape[:2], label_class=selected_class)
-
-        cv2.imwrite(str(self.mask_dir / f"{img_name}.png"), label_mask * 255)
-
-        pcd_path = self.pc_dir / f"{img_name}.ply"
-        if self.captured_pcd is not None and len(self.captured_pcd.points) > 0:
-            o3d.io.write_point_cloud(str(pcd_path), self.captured_pcd)
-            print(f"[SAVED] Verified 3D Point Cloud saved successfully ({len(self.captured_pcd.points)} points)")
-        else:
-            print("[ERROR] Cannot save .ply file: tracked cloud is empty!")
-
-        current_crop = {
-            "top": self.crop_top_var.get(),
-            "bottom": self.crop_bottom_var.get(),
-            "left": self.crop_left_var.get(),
-            "right": self.crop_right_var.get()
-        }
-
-        if self.captured_plane_model is not None:
-            self.save_info_txt(
-                img_name,
-                selected_class,
-                current_crop,
-                self.raw_rgb_shape,
-                self.raw_depth_shape,
-                self.cropped_rgb_shape,
-                self.cropped_depth_shape,
-                self.captured_rgb,
-                self.captured_depth,
-                self.captured_intrinsics or self.cam.get_intrinsics(),
-                self.captured_plane_model,
-                self.captured_plane_inliers,
-                self.captured_non_plane_pts,
-                mask_stats=self.captured_mask_stats,
-            )
-        else:
-            print("[WARNING] Skipping info.txt save because capture metadata is missing.")
-
-        self.print_dataset_counts()
-        self.counter = self.next_capture_index()
-        self.current_img_name = None
-        self.reset_capture_state()
-        print(f"[SUCCESS] Packout cycle {img_name} complete.\n")
-
-    def save_info_txt(self, img_name, selected_class, crop, raw_rgb_shape, raw_depth_shape, cropped_rgb_shape, cropped_depth_shape, rgb, depth, intrinsics, plane_eq, plane_inliers, non_plane_pts, mask_stats=None):
-        txt_path = self.info_dir / f"{img_name}.txt"
-        with open(txt_path, "w") as f:
-            f.write("Crop:\n")
-            f.write(f"  top={crop['top']} bottom={crop['bottom']} left={crop['left']} right={crop['right']}\n")
-            f.write(f"Raw RGB shape: {raw_rgb_shape}\n")
-            f.write(f"Raw depth shape: {raw_depth_shape}\n")
-            f.write(f"Cropped RGB shape: {cropped_rgb_shape}\n")
-            f.write(f"Cropped depth shape: {cropped_depth_shape}\n")
-            f.write(f"RGB shape: {rgb.shape}\n")
-            f.write(f"Depth shape: {depth.shape}\n")
-            f.write(f"Depth dtype: {depth.dtype}\n")
-            f.write(f"Depth min/max: {depth.min()}/{depth.max()}\n")
-            f.write(f"Valid depth pixels: {np.count_nonzero(depth)}\n")
-            f.write("Intrinsics matrix:\n")
-            for row in intrinsics.intrinsic_matrix:
-                f.write("  " + " ".join(f"{val:.6f}" for val in row) + "\n")
-            f.write(f"Plane equation: {plane_eq[0]:.6f}x + {plane_eq[1]:.6f}y + {plane_eq[2]:.6f}z + {plane_eq[3]:.6f} = 0\n")
-            f.write(f"Plane inliers: {plane_inliers}\n")
-            f.write(f"Non-plane points: {non_plane_pts}\n")
-            f.write(f"Selected class: {selected_class}\n")
-            if mask_stats is not None:
-                f.write("Mask QA:\n")
-                f.write(f"  Foreground pixels: {mask_stats['foreground']}\n")
-                f.write(f"  Foreground ratio: {mask_stats['ratio']:.8f}\n")
-                f.write(f"  Connected components: {mask_stats['components']}\n")
-                f.write(f"  Largest component area: {mask_stats['largest_area']}\n")
-                f.write(f"  Border pixels: {mask_stats['border_pixels']}\n")
-                f.write(f"  Border ratio: {mask_stats['border_ratio']:.8f}\n")
-                f.write(f"  Largest bbox: {mask_stats['largest_bbox']}\n")
-                f.write(f"  Largest centroid: {mask_stats['largest_centroid']}\n")
-        print(f"[INFO] Info saved to {txt_path}")
-
-    def analyze_mask(self, mask):
-        mask_u8 = (mask > 0).astype(np.uint8)
-        h, w = mask_u8.shape
-        foreground = int(np.count_nonzero(mask_u8))
-        total = int(mask_u8.size)
-        ratio = float(foreground / total) if total else 0.0
-
-        num_labels, _labels, stats, centroids = cv2.connectedComponentsWithStats(mask_u8, connectivity=8)
-        component_areas = stats[1:, cv2.CC_STAT_AREA] if num_labels > 1 else np.array([])
-        largest_area = int(component_areas.max()) if component_areas.size else 0
-        largest_idx = int(np.argmax(component_areas)) + 1 if component_areas.size else -1
-        largest_bbox, largest_centroid = None, None
-        if largest_idx > 0:
-            x = int(stats[largest_idx, cv2.CC_STAT_LEFT])
-            y = int(stats[largest_idx, cv2.CC_STAT_TOP])
-            bw = int(stats[largest_idx, cv2.CC_STAT_WIDTH])
-            bh = int(stats[largest_idx, cv2.CC_STAT_HEIGHT])
-            largest_bbox = (x, y, bw, bh)
-            largest_centroid = (float(centroids[largest_idx][0]), float(centroids[largest_idx][1]))
-
-        border_mask = np.zeros_like(mask_u8, dtype=bool)
-        border_mask[0, :] = True; border_mask[-1, :] = True
-        border_mask[:, 0] = True; border_mask[:, -1] = True
-        border_pixels = int(np.count_nonzero(mask_u8 & border_mask))
-        border_ratio = float(border_pixels / foreground) if foreground else 0.0
-
-        return {
-            "shape": (h, w), "foreground": foreground, "ratio": ratio,
-            "components": int(num_labels - 1), "largest_area": largest_area,
-            "largest_bbox": largest_bbox, "largest_centroid": largest_centroid,
-            "border_pixels": border_pixels, "border_ratio": border_ratio,
-        }
-
-    def next_capture_index(self):
-        pattern = re.compile(r"img(\d+)")
-        indices = []
-        for directory, suffixes in (
-            (self.img_dir, [".png"]), (self.crop_rgb_dir, [".png"]),
-            (self.label_dir, [".txt"]), (self.depth_dir, [".png"]),
-            (self.mask_dir, [".png"]), (self.info_dir, [".txt"]),
-            (self.pc_dir, [".ply"]), (self.debug_dir, [".png"]),
-        ):
-            if not directory.exists(): continue
-            for path in directory.iterdir():
-                if path.suffix not in suffixes: continue
-                match = pattern.match(path.stem)
-                if match: indices.append(int(match.group(1)))
-        return (max(indices) + 1) if indices else 0
-
-    def match_mask_to_image(self, mask, image_shape):
-        mask_u8 = (mask > 0).astype(np.uint8)
-        if mask_u8.shape == image_shape: return mask_u8
-        return cv2.resize(mask_u8, (image_shape[1], image_shape[0]), interpolation=cv2.INTER_NEAREST)
-
-    def print_dataset_counts(self):
-        counts = {
-            "images": len(list(self.img_dir.glob("*.png"))),
-            "cropped_rgb": len(list(self.crop_rgb_dir.glob("*.png"))),
-            "depth": len(list(self.depth_dir.glob("*.png"))),
-            "labels": len(list(self.label_dir.glob("*.txt"))),
-            "masks": len(list(self.mask_dir.glob("*.png"))),
-            "pointcloud": len(list(self.pc_dir.glob("*.ply"))),
-            "info": len(list(self.info_dir.glob("*.txt"))),
-        }
-        print("[COUNT] " + ", ".join(f"{name}={value}" for name, value in counts.items()))
-        return counts
-
-    def preview_pointcloud_interactive(self):
-        if self.captured_pcd is not None:
-            print("[INFO] Launching interactive 3D point cloud viewer...")
-            o3d.visualization.draw_geometries([self.captured_pcd])
-        else:
-            print("[WARNING] No point cloud to preview. Capture a frame first.")
-
-    def retake_frame(self):
-        print("[RETAKE] Retaking frame.")
-        self.reset_capture_state()
-
-    def reset_capture_state(self):
-        self.captured_rgb = None
-        self.captured_original_rgb = None
-        self.captured_depth = None
-        self.captured_mask = None
-        self.captured_pcd = None
-        self.captured_mask_stats = None
-        self.captured_plane_model = None
-        self.captured_plane_inliers = None
-        self.captured_non_plane_pts = None
-        self.captured_intrinsics = None
-        self.raw_rgb_shape = None
-        self.raw_depth_shape = None
-        self.cropped_rgb_shape = None
-        self.cropped_depth_shape = None
-        self.current_img_name = None
-        self.is_capturing = True
-        self.capture_btn.config(state=tk.NORMAL)
-        self.save_btn.config(state=tk.DISABLED)
-        self.retake_btn.config(state=tk.DISABLED)
-
-    def quit_app(self):
-        print("[INFO] Quitting application.")
-        self.cam.stop()
-        try:
-            sys.stdout = self._orig_stdout
-            sys.stderr = self._orig_stderr
-        except Exception:
-            pass
-        try:
-            self.log_file.close()
-        except Exception:
-            pass
-        self.root.quit()
-        self.root.destroy()
+    print("\n" + "=" * 80, flush=True)
+    print("                UNBUFFERED DIAGNOSTIC ENGINE VERBOSE REPORT", flush=True)
+    print("=" * 80, flush=True)
+    print(f"  Target Image Asset Name : {name}", flush=True)
+    print(
+        f"  Info file resolution parsing : H={info.rgb_shape[0]} px, W={info.rgb_shape[1]} px",
+        flush=True,
+    )
+    print(
+        f"  Crop Offset Regimes     : Top={info.crop_top} px, Left={info.crop_left} px",
+        flush=True,
+    )
+    print(f"  Saved Image Output Path : {mask_target_path}", flush=True)
+    print(f"  Mask Active White Pixels: {fg_px:,}", flush=True)
+    print(
+        f"  Execution Pipeline Status: {'SUCCESS ✓' if fg_px > 0 else 'EMPTY BLACK OUTPUT ✗'}",
+        flush=True,
+    )
+    print("=" * 80 + "\n", flush=True)
 
 
 if __name__ == "__main__":
-    try:
-        root = tk.Tk()
-        app = RGBDCollectorApp(root)
-        root.mainloop()
-    except Exception as e:
-        print(f"[FATAL ERROR] {e}")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("name", nargs="?", default="img0000")
+    parser.add_argument("--base", default="offline_case/samples")
+    parser.add_argument("--out", default="offline_case/samples/mask")
+    args = parser.parse_args()
+    run(name=args.name, samples=Path(args.base), out_dir=Path(args.out))
