@@ -211,6 +211,7 @@ def main():
                 bgr = frame_q.get()
 
             orig_h, orig_w = bgr.shape[:2]
+            print("Live frame:", bgr.shape)
 
             frame_count += 1
             skip = (frame_count % 2 != 0)
@@ -226,6 +227,8 @@ def main():
                     stream=False,
                     verbose=False,
                 )
+                if len(results):
+                    print("YOLO shape:", results[0].orig_shape)
 
                 cached_polygons = []
                 detected_classes = []
@@ -258,8 +261,8 @@ def main():
                         cached_polygons.append((polygon, color, label))
                         detected_classes.append(name)
 
-            for polygon, color, label in cached_polygons:
-                draw_detection(annotated, polygon, color, label)
+            if not skip and len(results):
+                annotated = results[0].plot()
 
             fps_frames += 1
             elapsed = time.time() - fps_timer

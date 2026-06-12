@@ -1,0 +1,10 @@
+[INIT] Session logger initialized. Writing to logs/session_20260612_174612.log
+[INIT] Attaching camera sensor subsystem...
+Traceback (most recent call last):
+  File "/home/cpsstudent/Documents/ips_s2026/rgbd/main.py", line 555, in <module>
+    app = IndustrialSortingApp(root)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/cpsstudent/Documents/ips_s2026/rgbd/main.py", line 111, in __init__
+    self.cam.start()
+    ^^^^^^^^^^^^^^
+AttributeError: 'CameraInterface' object has no attribute 'start'
