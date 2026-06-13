@@ -618,6 +618,13 @@ class RGBDCollectorApp:
                     f"  Stage 5 Passed Points      : {stage5.get('stage5_pass_points', 0):,}",
                     f"  Rejected Below Threshold   : {stage5.get('stage5_rejected_lower', 0):,}",
                     f"  Rejected Above Threshold   : {stage5.get('stage5_rejected_upper', 0):,}",
+                    "  ── Stage 8 Projection Diagnostics ──",
+                    f"  Projected Points           : {stage5.get('projected_points', 0):,}",
+                    f"  Inside Canvas Bounds       : {stage5.get('inside_bounds_points', 0):,}",
+                    f"  Duplicate Pixel Hits       : {stage5.get('duplicate_pixel_hits', 0):,}",
+                    f"  Raw Mask White Pixels      : {stage5.get('raw_mask_white', 0):,}",
+                    f"  White Pixels After Close    : {stage5.get('post_close_white', 0):,}",
+                    f"  White Pixels After Open     : {stage5.get('post_open_white', 0):,}",
                 ]
             )
         with open(self.object_debug_path, "a", buffering=1) as f_obj_debug:

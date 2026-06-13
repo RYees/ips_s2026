@@ -324,6 +324,12 @@ def run_masking_from_point_cloud(
             "stage5_pass_points": int(len(pts_filtered)),
             "stage5_rejected_lower": int((dist_out_mm <= MIN_OBJECT_HEIGHT_MM).sum()),
             "stage5_rejected_upper": int((dist_out_mm >= MAX_OBJECT_HEIGHT_MM).sum()),
+            "projected_points": int(projected_pts),
+            "inside_bounds_points": int(inside_bounds_pts),
+            "duplicate_pixel_hits": int(duplicate_pixel_count),
+            "raw_mask_white": int(raw_mask_white),
+            "post_close_white": int(post_close_white),
+            "post_open_white": int(post_open_white),
         }
     )
 
@@ -548,11 +554,20 @@ def run_masking_from_point_cloud(
     # ── 8e  Bounds filter & mask paint ────────────────────────────────────────
     in_bounds = (u >= 0) & (u < target_W) & (v >= 0) & (v < target_H)
     u_valid, v_valid = u[in_bounds], v[in_bounds]
+    projected_pts = int(len(u))
+    inside_bounds_pts = int(len(u_valid))
+    duplicate_pixel_count = 0
+    if inside_bounds_pts > 0:
+        uv_pairs = np.stack([u_valid, v_valid], axis=1)
+        duplicate_pixel_count = int(
+            inside_bounds_pts - len(np.unique(uv_pairs, axis=0))
+        )
 
     pct_valid = len(u_valid) / max(len(u), 1) * 100
     log(f"\n  ── [STAGE 8e] Bounds Filter ──")
-    log(f"    Total projected points : {len(u):,}")
-    log(f"    Inside canvas bounds   : {len(u_valid):,}  ({pct_valid:.1f}%)")
+    log(f"    Total projected points : {projected_pts:,}")
+    log(f"    Inside canvas bounds   : {inside_bounds_pts:,}  ({pct_valid:.1f}%)")
+    log(f"    Duplicate pixel hits    : {duplicate_pixel_count:,}")
     if pct_valid < 10:
         log(
             f"  [WARNING] Less than 10% of points are inside the canvas. "
@@ -573,12 +588,18 @@ def run_masking_from_point_cloud(
         )
 
     mask[v_valid, u_valid] = 255
+    raw_mask_white = int((mask > 0).sum())
+    log(f"  [INFO] Raw mask white pixels before morphology: {raw_mask_white:,}")
 
     # ── Morphological clean-up ────────────────────────────────────────────────
     kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
     kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close)
+    post_close_white = int((mask > 0).sum())
+    log(f"  [INFO] White pixels after close: {post_close_white:,}")
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_open)
+    post_open_white = int((mask > 0).sum())
+    log(f"  [INFO] White pixels after open: {post_open_white:,}")
 
     white_y, white_x = np.where(mask > 0)
     if len(white_x) > 0:
