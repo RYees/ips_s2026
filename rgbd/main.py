@@ -89,7 +89,6 @@ class RGBDCollectorApp:
         self.info_dir = self.data_dir / "info"
         self.pc_dir = self.data_dir / "pointcloud"
         self.debug_dir = self.data_dir / "debug"
-        # Backwards-compatible aliases for the existing save logic.
         self.img_dir = self.uncropped_rgb_dir
         self.crop_rgb_dir = self.cropped_rgb_dir
         self.mask_debug_dir = self.log_dir / "mask_debug"
@@ -676,7 +675,6 @@ class RGBDCollectorApp:
         with open(self.object_debug_path, "a", buffering=1) as f_obj_debug:
             f_obj_debug.write("\n".join(object_debug_lines))
 
-        # Persist stage-8 debug masks so the tip-loss difference is visible on disk.
         if stage_masks:
             raw_mask = stage_masks.get("raw_mask")
             post_close_mask = stage_masks.get("post_close_mask")
@@ -713,7 +711,6 @@ class RGBDCollectorApp:
                 cv2.imwrite(str(final_path), final_mask)
                 print(f"[DEBUG] Saved final mask to {final_path}")
 
-        # Multi-Window Output Display Rendering Logic
         combined = self.build_capture_preview(
             rgb,
             mask,
