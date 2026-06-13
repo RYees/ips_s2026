@@ -1,0 +1,26 @@
+
+================================================================================
+                 LIVE OBJECT DETECTION DEBUG
+================================================================================
+  Timestamp Code Generation : 2026-06-13 14:50:17.800
+  Capture Name              : img1466
+  Cropped RGB Shape         : (720, 510, 3)
+  Cropped Depth Shape       : (720, 510)
+  Mask Foreground Pixels    : 7122
+  Mask Foreground Ratio     : 0.01939542
+  Mask Connected Components : 1
+  Mask Largest BBox         : (281, 277, 75, 181)
+  Mask Largest Centroid     : (320.36338107273235, 367.70766638584666)
+  Plane Inliers             : 347082
+  Non-Plane Points          : 5854
+================================================================================
+
+  ── Stage 5 Height-Gate Diagnostics ──
+  Height Gate Min (mm)      : 1.500
+  Height Gate Max (mm)      : 500.000
+  Dist Min / Mean / Median  : -4.091 / 24.697 / 25.870
+  Dist Max (mm)             : 36.757
+  Stage 5 Input Points       : 5,854
+  Stage 5 Passed Points      : 5,848
+  Rejected Below Threshold   : 6
+  Rejected Above Threshold   : 0
