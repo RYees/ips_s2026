@@ -89,6 +89,7 @@ class RGBDCollectorApp:
         self.info_dir = base_path / "info"
         self.pc_dir = base_path / "pointcloud"
         self.debug_dir = base_path / "debug"
+        self.mask_debug_dir = self.log_dir / "mask_debug"
         self.object_debug_path = (
             self.log_dir
             / f"live_object_detection_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
@@ -102,6 +103,7 @@ class RGBDCollectorApp:
             self.info_dir,
             self.pc_dir,
             self.debug_dir,
+            self.mask_debug_dir,
         ]:
             d.mkdir(parents=True, exist_ok=True)
 
@@ -590,6 +592,7 @@ class RGBDCollectorApp:
         self.captured_non_plane_pts = outlier_count
         self.captured_mask_stats = self.analyze_mask(mask)
         stage5 = dict(masking_pipeline.LAST_PIPELINE_DIAGNOSTICS)
+        stage_masks = dict(masking_pipeline.LAST_PIPELINE_MASKS)
 
         object_debug_lines = [
             "\n" + "=" * 80,
@@ -632,6 +635,27 @@ class RGBDCollectorApp:
             )
         with open(self.object_debug_path, "a", buffering=1) as f_obj_debug:
             f_obj_debug.write("\n".join(object_debug_lines))
+
+        # Persist stage-8 debug masks so the tip-loss difference is visible on disk.
+        if stage_masks:
+            raw_mask = stage_masks.get("raw_mask")
+            post_close_mask = stage_masks.get("post_close_mask")
+            final_mask = stage_masks.get("final_mask")
+            if raw_mask is not None:
+                raw_path = self.mask_debug_dir / f"{self.current_img_name}_raw_mask.png"
+                cv2.imwrite(str(raw_path), raw_mask)
+                print(f"[DEBUG] Saved raw projected mask to {raw_path}")
+            if post_close_mask is not None:
+                close_path = (
+                    self.mask_debug_dir
+                    / f"{self.current_img_name}_post_close_mask.png"
+                )
+                cv2.imwrite(str(close_path), post_close_mask)
+                print(f"[DEBUG] Saved post-close mask to {close_path}")
+            if final_mask is not None:
+                final_path = self.mask_debug_dir / f"{self.current_img_name}_final_mask.png"
+                cv2.imwrite(str(final_path), final_mask)
+                print(f"[DEBUG] Saved final mask to {final_path}")
 
         # Multi-Window Output Display Rendering Logic
         combined = self.build_capture_preview(rgb, mask, depth)

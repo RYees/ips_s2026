@@ -51,6 +51,7 @@ MIN_VOLUMETRIC_RATIO = 0.15  # Ratio between smallest and largest 3D dimensions
 
 DIAG_LOGS = []
 LAST_PIPELINE_DIAGNOSTICS = {}
+LAST_PIPELINE_MASKS = {}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Global log file handle — set once in run() / run_masking_from_point_cloud()
@@ -250,8 +251,9 @@ def evaluate_gates(cid, pts, plane_a, plane_b, plane_c, plane_d, plane_norm):
 def run_masking_from_point_cloud(
     pcd: o3d.geometry.PointCloud, info: CaptureInfo
 ) -> tuple[np.ndarray, tuple[float, float, float, float] | None, int, int]:
-    global LAST_PIPELINE_DIAGNOSTICS
+    global LAST_PIPELINE_DIAGNOSTICS, LAST_PIPELINE_MASKS
     LAST_PIPELINE_DIAGNOSTICS = {}
+    LAST_PIPELINE_MASKS = {}
 
     target_H, target_W = info.rgb_shape[0], info.rgb_shape[1]
 
@@ -588,12 +590,14 @@ def run_masking_from_point_cloud(
     mask[v_valid, u_valid] = 255
     raw_mask_white = int((mask > 0).sum())
     log(f"  [INFO] Raw mask white pixels before morphology: {raw_mask_white:,}")
+    raw_mask = mask.copy()
 
     # ── Morphological clean-up ────────────────────────────────────────────────
     kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close)
     post_close_white = int((mask > 0).sum())
     log(f"  [INFO] White pixels after close: {post_close_white:,}")
+    post_close_mask = mask.copy()
     if DEBUG_SKIP_MORPH_OPEN:
         post_open_white = post_close_white
         log("  [INFO] Morphological open skipped for tip-loss debugging.")
@@ -625,6 +629,13 @@ def run_masking_from_point_cloud(
             "raw_mask_white": int(raw_mask_white),
             "post_close_white": int(post_close_white),
             "post_open_white": int(post_open_white),
+        }
+    )
+    LAST_PIPELINE_MASKS.update(
+        {
+            "raw_mask": raw_mask,
+            "post_close_mask": post_close_mask,
+            "final_mask": mask,
         }
     )
 
