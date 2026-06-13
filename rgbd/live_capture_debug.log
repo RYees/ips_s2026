@@ -32,3 +32,20 @@
   [ALIGN]    Shifted Projection Matrix cx  : 386.18 px
   [ALIGN]    HORIZONTAL CENTER CAL MISMATCH: -131.18 pixels
 ================================================================================
+
+================================================================================
+             REALTIME LIVE INTRINSICS MATRIX DIAGNOSTIC REPORT
+================================================================================
+  Timestamp Code Generation : 2026-06-13 13:37:09.631
+  [HARDWARE] Raw Color Sensor Matrix Shape : 1280W x 720H px
+  [HARDWARE] Raw Depth Sensor Matrix Shape : 1280W x 720H px
+  [SLIDERS]  Active Crop Offsets Input     : Top=0px, Bottom=0px, Left=250px, Right=520px
+  [PIPELINE] Cropped App Canvas Boundary  : 510W x 720H px
+  [MATRIX]   Intrinsic fx (Focal X)        : 750.147949
+  [MATRIX]   Intrinsic fy (Focal Y)        : 749.789551
+  [MATRIX]   Intrinsic cx (Center X)       : 636.178772
+  [MATRIX]   Intrinsic cy (Center Y)       : 366.085907
+  [ALIGN]    Image Canvas Center Column    : 255.0 px
+  [ALIGN]    Shifted Projection Matrix cx  : 386.18 px
+  [ALIGN]    HORIZONTAL CENTER CAL MISMATCH: -131.18 pixels
+================================================================================
