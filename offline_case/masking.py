@@ -328,12 +328,6 @@ def run_masking_from_point_cloud(
             "stage5_pass_points": int(len(pts_filtered)),
             "stage5_rejected_lower": int((dist_out_mm <= MIN_OBJECT_HEIGHT_MM).sum()),
             "stage5_rejected_upper": int((dist_out_mm >= MAX_OBJECT_HEIGHT_MM).sum()),
-            "projected_points": int(projected_pts),
-            "inside_bounds_points": int(inside_bounds_pts),
-            "duplicate_pixel_hits": int(duplicate_pixel_count),
-            "raw_mask_white": int(raw_mask_white),
-            "post_close_white": int(post_close_white),
-            "post_open_white": int(post_open_white),
         }
     )
 
@@ -622,6 +616,17 @@ def run_masking_from_point_cloud(
         log(f"    White pixels : {int((mask > 0).sum()):,}")
     else:
         log("  [WARNING] Mask is completely empty after morphological operations.")
+
+    LAST_PIPELINE_DIAGNOSTICS.update(
+        {
+            "projected_points": int(projected_pts),
+            "inside_bounds_points": int(inside_bounds_pts),
+            "duplicate_pixel_hits": int(duplicate_pixel_count),
+            "raw_mask_white": int(raw_mask_white),
+            "post_close_white": int(post_close_white),
+            "post_open_white": int(post_open_white),
+        }
+    )
 
     return (
         mask,
