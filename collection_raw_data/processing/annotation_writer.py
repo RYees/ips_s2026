@@ -8,10 +8,13 @@ class AnnotationWriter:
 
     def write(self, filepath, mask, img_shape, label_class):
         height, width = img_shape
+        filepath = str(filepath)
 
         # Find external contours (object outlines)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
+            with open(filepath, "w") as f:
+                f.write("")
             return False
 
         # Select the largest contour (assuming single object per image)
@@ -20,6 +23,8 @@ class AnnotationWriter:
         # Flatten and reshape contour to a 2D array of (x, y) coordinates
         contour = contour.squeeze()
         if contour.ndim != 2:
+            with open(filepath, "w") as f:
+                f.write("")
             return False  # no valid contour found
 
         # Normalize coordinates to [0, 1]

@@ -176,6 +176,29 @@ def overlay_mask(rgb, mask):
     return overlay
 
 
+def _safe_unlink(path: Path):
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        pass
+    except IsADirectoryError:
+        pass
+
+
+def prune_capture_files(stem: str, dataset_root: Path, extra_paths=None):
+    extra_paths = extra_paths or []
+    raw_paths = [
+        dataset_root / "images" / f"{stem}.png",
+        dataset_root / "uncropped_rgb" / f"{stem}.png",
+        dataset_root / "depth" / f"{stem}.png",
+        dataset_root / "info" / f"{stem}.txt",
+        dataset_root / "masks" / f"{stem}.png",
+        dataset_root / "labels" / f"{stem}.txt",
+    ]
+    for path in raw_paths + list(extra_paths):
+        _safe_unlink(path)
+
+
 def resolve_depth_crop(depth, info):
     crop = info["crop"]
     raw_rgb_shape = info["raw_rgb_shape"] or depth.shape[:2]
@@ -302,8 +325,21 @@ def process_capture(stem: str, dataset_root: Path, overwrite: bool = False):
         mask, plane_model, inliers, outliers = run_masking_from_point_cloud(
             pcd, live_info
         )
-        writer = AnnotationWriter()
         selected_class = int(info.get("selected_class", 0))
+
+        contours, _ = cv2.findContours(
+            (mask > 0).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+        if not contours:
+            print(f"[PRUNE] {stem}: mask has no contour, removing raw capture files.")
+            prune_capture_files(
+                stem,
+                dataset_root,
+                extra_paths=[mask_path, label_path, overlay_path, report_path],
+            )
+            return False
+
+        writer = AnnotationWriter()
 
         cv2.imwrite(str(mask_path), (mask > 0).astype(np.uint8) * 255)
         cv2.imwrite(str(overlay_path), overlay_mask(rgb, mask))
