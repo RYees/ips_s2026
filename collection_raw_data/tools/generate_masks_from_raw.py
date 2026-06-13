@@ -1,6 +1,7 @@
 import argparse
 import re
 import sys
+import shutil
 from pathlib import Path
 
 import cv2
@@ -185,18 +186,100 @@ def _safe_unlink(path: Path):
         pass
 
 
-def prune_capture_files(stem: str, dataset_root: Path, extra_paths=None):
+def _safe_move(src: Path, dst: Path):
+    if not src.exists():
+        return
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if dst.exists():
+        _safe_unlink(dst)
+    shutil.move(str(src), str(dst))
+
+
+def move_capture_to_rejected(stem: str, dataset_root: Path, extra_paths=None):
+    rejected_root = dataset_root / "rejected"
     extra_paths = extra_paths or []
-    raw_paths = [
-        dataset_root / "images" / f"{stem}.png",
-        dataset_root / "uncropped_rgb" / f"{stem}.png",
-        dataset_root / "depth" / f"{stem}.png",
-        dataset_root / "info" / f"{stem}.txt",
-        dataset_root / "masks" / f"{stem}.png",
-        dataset_root / "labels" / f"{stem}.txt",
+    paths = [
+        (dataset_root / "images" / f"{stem}.png", rejected_root / "images" / f"{stem}.png"),
+        (
+            dataset_root / "uncropped_rgb" / f"{stem}.png",
+            rejected_root / "uncropped_rgb" / f"{stem}.png",
+        ),
+        (dataset_root / "depth" / f"{stem}.png", rejected_root / "depth" / f"{stem}.png"),
+        (dataset_root / "info" / f"{stem}.txt", rejected_root / "info" / f"{stem}.txt"),
+        (dataset_root / "masks" / f"{stem}.png", rejected_root / "masks" / f"{stem}.png"),
+        (dataset_root / "labels" / f"{stem}.txt", rejected_root / "labels" / f"{stem}.txt"),
     ]
-    for path in raw_paths + list(extra_paths):
-        _safe_unlink(path)
+    for src, dst in paths:
+        _safe_move(src, dst)
+    for src in extra_paths:
+        src = Path(src)
+        rel_parent = src.parent.relative_to(dataset_root) if src.is_relative_to(dataset_root) else None
+        if rel_parent is None:
+            continue
+        _safe_move(src, rejected_root / rel_parent / src.name)
+
+
+def compact_accepted_dataset(dataset_root: Path):
+    info_dir = dataset_root / "info"
+    if not info_dir.exists():
+        return []
+
+    stems = []
+    for path in sorted(info_dir.glob("img*.txt")):
+        match = re.match(r"img(\d+)$", path.stem)
+        if match:
+            stems.append(path.stem)
+
+    accepted_stems = []
+    rename_plan = []
+    for new_idx, old_stem in enumerate(stems):
+        new_stem = f"img{new_idx:04d}"
+        accepted_stems.append(new_stem)
+        if old_stem == new_stem:
+            continue
+        rename_plan.append((old_stem, new_stem))
+
+    if not rename_plan:
+        return accepted_stems
+
+    main_dirs = {
+        "images": ".png",
+        "uncropped_rgb": ".png",
+        "depth": ".png",
+        "info": ".txt",
+        "masks": ".png",
+        "labels": ".txt",
+    }
+    debug_dir = dataset_root / "debug" / "mask_generation"
+    temp_moves = []
+    final_moves = []
+
+    for old_stem, new_stem in rename_plan:
+        for folder, suffix in main_dirs.items():
+            src = dataset_root / folder / f"{old_stem}{suffix}"
+            if not src.exists():
+                continue
+            tmp = src.with_name(f"__compact__{new_stem}_{old_stem}{suffix}")
+            dst = dataset_root / folder / f"{new_stem}{suffix}"
+            temp_moves.append((src, tmp))
+            final_moves.append((tmp, dst))
+
+        if debug_dir.exists():
+            for src in debug_dir.glob(f"{old_stem}*"):
+                if src.is_dir():
+                    continue
+                suffix = src.name[len(old_stem) :]
+                tmp = src.with_name(f"__compact__{new_stem}_{old_stem}{suffix}")
+                dst = debug_dir / f"{new_stem}{suffix}"
+                temp_moves.append((src, tmp))
+                final_moves.append((tmp, dst))
+
+    for src, tmp in temp_moves:
+        _safe_move(src, tmp)
+    for src, dst in final_moves:
+        _safe_move(src, dst)
+
+    return accepted_stems
 
 
 def resolve_depth_crop(depth, info):
@@ -286,7 +369,7 @@ def process_capture(stem: str, dataset_root: Path, overwrite: bool = False):
         raise FileNotFoundError(f"Missing info file: {info_path}")
     if mask_path.exists() and not overwrite:
         print(f"[SKIP] {stem} already has a mask. Use --overwrite to replace it.")
-        return False
+        return "skipped"
 
     _set_log_file(log_path)
     try:
@@ -331,13 +414,8 @@ def process_capture(stem: str, dataset_root: Path, overwrite: bool = False):
             (mask > 0).astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
         if not contours:
-            print(f"[PRUNE] {stem}: mask has no contour, removing raw capture files.")
-            prune_capture_files(
-                stem,
-                dataset_root,
-                extra_paths=[mask_path, label_path, overlay_path, report_path],
-            )
-            return False
+            print(f"[REJECT] {stem}: mask has no contour, quarantining capture.")
+            return "rejected"
 
         writer = AnnotationWriter()
 
@@ -371,10 +449,10 @@ def process_capture(stem: str, dataset_root: Path, overwrite: bool = False):
         f"plane_model: {tuple(float(v) for v in plane_model)}",
         f"inliers: {int(inliers)}",
         f"outliers: {int(outliers)}",
-    ]
+        ]
         report_path.write_text("\n".join(report_lines) + "\n")
         print(f"[SAVED] {stem}: {mask_path}")
-        return True
+        return "accepted"
     finally:
         _close_log_file()
 
@@ -408,7 +486,14 @@ def main():
         raise SystemExit(f"Info directory does not exist: {info_dir}")
 
     if args.stem:
-        process_capture(args.stem, dataset_root, overwrite=args.overwrite)
+        status = process_capture(args.stem, dataset_root, overwrite=args.overwrite)
+        if status == "rejected":
+            move_capture_to_rejected(
+                args.stem,
+                dataset_root,
+                extra_paths=[dataset_root / "debug" / "mask_generation" / f"{args.stem}_masking.log"],
+            )
+        compact_accepted_dataset(dataset_root)
         return
 
     stems = sorted(p.stem for p in info_dir.glob("img*.txt"))
@@ -416,14 +501,30 @@ def main():
         raise SystemExit(f"No info files found in {info_dir}")
 
     processed = 0
+    rejected = 0
     for stem in stems:
         try:
-            if process_capture(stem, dataset_root, overwrite=args.overwrite):
+            status = process_capture(stem, dataset_root, overwrite=args.overwrite)
+            if status == "accepted":
                 processed += 1
+            elif status == "rejected":
+                rejected += 1
+                move_capture_to_rejected(
+                    stem,
+                    dataset_root,
+                    extra_paths=[
+                        dataset_root / "debug" / "mask_generation" / f"{stem}_masking.log"
+                    ],
+                )
         except Exception as exc:
             print(f"[ERROR] {stem}: {exc}")
 
-    print(f"[DONE] Generated {processed} masks into {dataset_root / 'masks'}")
+    compact_accepted_dataset(dataset_root)
+
+    print(
+        f"[DONE] Generated {processed} masks into {dataset_root / 'masks'} "
+        f"with {rejected} rejected captures"
+    )
 
 
 if __name__ == "__main__":
