@@ -1,0 +1,121 @@
+[WARNING] Align filter returned None
+[INFO] Using cached color+depth pair (dt=434)
+[WARNING] Align filter returned None
+[WARNING] Align filter returned None
+[INFO] Using cached color+depth pair (dt=234)
+[INFO] Using cached color+depth pair (dt=566)
+  [LIVE INFO] PCD intrinsics  : fx=750.148  fy=749.790  cx=386.179  cy=366.086
+  [LIVE INFO] Cropped depth shape : 510W x 720H  | RGB canvas : 510W x 720H
+
+━━━ [STAGE 1] Loading Point Cloud Array
+  [INFO] Total raw points loaded: 366,520
+
+━━━ [STAGE 2] Statistical Outlier Demolition
+  [INFO] Points surviving outlier filter: 353,350
+
+━━━ [STAGE 3] Live Plane Surface Isolation (RANSAC)
+  [INFO] Original RANSAC: a=0.0151, b=-0.0348, c=0.9993, d=-0.4791
+  [INFO] Normal vector pointing down. Flipping coefficients up toward lens.
+  [INFO] Points isolated on belt plane: 346,846
+  [INFO] Non-plane points going to workspace filter: 6,504
+
+━━━ [STAGE 5] Direction-Enforced Spatial Pre-Filtering
+  [INFO] Height gate window : 1.50mm to 500.00mm
+  [INFO] Dist-from-plane mm : min=12.161 mean=24.594 median=26.507 max=35.678
+  [INFO] Rejected by lower gate: 0 / 6,504
+  [INFO] Rejected by upper gate: 0 / 6,504
+  [DEBUG] Points passing directional spatial filters: 6,504
+
+━━━ [STAGE 6] Spatial Structural Isolation Clustering (DBSCAN)
+  [INFO] DBSCAN discovered 1 distinct point groups.
+
+━━━ [STAGE 7] Multi-Gate Geometric Evaluation
+  Cluster #00 -> Pts: 6504  | Dims(mm): X=116.2, Y= 51.2, Z= 23.0 | VolRatio: 0.198 | Gates: [G1-4=1 G5_Size=1 G6_3D=1] -> PASSED
+  [INFO] Winning Cluster selected: ID #0 (Score=0.5846)
+  [INFO] Winning cluster point count: 6,504
+
+━━━ [STAGE 8] Projection — Sensor Space → Cropped Canvas
+
+  ── [STAGE 8a] Coordinate System Parameters ──
+    Intrinsics    : fx=750.148  fy=749.790  cx=386.179  cy=366.086
+    Crop offsets  : left=0 px  top=0 px
+    Depth sensor  : 510W x 720H px
+    RGB canvas    : 510W x 720H px
+    Scale factors : scale_x=1.000000  scale_y=1.000000
+
+  ── [STAGE 8b] 3-D Cluster Bounding Box (world space) ──
+    X range : -0.0970 m  →  0.0191 m  (span 116.2 mm)
+    Y range : -0.0452 m  →  0.0060 m  (span 51.2 mm)
+    Z range : 0.4430 m  →  0.4660 m  (span 23.0 mm)
+    Z depth : mean=0.4548 m  std=0.0058 m  min=0.4430 m  max=0.4660 m
+
+  ── [STAGE 8c] Projection Steps ──
+    [Step 1] Full-sensor pixel coords (before crop subtraction):
+      u_sensor  min=230.0  max=417.0  mean=323.0
+      v_sensor  min=293.0  max=376.0  mean=336.0
+    [OK] Sensor-space OOB: u=0.0%  v=0.0%
+    [Step 2] After crop subtraction (crop_left=0, crop_top=0):
+      u_cropped min=230.0  max=417.0  mean=323.0
+      v_cropped min=293.0  max=376.0  mean=336.0
+    [Step 2 Check] Cropped coords outside canvas: u<0=0.0%  u>W=0.0%  v<0=0.0%  v>H=0.0%
+    [Step 3] After scale to canvas (scale_x=1.0000, scale_y=1.0000):
+      u  min=230  max=417  mean=323.0
+      v  min=293  max=376  mean=336.0
+      Canvas target size : 510W x 720H px
+
+  ── [STAGE 8d] Expected mask centroid on canvas ──
+      Projected centroid : u=323.0 px  v=336.0 px
+      Canvas centre      : u=255.0 px  v=360.0 px
+      Offset from centre : Δu=68.0 px  Δv=-24.0 px
+
+  ── [STAGE 8e] Bounds Filter ──
+    Total projected points : 6,504
+    Inside canvas bounds   : 6,504  (100.0%)
+    Duplicate pixel hits    : 0
+  [INFO] Density non-zero pixels: 6,504
+  [INFO] Density peak count     : 1
+  [INFO] Raw mask white pixels before morphology: 6,504
+  [INFO] White pixels after close: 7,648
+  [INFO] Morphological open skipped for tip-loss debugging.
+  [INFO] White pixels after open (skipped): 7,648
+
+  ── [STAGE 8f] Final Mask Stats ──
+    Bounding box : 187W x 83H px
+    Mask centroid: (323.5, 334.5) px
+    White pixels : 7,648
+
+================================================================================
+             REALTIME LIVE INTRINSICS MATRIX DIAGNOSTIC REPORT
+================================================================================
+  Timestamp Code Generation : 2026-06-13 16:56:58.986
+  [HARDWARE] Raw Color Sensor Matrix Shape : 1280W x 720H px
+  [HARDWARE] Raw Depth Sensor Matrix Shape : 1280W x 720H px
+  [SLIDERS]  Active Crop Offsets Input     : Top=0px, Bottom=0px, Left=250px, Right=520px
+  [PIPELINE] Cropped App Canvas Boundary  : 510W x 720H px
+  [MATRIX]   Intrinsic fx (Focal X)        : 750.147949
+  [MATRIX]   Intrinsic fy (Focal Y)        : 749.789551
+  [MATRIX]   Intrinsic cx (Center X)       : 636.178772
+  [MATRIX]   Intrinsic cy (Center Y)       : 366.085907
+  [ALIGN]    Image Canvas Center Column    : 255.0 px
+  [ALIGN]    Shifted Projection Matrix cx  : 386.18 px
+  [ALIGN]    HORIZONTAL CENTER CAL MISMATCH: -131.18 pixels
+================================================================================
+
+[DEBUG] Saved raw projected mask to /home/cpsstudent/Documents/ips_s2026/all_proccessed_collection/mask_debug/img0000_raw_mask.png
+[DEBUG] Saved raw projection overlay to /home/cpsstudent/Documents/ips_s2026/all_proccessed_collection/mask_debug/img0000_raw_overlay.png
+[DEBUG] Saved post-close mask to /home/cpsstudent/Documents/ips_s2026/all_proccessed_collection/mask_debug/img0000_post_close_mask.png
+[DEBUG] Saved post-close overlay to /home/cpsstudent/Documents/ips_s2026/all_proccessed_collection/mask_debug/img0000_post_close_overlay.png
+[DEBUG] Saved final mask to /home/cpsstudent/Documents/ips_s2026/all_proccessed_collection/mask_debug/img0000_final_mask.png
+[DEBUG] Saved combined debug sheet to /home/cpsstudent/Documents/ips_s2026/all_proccessed_collection/mask_debug/img0000_debug_sheet.png
+
+[INFO] Saving data packages for: img0000...
+[SAVED] Verified 3D Point Cloud saved successfully (366520 points)
+[INFO] Info saved to /home/cpsstudent/Documents/ips_s2026/all_proccessed_collection/data/info/img0000.txt
+[COUNT] uncropped_rgb=1, images=1, depth=1, labels=1, masks=1, pointcloud=1, info=1
+[SUCCESS] Packout cycle complete.
+
+[COUNT] uncropped_rgb=1, images=1, depth=1, labels=1, masks=1, pointcloud=1, info=1
+[WARNING] Align filter returned None
+
+[SHUTDOWN] Releasing Orbbec camera pipeline streams...
+[SHUTDOWN] Closing debug log files...
