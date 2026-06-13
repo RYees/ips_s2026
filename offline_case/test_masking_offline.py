@@ -5,16 +5,21 @@ from pathlib import Path
 
 def verify_mask_alignment(img_name):
     # Establish base anchor relative to this script file inside 'offline_case'
-    dataset_path = Path("/home/cpsstudent/Documents/ips_s2026/rgbd/dataset")
+    script_dir = Path(__file__).resolve().parent
+    dataset_path = script_dir / "dataset"
 
+    # Locate resources precisely where they are stored on your machine
     rgb_path = dataset_path / "images" / f"{img_name}.png"
-    mask_path = dataset_path / "masks" / f"{img_name}.png"
+    mask_path = dataset_path / "mask" / f"{img_name}.png"
 
     # Fallback check: If cropped_rgb isn't inside offline_case/dataset, check project root dataset/
+    if not rgb_path.exists():
+        rgb_path = script_dir.parent / "dataset" / "images" / f"{img_name}.png"
+
     if not rgb_path.exists() or not mask_path.exists():
-        print(f"Missing file(s)")
-        print(rgb_path)
-        print(mask_path)
+        print(f"[ERROR] Required files for {img_name} do not exist.")
+        print(f"Checked Image Path: {rgb_path.resolve()}")
+        print(f"Checked Mask Path:  {mask_path.resolve()}")
         return
 
     # Load images
@@ -53,4 +58,4 @@ def verify_mask_alignment(img_name):
 
 
 if __name__ == "__main__":
-    verify_mask_alignment("img1458")
+    verify_mask_alignment("img1453")

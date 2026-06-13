@@ -398,16 +398,49 @@ class RGBDCollectorApp:
         )
         # ─────────────────────────────────────────────────────────────────────
 
-        # Map correct tracking telemetry variables down to the masking algorithm info block
+        # ─────────────────────────────────────────────────────────────────────
+        # CRITICAL: CaptureInfo must reflect the intrinsics and depth shape that
+        # were actually used to build the point cloud, NOT the raw sensor values.
+        #
+        # The PCD was created with adjusted_intrinsics (scaled + crop-shifted)
+        # and from the CROPPED depth image.  masking.py re-projects those same
+        # 3-D points back to 2-D, so it must use the exact same intrinsics.
+        #
+        # Since the PCD was built from a depth image whose origin is already at
+        # pixel (0,0) of the cropped depth, there is no further crop offset to
+        # subtract during re-projection — the crop was consumed when the PCD was
+        # built.  We therefore pass crop_top=0 / crop_left=0, and set
+        # raw_depth_shape to the cropped depth shape so scale factors become 1:1.
+        # ─────────────────────────────────────────────────────────────────────
+        adj_fx = adjusted_intrinsics.intrinsic_matrix[0, 0]
+        adj_fy = adjusted_intrinsics.intrinsic_matrix[1, 1]
+        adj_cx = adjusted_intrinsics.intrinsic_matrix[0, 2]
+        adj_cy = adjusted_intrinsics.intrinsic_matrix[1, 2]
+
+        print(
+            f"  [LIVE INFO] PCD intrinsics  : fx={adj_fx:.3f}  fy={adj_fy:.3f}  "
+            f"cx={adj_cx:.3f}  cy={adj_cy:.3f}",
+            flush=True,
+        )
+        print(
+            f"  [LIVE INFO] Cropped depth shape : {depth.shape[1]}W x {depth.shape[0]}H  "
+            f"| RGB canvas : {rgb.shape[1]}W x {rgb.shape[0]}H",
+            flush=True,
+        )
+
         live_info = CaptureInfo(
-            raw_depth_shape=self.raw_depth_shape,
-            rgb_shape=rgb.shape[:2],
-            crop_top=crop_y,
-            crop_left=crop_x,
-            fx=fx,
-            fy=fy,
-            cx=cx,
-            cy=cy,
+            # The PCD was built from the already-cropped depth image, so its
+            # pixel coordinate origin matches the cropped depth exactly.
+            # Use cropped depth shape so scale_x/scale_y in masking == 1.0,
+            # and zero out crop offsets because the crop is already baked in.
+            raw_depth_shape=depth.shape[:2],  # cropped depth (e.g. 265x576)
+            rgb_shape=rgb.shape[:2],  # cropped RGB   (e.g. 720x510)
+            crop_top=0,  # already baked into PCD origin
+            crop_left=0,  # already baked into PCD origin
+            fx=adj_fx,
+            fy=adj_fy,
+            cx=adj_cx,
+            cy=adj_cy,
         )
         mask, plane_model, inlier_count, outlier_count = run_masking_from_point_cloud(
             pcd, live_info
