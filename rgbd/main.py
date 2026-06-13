@@ -114,6 +114,9 @@ class RGBDCollectorApp:
         sys.stdout = TeeStream(self._orig_stdout, self.log_file)
         sys.stderr = TeeStream(self._orig_stderr, self.log_file)
 
+        # Send masking.py diagnostics into the same object log file that we share.
+        masking_pipeline._set_log_file(self.object_debug_path)
+
         self.counter = self.next_capture_index()
         self.current_img_name = None
 
@@ -934,6 +937,10 @@ class RGBDCollectorApp:
         print("[SHUTDOWN] Closing debug log files...")
         if hasattr(self, "log_file") and self.log_file is not None:
             self.log_file.close()
+        try:
+            masking_pipeline._close_log_file()
+        except Exception:
+            pass
 
         print("[SHUTDOWN] Destroying Tkinter GUI window environment. Done.")
         self.root.quit()

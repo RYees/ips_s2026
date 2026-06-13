@@ -41,6 +41,10 @@ GATE_MIN_DENSITY = 10.0
 MIN_OBJECT_HEIGHT_MM = 1.5
 MAX_OBJECT_HEIGHT_MM = 500.0
 
+# Debug toggle: temporarily skip the final opening step to see whether it is
+# shaving off thin tips / appendages from the projected mask.
+DEBUG_SKIP_MORPH_OPEN = True
+
 # Permanent Geometric Constraints
 MIN_TRUE_3D_WIDTH_MM = 15.0  # Objects must have a realistic minimum width
 MIN_VOLUMETRIC_RATIO = 0.15  # Ratio between smallest and largest 3D dimensions
@@ -593,13 +597,18 @@ def run_masking_from_point_cloud(
 
     # ── Morphological clean-up ────────────────────────────────────────────────
     kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
-    kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel_close)
     post_close_white = int((mask > 0).sum())
     log(f"  [INFO] White pixels after close: {post_close_white:,}")
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_open)
-    post_open_white = int((mask > 0).sum())
-    log(f"  [INFO] White pixels after open: {post_open_white:,}")
+    if DEBUG_SKIP_MORPH_OPEN:
+        post_open_white = post_close_white
+        log("  [INFO] Morphological open skipped for tip-loss debugging.")
+        log(f"  [INFO] White pixels after open (skipped): {post_open_white:,}")
+    else:
+        kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel_open)
+        post_open_white = int((mask > 0).sum())
+        log(f"  [INFO] White pixels after open: {post_open_white:,}")
 
     white_y, white_x = np.where(mask > 0)
     if len(white_x) > 0:
