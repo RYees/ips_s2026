@@ -316,6 +316,57 @@ class RGBDCollectorApp:
             print(f"[ERROR] update_video failed: {e}")
         self.root.after(30, self.update_video)
 
+    def _resize_panel(self, img, size=(320, 240)):
+        return cv2.resize(img, size, interpolation=cv2.INTER_AREA)
+
+    def _label_panel(self, img, label):
+        out = img.copy()
+        cv2.rectangle(out, (0, 0), (out.shape[1], 28), (0, 0, 0), -1)
+        cv2.putText(
+            out,
+            label,
+            (8, 20),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+        return out
+
+    def build_verification_overlay(self, rgb, mask):
+        mask_u8 = (mask > 0).astype(np.uint8)
+        overlay = rgb.copy()
+        overlay[mask_u8 > 0] = [0, 255, 0]
+        contours, _ = cv2.findContours(mask_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            largest = max(contours, key=cv2.contourArea)
+            cv2.drawContours(overlay, [largest], -1, (0, 0, 255), 2)
+        return overlay
+
+    def build_capture_preview(self, rgb, mask, depth):
+        mask_viz = (mask > 0).astype(np.uint8) * 255
+        mask_bgr = cv2.cvtColor(mask_viz, cv2.COLOR_GRAY2BGR)
+        contours, _ = cv2.findContours(mask_viz, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            largest = max(contours, key=cv2.contourArea)
+            cv2.drawContours(mask_bgr, [largest], -1, (0, 255, 0), 2)
+
+        depth_vis = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+        depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
+        verification = self.build_verification_overlay(rgb, mask)
+
+        panels = [
+            self._label_panel(self._resize_panel(rgb), "Cropped RGB"),
+            self._label_panel(self._resize_panel(mask_bgr), "Mask"),
+            self._label_panel(self._resize_panel(depth_colored), "Depth"),
+            self._label_panel(self._resize_panel(verification), "Verification Overlay"),
+        ]
+
+        top = np.hstack((panels[0], panels[1]))
+        bottom = np.hstack((panels[2], panels[3]))
+        return np.vstack((top, bottom))
+
     def Q(self):
         self.update_video()
 
@@ -528,26 +579,7 @@ class RGBDCollectorApp:
         self.captured_mask_stats = self.analyze_mask(mask)
 
         # Multi-Window Output Display Rendering Logic
-        mask_viz = (mask * 255).astype(np.uint8)
-        mask_bgr = cv2.cvtColor(mask_viz, cv2.COLOR_GRAY2BGR)
-        contours, _ = cv2.findContours(
-            mask_viz, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
-        if contours:
-            largest = max(contours, key=cv2.contourArea)
-            cv2.drawContours(mask_bgr, [largest], -1, (0, 255, 0), 2)
-
-        depth_vis = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-        depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
-
-        w_panel, h_panel = 320, 240
-        combined = np.hstack(
-            (
-                cv2.resize(original_rgb, (w_panel, h_panel)),
-                cv2.resize(mask_bgr, (w_panel, h_panel)),
-                cv2.resize(depth_colored, (w_panel, h_panel)),
-            )
-        )
+        combined = self.build_capture_preview(rgb, mask, depth)
 
         img = Image.fromarray(cv2.cvtColor(combined, cv2.COLOR_BGR2RGB))
         imgtk = ImageTk.PhotoImage(image=img)
