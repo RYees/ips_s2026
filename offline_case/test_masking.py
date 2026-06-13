@@ -3,16 +3,23 @@ import numpy as np
 from pathlib import Path
 
 
-def verify_mask_alignment(img_name, base_dir="dataset"):
-    base_path = Path("/home/cpsstudent/Documents/ips_s2026/rgbd/dataset")
+def verify_mask_alignment(img_name):
+    # Establish base anchor relative to this script file inside 'offline_case'
+    script_dir = Path(__file__).resolve().parent
+    dataset_path = script_dir / "dataset"
 
-    # Locate the cropped RGB image and its corresponding mask
-    rgb_path = base_path / "cropped_rgb" / f"{img_name}.png"
-    mask_path = base_path / "masks" / f"{img_name}.png"
+    # Locate resources precisely where they are stored on your machine
+    rgb_path = dataset_path / "images" / f"{img_name}.png"
+    mask_path = dataset_path / "mask" / f"{img_name}.png"
+
+    # Fallback check: If cropped_rgb isn't inside offline_case/dataset, check project root dataset/
+    if not rgb_path.exists():
+        rgb_path = script_dir.parent / "dataset" / "images" / f"{img_name}.png"
 
     if not rgb_path.exists() or not mask_path.exists():
         print(f"[ERROR] Required files for {img_name} do not exist.")
-        print(f"Checked:\n  - {rgb_path}\n  - {mask_path}")
+        print(f"Checked Image Path: {rgb_path.resolve()}")
+        print(f"Checked Mask Path:  {mask_path.resolve()}")
         return
 
     # Load images
@@ -45,11 +52,10 @@ def verify_mask_alignment(img_name, base_dir="dataset"):
     # Display the result to manually inspect alignment
     window_name = f"Mask Verification: {img_name}"
     cv2.imshow(window_name, verification_blend)
-    print("Press any key on the image window to close...")
+    print("👉 Press ANY KEY on the image window to close...")
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
 
-# Run the alignment check on your latest capture
 if __name__ == "__main__":
-    verify_mask_alignment("img1454")
+    verify_mask_alignment("img1453")

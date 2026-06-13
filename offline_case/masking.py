@@ -258,43 +258,57 @@ def run_masking_from_point_cloud(
     )
 
     # ─────────────────────────────────────────────────────────────
-    # FIXED STAGE 8: AGNOSTIC TWO-AXIS ASPECT RESOLUTION PROJECTION
+    # FIXED STAGE 8: WINNING CLUSTER POINT EXTRACTION & PROJECTION
     # ─────────────────────────────────────────────────────────────
     print(f"\n━━━ [STAGE 8] Dynamic Mapping & Lens Axis Projection", flush=True)
-    
-    # 1. Base Pinhole projection calculations
-    u_raw = (best_pts[:, 0] * info.fx / best_pts[:, 2] + info.cx)
-    v_raw = (best_pts[:, 1] * info.fy / best_pts[:, 2] + info.cy)
 
-    # 2. Complete Dual Axis Aspect Correction
-    # Dynamically scales alignment indices using your actual runtime camera feed structure
-    if info.raw_depth_shape[0] > 0 and info.raw_depth_shape[1] > 0:
-        scale_x = float(info.rgb_shape[1]) / float(info.raw_depth_shape[1])
-        scale_y = float(info.rgb_shape[0]) / float(info.raw_depth_shape[0])
-        
-        u_raw = u_raw * scale_x
-        v_raw = v_raw * scale_y
+    # CRITICAL FIX: Ensure we only project the points from the selected object cluster
+    if "best_cluster_idx" in locals() and best_cluster_idx is not None:
+        # Filter points belonging only to the winning cluster group
+        cluster_mask = labels == best_cluster_idx
+        project_pts = xyz_workspace[cluster_mask]
+        print(
+            f"  [DEBUG] Projecting Winning Cluster #{best_cluster_idx} ({len(project_pts)} points)"
+        )
+    else:
+        # Fallback if clustering was bypassed
+        project_pts = best_pts
 
-    # 3. Deduct active window crop regions
-    u = np.round(u_raw - info.crop_left).astype(int)
-    v = np.round(v_raw - info.crop_top).astype(int)
+    # Calculate scale maps from depth space back to RGB canvas space
+    scale_x = (
+        float(info.rgb_shape[1]) / float(info.raw_depth_shape[1])
+        if info.raw_depth_shape[1] > 0
+        else 1.0
+    )
+    scale_y = (
+        float(info.rgb_shape[0]) / float(info.raw_depth_shape[0])
+        if info.raw_depth_shape[0] > 0
+        else 1.0
+    )
 
-    print(f"  [DIAGNOSTIC] Raw Projection Coordinate Range:")
-    print(f"    u shifted min/max : {u.min()} to {u.max()}")
-    print(f"    v shifted min/max : {v.min()} to {v.max()}")
+    # Project the cluster points directly
+    u_depth = (project_pts[:, 0] * (info.fx * scale_x) / project_pts[:, 2]) + (
+        (info.cx * scale_x) - (info.crop_left * scale_x)
+    )
+    v_depth = (project_pts[:, 1] * (info.fy * scale_y) / project_pts[:, 2]) + (
+        (info.cy * scale_y) - (info.crop_top * scale_y)
+    )
+
+    # Scale indices directly into the active cropped RGB canvas window
+    u = np.round(u_depth / scale_x).astype(int)
+    v = np.round(v_depth / scale_y).astype(int)
+
+    print(f"  [DIAGNOSTIC] New Projective Coordinate Bounds:")
+    print(f"    u min/max : {u.min()} to {u.max()}")
+    print(f"    v min/max : {v.min()} to {v.max()}")
 
     # Safely handle canvas edge boundaries dynamically
-    if u.max() >= target_W:
-        target_W = int(u.max() + 1)
-    if v.max() >= target_H:
-        target_H = int(v.max() + 1)
-
     in_bounds = (u >= 0) & (u < target_W) & (v >= 0) & (v < target_H)
     u_valid, v_valid = u[in_bounds], v[in_bounds]
 
     print(f"  [INFO] Total candidate points projected: {len(u):,}", flush=True)
     print(
-        f"  [INFO] Adaptive Canvas Boundary Finalized To: Height={target_H} px, Width={target_W} px"
+        f"  [INFO] Target Canvas Frame Boundary Configured To: Height={target_H} px, Width={target_W} px"
     )
     print(
         f"  [INFO] Projected pixels inside image frame boundary limits: {len(u_valid):,}",
@@ -315,6 +329,8 @@ def run_masking_from_point_cloud(
         )
 
     mask[v_valid, u_valid] = 255
+
+    # =========════════════════════════════════════════════════════════════════════
 
     kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
     kernel_open = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))

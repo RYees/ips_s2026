@@ -374,18 +374,21 @@ class RGBDCollectorApp:
         cx = intrinsics.intrinsic_matrix[0, 2]
         cy = intrinsics.intrinsic_matrix[1, 2]
 
-        # Coordinate adjustments matching depth scaling maps
-        # CORRECT FIXED CODE:
+        # ─────────────────────────────────────────────────────────────────────
+        # FIXED: RESOLUTION-UNIFIED DEPTH INTRINSICS GENERATION
+        # ─────────────────────────────────────────────────────────────────────
+        # The intrinsic pinhole projection must strictly match the spatial
+        # width and height of the depth matrix passed to Open3D.
         adjusted_intrinsics = o3d.camera.PinholeCameraIntrinsic(
-            width=rgb.shape[1],  # Target the RGB cropped width (510)
-            height=rgb.shape[0],  # Target the RGB cropped height (720)
-            fx=fx,  # Keep original fx (750.14)
-            fy=fy,  # Keep original fy (749.78)
-            cx=cx - crop_x,  # Original cx (636.17) minus slider crop_x (250)
-            cy=cy - crop_y,  # Original cy (366.08) minus slider crop_y (0)
+            width=depth.shape[1],  # Fixed to depth width (e.g. 640)
+            height=depth.shape[0],  # Fixed to depth height (e.g. 576)
+            fx=fx * scale_x,  # Scale fx to depth plane metrics
+            fy=fy * scale_y,  # Scale fy to depth plane metrics
+            cx=(cx * scale_x) - depth_l,  # Align cx relative to depth crop boundaries
+            cy=(cy * scale_y) - depth_t,  # Align cy relative to depth crop boundaries
         )
 
-        # Generate 3D Point Cloud geometries
+        # Generate 3D Point Cloud geometries safely using depth scaling spaces
         depth_m = depth.astype(np.float32) / 1000.0
         depth_m = np.where((depth_m > 0.2) & (depth_m < 1.5), depth_m, 0.0)
 
@@ -393,6 +396,7 @@ class RGBDCollectorApp:
         pcd = o3d.geometry.PointCloud.create_from_depth_image(
             depth_o3d, adjusted_intrinsics, depth_scale=1.0, depth_trunc=3.0, stride=1
         )
+        # ─────────────────────────────────────────────────────────────────────
 
         # Map correct tracking telemetry variables down to the masking algorithm info block
         live_info = CaptureInfo(
@@ -408,6 +412,45 @@ class RGBDCollectorApp:
         mask, plane_model, inlier_count, outlier_count = run_masking_from_point_cloud(
             pcd, live_info
         )
+
+        # ─────────────────────────────────────────────────────────────────────
+        # REALTIME LIVE INTRINSICS MATRIX DIAGNOSTIC REPORT REINTEGRATION
+        # ─────────────────────────────────────────────────────────────────────
+        log_lines = [
+            "\n" + "=" * 80,
+            "             REALTIME LIVE INTRINSICS MATRIX DIAGNOSTIC REPORT",
+            "=" * 80,
+            "  Timestamp Code Generation : "
+            + datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+            f"  [HARDWARE] Raw Color Sensor Matrix Shape : {original_rgb.shape[1]}W x {original_rgb.shape[0]}H px",
+            f"  [HARDWARE] Raw Depth Sensor Matrix Shape : {self.raw_depth_shape[1]}W x {self.raw_depth_shape[0]}H px",
+            f"  [SLIDERS]  Active Crop Offsets Input     : Top={t}px, Bottom={b}px, Left={l}px, Right={r}px",
+            f"  [PIPELINE] Cropped App Canvas Boundary  : {rgb.shape[1]}W x {rgb.shape[0]}H px",
+            f"  [MATRIX]   Intrinsic fx (Focal X)        : {fx:.6f}",
+            f"  [MATRIX]   Intrinsic fy (Focal Y)        : {fy:.6f}",
+            f"  [MATRIX]   Intrinsic cx (Center X)       : {cx:.6f}",
+            f"  [MATRIX]   Intrinsic cy (Center Y)       : {cy:.6f}",
+        ]
+
+        visual_cx = rgb.shape[1] / 2
+        shifted_math_cx = cx - crop_x
+        h_mismatch = visual_cx - shifted_math_cx
+
+        log_lines.extend(
+            [
+                f"  [ALIGN]    Image Canvas Center Column    : {visual_cx} px",
+                f"  [ALIGN]    Shifted Projection Matrix cx  : {shifted_math_cx:.2f} px",
+                f"  [ALIGN]    HORIZONTAL CENTER CAL MISMATCH: {h_mismatch:.2f} pixels",
+                "=" * 80 + "\n",
+            ]
+        )
+
+        debug_output_string = "\n".join(log_lines)
+        print(debug_output_string, flush=True)
+
+        with open("live_capture_debug.log", "a") as f_debug:
+            f_debug.write(debug_output_string)
+        # ─────────────────────────────────────────────────────────────────────
 
         # Save values to local state arrays
         self.captured_rgb = rgb
@@ -695,42 +738,4 @@ class RGBDCollectorApp:
         self.captured_original_rgb = None
         self.captured_depth = None
         self.captured_mask = None
-        self.captured_pcd = None
-        self.captured_mask_stats = None
-        self.captured_plane_model = None
-        self.captured_plane_inliers = None
-        self.captured_non_plane_pts = None
-        self.captured_intrinsics = None
-        self.raw_rgb_shape = None
-        self.raw_depth_shape = None
-        self.cropped_rgb_shape = None
-        self.cropped_depth_shape = None
-        self.current_img_name = None
-        self.is_capturing = True
-        self.capture_btn.config(state=tk.NORMAL)
-        self.save_btn.config(state=tk.DISABLED)
-        self.retake_btn.config(state=tk.DISABLED)
-
-    def quit_app(self):
-        print("[INFO] Quitting application.")
-        self.cam.stop()
-        try:
-            sys.stdout = self._orig_stdout
-            sys.stderr = self._orig_stderr
-        except Exception:
-            pass
-        try:
-            self.log_file.close()
-        except Exception:
-            pass
-        self.root.quit()
-        self.root.destroy()
-
-
-if __name__ == "__main__":
-    try:
-        root = tk.Tk()
-        app = RGBDCollectorApp(root)
-        root.mainloop()
-    except Exception as e:
-        print(f"[FATAL ERROR] {e}")
+        self.captured_
