@@ -117,27 +117,66 @@ def parse_info(path: Path) -> CaptureInfo:
     def _ints(s):
         return [int(x) for x in re.findall(r"-\d+|\d+", s)]
 
+    crop = None
+    pointcloud_crop = None
+    pointcloud_rgb_shape = None
+    pointcloud_depth_shape = None
+    cropped_rgb_shape = None
+    raw_depth_shape = None
+
     for i, line in enumerate(lines):
         s = line.strip()
+        if s.startswith("Point cloud crop:"):
+            pointcloud_crop = _ints(s)
+            continue
+        if s.startswith("Point cloud RGB shape:"):
+            v = _ints(s)
+            if len(v) >= 2:
+                pointcloud_rgb_shape = (v[0], v[1])
+            continue
+        if s.startswith("Point cloud depth shape:"):
+            v = _ints(s)
+            if len(v) >= 2:
+                pointcloud_depth_shape = (v[0], v[1])
+            continue
         if s.startswith("Crop:"):
-            v = _ints(s)
-            if len(v) >= 4:
-                info.crop_top, info.crop_left = v[0], v[2]
-        elif s.startswith("Cropped RGB shape:") or s.startswith("RGB shape:"):
-            v = _ints(s)
-            if len(v) >= 2:
-                info.rgb_shape = (v[0], v[1])
-        elif s.startswith("Raw depth shape:"):
+            continue
+        if s.startswith("top=") and "left=" in s and "right=" in s:
+            crop = _ints(s)
+            continue
+        if s.startswith("Cropped RGB shape:") or s.startswith("RGB shape:"):
             v = _ints(s)
             if len(v) >= 2:
-                info.raw_depth_shape = (v[0], v[1])
-        elif s.startswith("Intrinsics matrix:"):
+                cropped_rgb_shape = (v[0], v[1])
+            continue
+        if s.startswith("Raw depth shape:"):
+            v = _ints(s)
+            if len(v) >= 2:
+                raw_depth_shape = (v[0], v[1])
+            continue
+        if s.startswith("Intrinsics matrix:"):
             r0 = _floats(lines[i + 1]) if i + 1 < len(lines) else []
             r1 = _floats(lines[i + 2]) if i + 2 < len(lines) else []
             if len(r0) >= 3:
                 info.fx, info.cx = r0[0], r0[2]
             if len(r1) >= 3:
                 info.fy, info.cy = r1[1], r1[2]
+
+    if pointcloud_crop and len(pointcloud_crop) >= 4:
+        info.crop_top, info.crop_left = pointcloud_crop[0], pointcloud_crop[2]
+    elif crop and len(crop) >= 4:
+        info.crop_top, info.crop_left = crop[0], crop[2]
+
+    if pointcloud_rgb_shape is not None:
+        info.rgb_shape = pointcloud_rgb_shape
+    elif cropped_rgb_shape is not None:
+        info.rgb_shape = cropped_rgb_shape
+
+    if pointcloud_depth_shape is not None:
+        info.raw_depth_shape = pointcloud_depth_shape
+    elif raw_depth_shape is not None:
+        info.raw_depth_shape = raw_depth_shape
+
     return info
 
 

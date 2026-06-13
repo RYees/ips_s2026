@@ -222,18 +222,6 @@ class CameraInterface:
         #     f"depth_sets={self.total_frame_sets_with_depth}, "
         #     f"color={frame_info(raw_color)}, depth={frame_info(raw_depth)}"
         # )
-        if raw_color is not None and raw_depth is not None:
-            return raw_color, raw_depth
-
-        if self.last_color_frame is not None and self.last_depth_frame is not None:
-            dt = None
-            if self.last_color_ts is not None and self.last_depth_ts is not None:
-                dt = abs(self.last_color_ts - self.last_depth_ts)
-            if dt is None or dt <= 2500:
-                print(f"[INFO] Using cached color+depth pair (dt={dt})")
-                return self.last_color_frame, self.last_depth_frame
-            print(f"[WARNING] Cached pair too far apart (dt={dt})")
-
         aligned = None
         try:
             aligned = self.align_filter.process(frames)
@@ -254,6 +242,19 @@ class CameraInterface:
         # print(f"[DEBUG] aligned frames: color={bool(aligned_color)}({frame_info(aligned_color)}), depth={bool(aligned_depth)}({frame_info(aligned_depth)})")
         if aligned_color is not None and aligned_depth is not None:
             return aligned_color, aligned_depth
+
+        if raw_color is not None and raw_depth is not None:
+            print("[WARNING] Alignment fallback unavailable; returning raw color+depth pair")
+            return raw_color, raw_depth
+
+        if self.last_color_frame is not None and self.last_depth_frame is not None:
+            dt = None
+            if self.last_color_ts is not None and self.last_depth_ts is not None:
+                dt = abs(self.last_color_ts - self.last_depth_ts)
+            if dt is None or dt <= 2500:
+                print(f"[INFO] Using cached color+depth pair (dt={dt})")
+                return self.last_color_frame, self.last_depth_frame
+            print(f"[WARNING] Cached pair too far apart (dt={dt})")
 
         print("[WARNING] Missing color or depth frame after aligned fallback")
         return None, None

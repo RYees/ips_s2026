@@ -126,6 +126,10 @@ class RGBDCollectorApp:
         self.raw_depth_shape = None
         self.cropped_rgb_shape = None
         self.cropped_depth_shape = None
+        self.pcd_rgb_shape = None
+        self.pcd_depth_shape = None
+        self.pcd_crop_top = 0
+        self.pcd_crop_left = 0
         self.is_capturing = True
 
         # Build Layout Panelling with Sliders
@@ -348,20 +352,31 @@ class RGBDCollectorApp:
         # 1. Crop RGB image normally
         rgb, crop_x, crop_y = crop_manual(rgb, top=t, bottom=b, left=l, right=r)
 
-        # ─────────────────────────────────────────────────────────────────────
-        # CRITICAL RESOLUTION-PROPORTIONAL DEPTH CROPPING
-        # ─────────────────────────────────────────────────────────────────────
-        scale_x = depth.shape[1] / original_rgb.shape[1]  # e.g., 640 / 1280 = 0.5
-        scale_y = depth.shape[0] / original_rgb.shape[0]  # e.g., 576 / 720 = 0.8
-
-        depth_t = int(round(t * scale_y))
-        depth_b = int(round(b * scale_y))
-        depth_l = int(round(l * scale_x))
-        depth_r = int(round(r * scale_x))
-
-        depth, d_crop_x, d_crop_y = crop_manual(
-            depth, top=depth_t, bottom=depth_b, left=depth_l, right=depth_r
-        )
+        aligned_capture = depth.shape[:2] == original_rgb.shape[:2]
+        if aligned_capture:
+            # When the SDK alignment succeeds, depth and RGB already share the
+            # same pixel grid. We crop both with the same offsets and shift the
+            # intrinsics only by the crop origin.
+            depth, d_crop_x, d_crop_y = crop_manual(
+                depth, top=t, bottom=b, left=l, right=r
+            )
+        else:
+            # Fallback path for raw depth frames if alignment is unavailable.
+            # Keep the existing proportional crop logic as a compatibility path,
+            # but emit a warning so the debug log shows the degraded mode.
+            print(
+                "[WARNING] Depth frame does not match RGB resolution; using legacy "
+                "proportional depth crop fallback."
+            )
+            scale_x = depth.shape[1] / original_rgb.shape[1]
+            scale_y = depth.shape[0] / original_rgb.shape[0]
+            depth_t = int(round(t * scale_y))
+            depth_b = int(round(b * scale_y))
+            depth_l = int(round(l * scale_x))
+            depth_r = int(round(r * scale_x))
+            depth, d_crop_x, d_crop_y = crop_manual(
+                depth, top=depth_t, bottom=depth_b, left=depth_l, right=depth_r
+            )
         # ─────────────────────────────────────────────────────────────────────
 
         self.cropped_rgb_shape = rgb.shape
@@ -375,18 +390,29 @@ class RGBDCollectorApp:
         cy = intrinsics.intrinsic_matrix[1, 2]
 
         # ─────────────────────────────────────────────────────────────────────
-        # FIXED: RESOLUTION-UNIFIED DEPTH INTRINSICS GENERATION
+        # Depth intrinsics must match the coordinate system of the point cloud.
+        # In aligned mode, depth and RGB share the same canvas and only the crop
+        # origin needs to be removed. In legacy mode we preserve the prior
+        # proportional fallback so old captures remain inspectable.
         # ─────────────────────────────────────────────────────────────────────
-        # The intrinsic pinhole projection must strictly match the spatial
-        # width and height of the depth matrix passed to Open3D.
-        adjusted_intrinsics = o3d.camera.PinholeCameraIntrinsic(
-            width=depth.shape[1],  # Fixed to depth width (e.g. 640)
-            height=depth.shape[0],  # Fixed to depth height (e.g. 576)
-            fx=fx * scale_x,  # Scale fx to depth plane metrics
-            fy=fy * scale_y,  # Scale fy to depth plane metrics
-            cx=(cx * scale_x) - depth_l,  # Align cx relative to depth crop boundaries
-            cy=(cy * scale_y) - depth_t,  # Align cy relative to depth crop boundaries
-        )
+        if aligned_capture:
+            adjusted_intrinsics = o3d.camera.PinholeCameraIntrinsic(
+                width=depth.shape[1],
+                height=depth.shape[0],
+                fx=fx,
+                fy=fy,
+                cx=cx - crop_x,
+                cy=cy - crop_y,
+            )
+        else:
+            adjusted_intrinsics = o3d.camera.PinholeCameraIntrinsic(
+                width=depth.shape[1],
+                height=depth.shape[0],
+                fx=fx * (depth.shape[1] / original_rgb.shape[1]),
+                fy=fy * (depth.shape[0] / original_rgb.shape[0]),
+                cx=(cx * (depth.shape[1] / original_rgb.shape[1])) - d_crop_x,
+                cy=(cy * (depth.shape[0] / original_rgb.shape[0])) - d_crop_y,
+            )
 
         # Generate 3D Point Cloud geometries safely using depth scaling spaces
         depth_m = depth.astype(np.float32) / 1000.0
@@ -442,6 +468,10 @@ class RGBDCollectorApp:
             cx=adj_cx,
             cy=adj_cy,
         )
+        self.pcd_rgb_shape = rgb.shape[:2]
+        self.pcd_depth_shape = depth.shape[:2]
+        self.pcd_crop_top = 0
+        self.pcd_crop_left = 0
         mask, plane_model, inlier_count, outlier_count = run_masking_from_point_cloud(
             pcd, live_info
         )
@@ -588,6 +618,10 @@ class RGBDCollectorApp:
                 self.raw_depth_shape,
                 self.cropped_rgb_shape,
                 self.cropped_depth_shape,
+                self.pcd_rgb_shape,
+                self.pcd_depth_shape,
+                self.pcd_crop_top,
+                self.pcd_crop_left,
                 self.captured_rgb,
                 self.captured_depth,
                 self.captured_intrinsics or self.cam.get_intrinsics(),
@@ -627,6 +661,10 @@ class RGBDCollectorApp:
         raw_depth_shape,
         cropped_rgb_shape,
         cropped_depth_shape,
+        pcd_rgb_shape,
+        pcd_depth_shape,
+        pcd_crop_top,
+        pcd_crop_left,
         rgb,
         depth,
         intrinsics,
@@ -645,6 +683,11 @@ class RGBDCollectorApp:
             f.write(f"Raw depth shape: {raw_depth_shape}\n")
             f.write(f"Cropped RGB shape: {cropped_rgb_shape}\n")
             f.write(f"Cropped depth shape: {cropped_depth_shape}\n")
+            f.write(f"Point cloud RGB shape: {pcd_rgb_shape}\n")
+            f.write(f"Point cloud depth shape: {pcd_depth_shape}\n")
+            f.write(
+                f"Point cloud crop: top={pcd_crop_top} bottom=0 left={pcd_crop_left} right=0\n"
+            )
             f.write(f"RGB shape: {rgb.shape}\n")
             f.write(f"Depth shape: {depth.shape}\n")
             f.write(f"Depth dtype: {depth.dtype}\n")
