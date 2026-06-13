@@ -4,29 +4,16 @@ from pathlib import Path
 
 
 def verify_mask_alignment(img_name):
-    script_dir = Path(__file__).resolve().parent
-    candidates = [
-        script_dir.parent / "dataset",
-        script_dir / "dataset",
-    ]
-
-    dataset_path = None
-    for candidate in candidates:
-        rgb_candidate = candidate / "cropped_rgb" / f"{img_name}.png"
-        mask_candidate = candidate / "masks" / f"{img_name}.png"
-        if rgb_candidate.exists() and mask_candidate.exists():
-            dataset_path = candidate
-            break
-
-    if dataset_path is None:
-        print("[ERROR] Missing file(s) for mask alignment check.")
-        for candidate in candidates:
-            print(candidate / "cropped_rgb" / f"{img_name}.png")
-            print(candidate / "masks" / f"{img_name}.png")
-        return
+    dataset_path = Path("/home/cpsstudent/Documents/ips_s2026/rgbd/dataset")
 
     rgb_path = dataset_path / "cropped_rgb" / f"{img_name}.png"
     mask_path = dataset_path / "masks" / f"{img_name}.png"
+
+    if not rgb_path.exists() or not mask_path.exists():
+        print("[ERROR] Missing file(s) for mask alignment check.")
+        print(rgb_path)
+        print(mask_path)
+        return
 
     # Load images
     img = cv2.imread(str(rgb_path))
