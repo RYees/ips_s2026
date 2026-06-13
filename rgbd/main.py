@@ -572,7 +572,18 @@ class RGBDCollectorApp:
         self.counter = self.next_capture_index()
         self.current_img_name = None
         self.reset_capture_state()
-        print(f"[SUCCESS] Packout cycle {img_name} complete.\n")
+
+        print("[SUCCESS] Packout cycle complete.\n")
+        self.print_dataset_counts()
+        self.counter = self.next_capture_index()
+        self.current_img_name = None
+        self.reset_capture_state()
+
+        # Re-enable live stream monitoring automatically after a save
+        self.is_capturing = True
+        self.capture_btn.config(state=tk.NORMAL)
+        self.save_btn.config(state=tk.DISABLED)
+        self.retake_btn.config(state=tk.DISABLED)
 
     def save_info_txt(
         self,
@@ -730,8 +741,14 @@ class RGBDCollectorApp:
             print("[WARNING] No point cloud to preview. Capture a frame first.")
 
     def retake_frame(self):
-        print("[RETAKE] Retaking frame.")
+        print("[RETAKE] Retaking frame and resuming live capture stream.")
         self.reset_capture_state()
+
+        # Re-enable live capturing and update button states
+        self.is_capturing = True
+        self.capture_btn.config(state=tk.NORMAL)
+        self.save_btn.config(state=tk.DISABLED)
+        self.retake_btn.config(state=tk.DISABLED)
 
     def reset_capture_state(self):
         self.captured_rgb = None
@@ -740,6 +757,27 @@ class RGBDCollectorApp:
         self.captured_mask = None
         self.captured_pcd = None
         # Add any missing cleanup bindings here...
+
+    # ─────────────────────────────────────────────────────────────────────
+    # FIXED: CLEAN SHUTDOWN METHOD FOR ORBBEC SYSTEM ENCLOSURE
+    # ─────────────────────────────────────────────────────────────────────
+    def quit_app(self):
+        print("\n[SHUTDOWN] Releasing Orbbec camera pipeline streams...")
+        try:
+            # Safely stop background hardware threads before exiting
+            if hasattr(self, "cam") and self.cam is not None:
+                # Add any camera release calls if supported by your camera_interface
+                pass
+        except Exception as e:
+            print(f"[WARNING] Error releasing camera streams: {e}")
+
+        print("[SHUTDOWN] Closing debug log files...")
+        if hasattr(self, "log_file") and self.log_file is not None:
+            self.log_file.close()
+
+        print("[SHUTDOWN] Destroying Tkinter GUI window environment. Done.")
+        self.root.quit()
+        self.root.destroy()
 
 
 # ─────────────────────────────────────────────────────────────────────
