@@ -4,22 +4,39 @@ from pathlib import Path
 
 
 def verify_mask_alignment(img_name):
-    # Establish base anchor relative to this script file inside 'offline_case'
-    dataset_path = Path("/home/cpsstudent/Documents/ips_s2026/rgbd/dataset")
+    script_dir = Path(__file__).resolve().parent
+    candidates = [
+        script_dir.parent / "dataset",
+        script_dir / "dataset",
+    ]
 
-    rgb_path = dataset_path / "images" / f"{img_name}.png"
-    mask_path = dataset_path / "masks" / f"{img_name}.png"
+    dataset_path = None
+    for candidate in candidates:
+        rgb_candidate = candidate / "cropped_rgb" / f"{img_name}.png"
+        mask_candidate = candidate / "masks" / f"{img_name}.png"
+        if rgb_candidate.exists() and mask_candidate.exists():
+            dataset_path = candidate
+            break
 
-    # Fallback check: If cropped_rgb isn't inside offline_case/dataset, check project root dataset/
-    if not rgb_path.exists() or not mask_path.exists():
-        print(f"Missing file(s)")
-        print(rgb_path)
-        print(mask_path)
+    if dataset_path is None:
+        print("[ERROR] Missing file(s) for mask alignment check.")
+        for candidate in candidates:
+            print(candidate / "cropped_rgb" / f"{img_name}.png")
+            print(candidate / "masks" / f"{img_name}.png")
         return
+
+    rgb_path = dataset_path / "cropped_rgb" / f"{img_name}.png"
+    mask_path = dataset_path / "masks" / f"{img_name}.png"
 
     # Load images
     img = cv2.imread(str(rgb_path))
     mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+
+    if img is None or mask is None:
+        print("[ERROR] Failed to load RGB or mask image.")
+        print(rgb_path)
+        print(mask_path)
+        return
 
     # Check shape equality
     if img.shape[:2] != mask.shape:
@@ -44,10 +61,16 @@ def verify_mask_alignment(img_name):
             verification_blend, contours, -1, (0, 0, 255), 2
         )  # Red outline
 
-    # Display the result to manually inspect alignment
+    debug_dir = dataset_path / "debug"
+    debug_dir.mkdir(parents=True, exist_ok=True)
+    out_path = debug_dir / f"{img_name}_mask_overlay.png"
+    cv2.imwrite(str(out_path), verification_blend)
+    print(f"[SAVED] Overlay written to: {out_path}")
+
+    # Display the result to manually inspect alignment when running locally.
     window_name = f"Mask Verification: {img_name}"
     cv2.imshow(window_name, verification_blend)
-    print("👉 Press ANY KEY on the image window to close...")
+    print("Press any key on the image window to close...")
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
