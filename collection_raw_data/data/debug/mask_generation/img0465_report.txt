@@ -1,0 +1,24 @@
+stem: img0465
+rgb_path: data/images/img0465.png
+depth_path: data/depth/img0465.png
+info_path: data/info/img0465.txt
+mask_path: data/masks/img0465.png
+label_path: data/labels/img0465.txt
+overlay_path: data/debug/mask_generation/img0465_overlay.png
+raw_rgb_shape: (720, 1280)
+raw_depth_shape: (720, 1280)
+cropped_rgb_shape: (720, 510)
+cropped_depth_shape: (720, 510)
+alignment_mode: legacy_depth_fallback
+crop: {'top': 0, 'bottom': 0, 'left': 250, 'right': 520}
+legacy_crop_adjustment: False
+selected_class: 0
+mask_foreground: 11846
+mask_ratio: 0.03226035
+mask_components: 1
+mask_largest_area: 11846
+mask_largest_bbox: (169, 260, 138, 133)
+mask_largest_centroid: (237.52481850413642, 324.97712307952054)
+plane_model: (0.014229720344349314, -0.11130173161425284, 0.9936847787898285, -0.4726149824998688)
+inliers: 343067
+outliers: 11307

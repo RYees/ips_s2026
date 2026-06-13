@@ -1,5 +1,5 @@
 SDK_ROOT := ../../pyorbbecsdk
-VENV := ../.env/bin/python
+VENV := /home/cpsstudent/Documents/.venv/bin/python 
 PYTHONPATH := $(abspath $(SDK_ROOT)/install/lib)
 LD_LIBRARY_PATH := $(abspath $(SDK_ROOT)/install/lib)
 

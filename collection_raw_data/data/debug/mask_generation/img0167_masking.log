@@ -1,0 +1,82 @@
+
+================================================================================
+  masking.py run started: 2026-06-13 19:52:34.378162
+================================================================================
+
+━━━ [STAGE 1] Loading Point Cloud Array
+  [INFO] Total raw points loaded: 365,858
+
+━━━ [STAGE 2] Statistical Outlier Demolition
+  [INFO] Points surviving outlier filter: 356,335
+
+━━━ [STAGE 3] Live Plane Surface Isolation (RANSAC)
+  [INFO] Original RANSAC: a=0.0148, b=-0.0926, c=0.9956, d=-0.4743
+  [INFO] Normal vector pointing down. Flipping coefficients up toward lens.
+  [INFO] Points isolated on belt plane: 347,396
+  [INFO] Non-plane points going to workspace filter: 8,939
+
+━━━ [STAGE 5] Direction-Enforced Spatial Pre-Filtering
+  [INFO] Height gate window : 1.50mm to 500.00mm
+  [INFO] Dist-from-plane mm : min=17.516 mean=39.594 median=38.317 max=50.707
+  [INFO] Rejected by lower gate: 0 / 8,939
+  [INFO] Rejected by upper gate: 0 / 8,939
+  [DEBUG] Points passing directional spatial filters: 8,939
+
+━━━ [STAGE 6] Spatial Structural Isolation Clustering (DBSCAN)
+  [INFO] DBSCAN discovered 1 distinct point groups.
+
+━━━ [STAGE 7] Multi-Gate Geometric Evaluation
+  Cluster #00 -> Pts: 8939  | Dims(mm): X= 67.4, Y= 74.1, Z= 35.0 | VolRatio: 0.472 | Gates: [G1-4=1 G5_Size=1 G6_3D=1] -> PASSED
+  [INFO] Winning Cluster selected: ID #0 (Score=0.7886)
+  [INFO] Winning cluster point count: 8,939
+
+━━━ [STAGE 8] Projection — Sensor Space → Cropped Canvas
+
+  ── [STAGE 8a] Coordinate System Parameters ──
+    Intrinsics    : fx=750.148  fy=749.790  cx=386.179  cy=366.086
+    Crop offsets  : left=0 px  top=0 px
+    Depth sensor  : 510W x 720H px
+    RGB canvas    : 510W x 720H px
+    Scale factors : scale_x=1.000000  scale_y=1.000000
+
+  ── [STAGE 8b] 3-D Cluster Bounding Box (world space) ──
+    X range : -0.0038 m  →  0.0637 m  (span 67.4 mm)
+    Y range : 0.0632 m  →  0.1374 m  (span 74.1 mm)
+    Z range : 0.4340 m  →  0.4690 m  (span 35.0 mm)
+    Z depth : mean=0.4455 m  std=0.0058 m  min=0.4340 m  max=0.4690 m
+
+  ── [STAGE 8c] Projection Steps ──
+    [Step 1] Full-sensor pixel coords (before crop subtraction):
+      u_sensor  min=380.0  max=488.0  mean=431.6
+      v_sensor  min=471.0  max=594.0  mean=535.2
+    [OK] Sensor-space OOB: u=0.0%  v=0.0%
+    [Step 2] After crop subtraction (crop_left=0, crop_top=0):
+      u_cropped min=380.0  max=488.0  mean=431.6
+      v_cropped min=471.0  max=594.0  mean=535.2
+    [Step 2 Check] Cropped coords outside canvas: u<0=0.0%  u>W=0.0%  v<0=0.0%  v>H=0.0%
+    [Step 3] After scale to canvas (scale_x=1.0000, scale_y=1.0000):
+      u  min=380  max=488  mean=431.6
+      v  min=471  max=594  mean=535.2
+      Canvas target size : 510W x 720H px
+
+  ── [STAGE 8d] Expected mask centroid on canvas ──
+      Projected centroid : u=431.6 px  v=535.2 px
+      Canvas centre      : u=255.0 px  v=360.0 px
+      Offset from centre : Δu=176.6 px  Δv=175.2 px
+
+  ── [STAGE 8e] Bounds Filter ──
+    Total projected points : 8,939
+    Inside canvas bounds   : 8,939  (100.0%)
+    Duplicate pixel hits    : 0
+  [INFO] Density non-zero pixels: 8,939
+  [INFO] Density peak count     : 1
+  [INFO] Raw mask white pixels before morphology: 8,939
+  [INFO] White pixels after close: 10,207
+  [INFO] Morphological open skipped for tip-loss debugging.
+  [INFO] White pixels after open (skipped): 10,207
+
+  ── [STAGE 8f] Final Mask Stats ──
+    Bounding box : 108W x 123H px
+    Mask centroid: (434.0, 532.5) px
+    White pixels : 10,207
+  masking.py run ended: 2026-06-13 19:52:35.950197

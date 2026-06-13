@@ -13,12 +13,12 @@ alignment_mode: legacy_depth_fallback
 crop: {'top': 0, 'bottom': 0, 'left': 250, 'right': 520}
 legacy_crop_adjustment: False
 selected_class: 0
-mask_foreground: 10835
-mask_ratio: 0.02950708
+mask_foreground: 10942
+mask_ratio: 0.02979847
 mask_components: 1
-mask_largest_area: 10835
-mask_largest_bbox: (380, 283, 82, 202)
-mask_largest_centroid: (420.18135671435164, 384.76372865712966)
-plane_model: (0.015138657796386151, -0.034910149668986964, 0.9992757890043233, -0.47917092174773157)
-inliers: 346239
-outliers: 9914
+mask_largest_area: 10942
+mask_largest_bbox: (379, 283, 85, 202)
+mask_largest_centroid: (420.01124108938035, 385.0199232315847)
+plane_model: (0.015121821018405994, -0.03491150622708188, 0.9992759965405171, -0.47917380576378654)
+inliers: 346209
+outliers: 9944

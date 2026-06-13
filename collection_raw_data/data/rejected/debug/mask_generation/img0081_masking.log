@@ -1,0 +1,31 @@
+
+================================================================================
+  masking.py run started: 2026-06-13 19:49:22.813738
+================================================================================
+
+━━━ [STAGE 1] Loading Point Cloud Array
+  [INFO] Total raw points loaded: 366,401
+
+━━━ [STAGE 2] Statistical Outlier Demolition
+  [INFO] Points surviving outlier filter: 353,248
+
+━━━ [STAGE 3] Live Plane Surface Isolation (RANSAC)
+  [INFO] Original RANSAC: a=0.0161, b=-0.0505, c=0.9986, d=-0.4781
+  [INFO] Normal vector pointing down. Flipping coefficients up toward lens.
+  [INFO] Points isolated on belt plane: 347,376
+  [INFO] Non-plane points going to workspace filter: 5,872
+
+━━━ [STAGE 5] Direction-Enforced Spatial Pre-Filtering
+  [INFO] Height gate window : 1.50mm to 500.00mm
+  [INFO] Dist-from-plane mm : min=12.845 mean=17.221 median=16.610 max=26.262
+  [INFO] Rejected by lower gate: 0 / 5,872
+  [INFO] Rejected by upper gate: 0 / 5,872
+  [DEBUG] Points passing directional spatial filters: 5,872
+
+━━━ [STAGE 6] Spatial Structural Isolation Clustering (DBSCAN)
+  [INFO] DBSCAN discovered 1 distinct point groups.
+
+━━━ [STAGE 7] Multi-Gate Geometric Evaluation
+  Cluster #00 -> Pts: 5872  | Dims(mm): X= 63.9, Y=167.6, Z= 17.0 | VolRatio: 0.101 | Gates: [G1-4=1 G5_Size=1 G6_3D=0] -> REJECTED
+  [WARNING] Zero clusters passed true 3D volumetric threshold gates.
+  masking.py run ended: 2026-06-13 19:49:24.260231
