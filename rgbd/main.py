@@ -78,6 +78,7 @@ class RGBDCollectorApp:
         self.writer = AnnotationWriter()
 
         # Dataset Storage Layout Routing
+        self.log_dir = Path(__file__).resolve().parent
         base_path = Path("dataset")
         self.img_dir = base_path / "images"
         self.crop_rgb_dir = base_path / "cropped_rgb"
@@ -87,6 +88,10 @@ class RGBDCollectorApp:
         self.info_dir = base_path / "info"
         self.pc_dir = base_path / "pointcloud"
         self.debug_dir = base_path / "debug"
+        self.object_debug_path = (
+            self.log_dir
+            / f"live_object_detection_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        )
         for d in [
             self.img_dir,
             self.crop_rgb_dir,
@@ -356,11 +361,14 @@ class RGBDCollectorApp:
         depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
         verification = self.build_verification_overlay(rgb, mask)
 
+        panel_size = (420, 315)
         panels = [
-            self._label_panel(self._resize_panel(rgb), "Cropped RGB"),
-            self._label_panel(self._resize_panel(mask_bgr), "Mask"),
-            self._label_panel(self._resize_panel(depth_colored), "Depth"),
-            self._label_panel(self._resize_panel(verification), "Verification Overlay"),
+            self._label_panel(self._resize_panel(rgb, panel_size), "Cropped RGB"),
+            self._label_panel(self._resize_panel(mask_bgr, panel_size), "Mask"),
+            self._label_panel(self._resize_panel(depth_colored, panel_size), "Depth"),
+            self._label_panel(
+                self._resize_panel(verification, panel_size), "Verification Overlay"
+            ),
         ]
 
         top = np.hstack((panels[0], panels[1]))
@@ -562,7 +570,7 @@ class RGBDCollectorApp:
         debug_output_string = "\n".join(log_lines)
         print(debug_output_string, flush=True)
 
-        with open("live_capture_debug.log", "a") as f_debug:
+        with open(self.log_dir / "live_capture_debug.log", "a") as f_debug:
             f_debug.write(debug_output_string)
         # ─────────────────────────────────────────────────────────────────────
 
@@ -577,6 +585,26 @@ class RGBDCollectorApp:
         self.captured_plane_inliers = inlier_count
         self.captured_non_plane_pts = outlier_count
         self.captured_mask_stats = self.analyze_mask(mask)
+
+        object_debug_lines = [
+            "\n" + "=" * 80,
+            "                 LIVE OBJECT DETECTION DEBUG",
+            "=" * 80,
+            f"  Timestamp Code Generation : {datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]}",
+            f"  Capture Name              : {self.current_img_name or f'img{self.counter:04d}'}",
+            f"  Cropped RGB Shape         : {self.captured_rgb.shape}",
+            f"  Cropped Depth Shape       : {self.captured_depth.shape}",
+            f"  Mask Foreground Pixels    : {self.captured_mask_stats['foreground']}",
+            f"  Mask Foreground Ratio     : {self.captured_mask_stats['ratio']:.8f}",
+            f"  Mask Connected Components : {self.captured_mask_stats['components']}",
+            f"  Mask Largest BBox         : {self.captured_mask_stats['largest_bbox']}",
+            f"  Mask Largest Centroid     : {self.captured_mask_stats['largest_centroid']}",
+            f"  Plane Inliers             : {inlier_count}",
+            f"  Non-Plane Points          : {outlier_count}",
+            "=" * 80 + "\n",
+        ]
+        with open(self.object_debug_path, "a", buffering=1) as f_obj_debug:
+            f_obj_debug.write("\n".join(object_debug_lines))
 
         # Multi-Window Output Display Rendering Logic
         combined = self.build_capture_preview(rgb, mask, depth)
