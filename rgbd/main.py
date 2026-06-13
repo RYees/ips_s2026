@@ -355,7 +355,7 @@ class RGBDCollectorApp:
             cv2.drawContours(overlay, [largest], -1, (0, 0, 255), 2)
         return overlay
 
-    def build_capture_preview(self, rgb, mask, depth):
+    def build_capture_preview(self, rgb, mask, depth, raw_mask=None, post_close_mask=None):
         mask_viz = (mask > 0).astype(np.uint8) * 255
         mask_bgr = cv2.cvtColor(mask_viz, cv2.COLOR_GRAY2BGR)
         contours, _ = cv2.findContours(mask_viz, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -366,10 +366,23 @@ class RGBDCollectorApp:
         depth_vis = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
         depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
         verification = self.build_verification_overlay(rgb, mask)
+        raw_overlay = self.build_verification_overlay(rgb, raw_mask) if raw_mask is not None else rgb
+        post_close_overlay = (
+            self.build_verification_overlay(rgb, post_close_mask)
+            if post_close_mask is not None
+            else rgb
+        )
 
-        panel_size = (420, 315)
+        panel_size = (350, 233)
         panels = [
             self._label_panel(self._resize_panel(rgb, panel_size), "Cropped RGB"),
+            self._label_panel(
+                self._resize_panel(raw_overlay, panel_size), "Raw Projection Overlay"
+            ),
+            self._label_panel(
+                self._resize_panel(post_close_overlay, panel_size),
+                "Post-Close Overlay",
+            ),
             self._label_panel(self._resize_panel(mask_bgr, panel_size), "Mask"),
             self._label_panel(self._resize_panel(depth_colored, panel_size), "Depth"),
             self._label_panel(
@@ -377,8 +390,8 @@ class RGBDCollectorApp:
             ),
         ]
 
-        top = np.hstack((panels[0], panels[1]))
-        bottom = np.hstack((panels[2], panels[3]))
+        top = np.hstack((panels[0], panels[1], panels[2]))
+        bottom = np.hstack((panels[3], panels[4], panels[5]))
         return np.vstack((top, bottom))
 
     def Q(self):
@@ -645,6 +658,12 @@ class RGBDCollectorApp:
                 raw_path = self.mask_debug_dir / f"{self.current_img_name}_raw_mask.png"
                 cv2.imwrite(str(raw_path), raw_mask)
                 print(f"[DEBUG] Saved raw projected mask to {raw_path}")
+                raw_overlay = self.build_verification_overlay(rgb, raw_mask)
+                raw_overlay_path = (
+                    self.mask_debug_dir / f"{self.current_img_name}_raw_overlay.png"
+                )
+                cv2.imwrite(str(raw_overlay_path), raw_overlay)
+                print(f"[DEBUG] Saved raw projection overlay to {raw_overlay_path}")
             if post_close_mask is not None:
                 close_path = (
                     self.mask_debug_dir
@@ -652,13 +671,24 @@ class RGBDCollectorApp:
                 )
                 cv2.imwrite(str(close_path), post_close_mask)
                 print(f"[DEBUG] Saved post-close mask to {close_path}")
+                close_overlay = self.build_verification_overlay(rgb, post_close_mask)
+                close_overlay_path = (
+                    self.mask_debug_dir
+                    / f"{self.current_img_name}_post_close_overlay.png"
+                )
+                cv2.imwrite(str(close_overlay_path), close_overlay)
+                print(
+                    f"[DEBUG] Saved post-close overlay to {close_overlay_path}"
+                )
             if final_mask is not None:
                 final_path = self.mask_debug_dir / f"{self.current_img_name}_final_mask.png"
                 cv2.imwrite(str(final_path), final_mask)
                 print(f"[DEBUG] Saved final mask to {final_path}")
 
         # Multi-Window Output Display Rendering Logic
-        combined = self.build_capture_preview(rgb, mask, depth)
+        combined = self.build_capture_preview(
+            rgb, mask, depth, raw_mask=stage_masks.get("raw_mask"), post_close_mask=stage_masks.get("post_close_mask")
+        )
 
         img = Image.fromarray(cv2.cvtColor(combined, cv2.COLOR_BGR2RGB))
         imgtk = ImageTk.PhotoImage(image=img)
