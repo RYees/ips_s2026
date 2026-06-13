@@ -588,6 +588,12 @@ def run_masking_from_point_cloud(
         )
 
     mask[v_valid, u_valid] = 255
+    density_map = np.zeros((target_H, target_W), dtype=np.uint16)
+    np.add.at(density_map, (v_valid, u_valid), 1)
+    density_nonzero = int(np.count_nonzero(density_map))
+    density_peak = int(density_map.max()) if density_map.size else 0
+    log(f"  [INFO] Density non-zero pixels: {density_nonzero:,}")
+    log(f"  [INFO] Density peak count     : {density_peak:,}")
     raw_mask_white = int((mask > 0).sum())
     log(f"  [INFO] Raw mask white pixels before morphology: {raw_mask_white:,}")
     raw_mask = mask.copy()
@@ -629,11 +635,14 @@ def run_masking_from_point_cloud(
             "raw_mask_white": int(raw_mask_white),
             "post_close_white": int(post_close_white),
             "post_open_white": int(post_open_white),
+            "density_nonzero": int(density_nonzero),
+            "density_peak": int(density_peak),
         }
     )
     LAST_PIPELINE_MASKS.update(
         {
             "raw_mask": raw_mask,
+            "density_map": density_map,
             "post_close_mask": post_close_mask,
             "final_mask": mask,
         }

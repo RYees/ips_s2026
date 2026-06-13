@@ -355,7 +355,15 @@ class RGBDCollectorApp:
             cv2.drawContours(overlay, [largest], -1, (0, 0, 255), 2)
         return overlay
 
-    def build_capture_preview(self, rgb, mask, depth, raw_mask=None, post_close_mask=None):
+    def build_capture_preview(
+        self,
+        rgb,
+        mask,
+        depth,
+        raw_mask=None,
+        post_close_mask=None,
+        density_map=None,
+    ):
         mask_viz = (mask > 0).astype(np.uint8) * 255
         mask_bgr = cv2.cvtColor(mask_viz, cv2.COLOR_GRAY2BGR)
         contours, _ = cv2.findContours(mask_viz, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -372,27 +380,57 @@ class RGBDCollectorApp:
             if post_close_mask is not None
             else rgb
         )
+        raw_mask_bgr = (
+            cv2.cvtColor((raw_mask > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR)
+            if raw_mask is not None
+            else np.zeros_like(mask_bgr)
+        )
+        post_close_mask_bgr = (
+            cv2.cvtColor(
+                (post_close_mask > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR
+            )
+            if post_close_mask is not None
+            else np.zeros_like(mask_bgr)
+        )
+        final_overlay = verification
+        if density_map is not None and density_map.size:
+            density_vis = cv2.normalize(
+                density_map.astype(np.float32), None, 0, 255, cv2.NORM_MINMAX
+            ).astype(np.uint8)
+            density_color = cv2.applyColorMap(density_vis, cv2.COLORMAP_INFERNO)
+        else:
+            density_color = np.zeros_like(rgb)
 
         panel_size = (350, 233)
         panels = [
             self._label_panel(self._resize_panel(rgb, panel_size), "Cropped RGB"),
+            self._label_panel(self._resize_panel(depth_colored, panel_size), "Depth"),
             self._label_panel(
                 self._resize_panel(raw_overlay, panel_size), "Raw Projection Overlay"
             ),
+            self._label_panel(self._resize_panel(mask_bgr, panel_size), "Mask"),
             self._label_panel(
                 self._resize_panel(post_close_overlay, panel_size),
                 "Post-Close Overlay",
             ),
-            self._label_panel(self._resize_panel(mask_bgr, panel_size), "Mask"),
-            self._label_panel(self._resize_panel(depth_colored, panel_size), "Depth"),
+            self._label_panel(self._resize_panel(density_color, panel_size), "Density Heatmap"),
             self._label_panel(
-                self._resize_panel(verification, panel_size), "Verification Overlay"
+                self._resize_panel(final_overlay, panel_size), "Final Verification"
+            ),
+            self._label_panel(
+                self._resize_panel(raw_mask_bgr, panel_size),
+                "Raw Mask",
+            ),
+            self._label_panel(
+                self._resize_panel(post_close_mask_bgr, panel_size),
+                "Post-Close Mask",
             ),
         ]
 
         top = np.hstack((panels[0], panels[1], panels[2]))
-        bottom = np.hstack((panels[3], panels[4], panels[5]))
-        return np.vstack((top, bottom))
+        middle = np.hstack((panels[3], panels[4], panels[5]))
+        bottom = np.hstack((panels[6], panels[7], panels[8]))
+        return np.vstack((top, middle, bottom))
 
     def Q(self):
         self.update_video()
@@ -654,6 +692,7 @@ class RGBDCollectorApp:
             raw_mask = stage_masks.get("raw_mask")
             post_close_mask = stage_masks.get("post_close_mask")
             final_mask = stage_masks.get("final_mask")
+            density_map = stage_masks.get("density_map")
             if raw_mask is not None:
                 raw_path = self.mask_debug_dir / f"{self.current_img_name}_raw_mask.png"
                 cv2.imwrite(str(raw_path), raw_mask)
@@ -687,8 +726,16 @@ class RGBDCollectorApp:
 
         # Multi-Window Output Display Rendering Logic
         combined = self.build_capture_preview(
-            rgb, mask, depth, raw_mask=stage_masks.get("raw_mask"), post_close_mask=stage_masks.get("post_close_mask")
+            rgb,
+            mask,
+            depth,
+            raw_mask=stage_masks.get("raw_mask"),
+            post_close_mask=stage_masks.get("post_close_mask"),
+            density_map=stage_masks.get("density_map"),
         )
+        combined_path = self.mask_debug_dir / f"{self.current_img_name}_debug_sheet.png"
+        cv2.imwrite(str(combined_path), combined)
+        print(f"[DEBUG] Saved combined debug sheet to {combined_path}")
 
         img = Image.fromarray(cv2.cvtColor(combined, cv2.COLOR_BGR2RGB))
         imgtk = ImageTk.PhotoImage(image=img)
