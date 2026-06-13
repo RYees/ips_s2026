@@ -37,7 +37,8 @@ GATE_MIN_HEIGHT_MM = 0.8
 GATE_MIN_HEIGHT_RATIO = 0.02
 GATE_MIN_DENSITY = 10.0
 
-MIN_OBJECT_HEIGHT_MM = 4.0
+# Keep thin appendages from getting clipped before clustering.
+MIN_OBJECT_HEIGHT_MM = 1.5
 MAX_OBJECT_HEIGHT_MM = 500.0
 
 # Permanent Geometric Constraints
