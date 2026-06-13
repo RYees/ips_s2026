@@ -4,9 +4,9 @@ from pathlib import Path
 
 
 def verify_mask_alignment(img_name):
-    dataset_path = Path("/home/cpsstudent/Documents/ips_s2026/rgbd/dataset")
+    dataset_path = Path(__file__).resolve().parents[1] / "rgbd" / "data"
 
-    rgb_path = dataset_path / "cropped_rgb" / f"{img_name}.png"
+    rgb_path = dataset_path / "images" / f"{img_name}.png"
     mask_path = dataset_path / "masks" / f"{img_name}.png"
 
     if not rgb_path.exists() or not mask_path.exists():

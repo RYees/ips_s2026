@@ -80,15 +80,18 @@ class RGBDCollectorApp:
 
         # Dataset Storage Layout Routing
         self.log_dir = Path(__file__).resolve().parent
-        base_path = Path("dataset")
-        self.img_dir = base_path / "images"
-        self.crop_rgb_dir = base_path / "cropped_rgb"
-        self.label_dir = base_path / "labels"
-        self.depth_dir = base_path / "depth"
-        self.mask_dir = base_path / "masks"
-        self.info_dir = base_path / "info"
-        self.pc_dir = base_path / "pointcloud"
-        self.debug_dir = base_path / "debug"
+        self.data_dir = self.log_dir / "data"
+        self.cropped_rgb_dir = self.data_dir / "images"
+        self.uncropped_rgb_dir = self.data_dir / "uncropped_rgb"
+        self.label_dir = self.data_dir / "labels"
+        self.depth_dir = self.data_dir / "depth"
+        self.mask_dir = self.data_dir / "masks"
+        self.info_dir = self.data_dir / "info"
+        self.pc_dir = self.data_dir / "pointcloud"
+        self.debug_dir = self.data_dir / "debug"
+        # Backwards-compatible aliases for the existing save logic.
+        self.img_dir = self.uncropped_rgb_dir
+        self.crop_rgb_dir = self.cropped_rgb_dir
         self.mask_debug_dir = self.log_dir / "mask_debug"
         self.object_debug_path = (
             self.log_dir
@@ -745,8 +748,8 @@ class RGBDCollectorApp:
         img_name = self.current_img_name or f"img{self.counter:04d}"
         print(f"\n[INFO] Saving data packages for: {img_name}...")
 
-        cv2.imwrite(str(self.img_dir / f"{img_name}.png"), self.captured_original_rgb)
-        cv2.imwrite(str(self.crop_rgb_dir / f"{img_name}.png"), self.captured_rgb)
+        cv2.imwrite(str(self.uncropped_rgb_dir / f"{img_name}.png"), self.captured_original_rgb)
+        cv2.imwrite(str(self.cropped_rgb_dir / f"{img_name}.png"), self.captured_rgb)
 
         depth_vis = cv2.normalize(
             self.captured_depth, None, 0, 255, cv2.NORM_MINMAX
@@ -941,8 +944,8 @@ class RGBDCollectorApp:
         pattern = re.compile(r"img(\d+)")
         indices = []
         for directory, suffixes in (
-            (self.img_dir, [".png"]),
-            (self.crop_rgb_dir, [".png"]),
+            (self.uncropped_rgb_dir, [".png"]),
+            (self.cropped_rgb_dir, [".png"]),
             (self.label_dir, [".txt"]),
             (self.depth_dir, [".png"]),
             (self.mask_dir, [".png"]),
@@ -970,8 +973,8 @@ class RGBDCollectorApp:
 
     def print_dataset_counts(self):
         counts = {
-            "images": len(list(self.img_dir.glob("*.png"))),
-            "cropped_rgb": len(list(self.crop_rgb_dir.glob("*.png"))),
+            "uncropped_rgb": len(list(self.uncropped_rgb_dir.glob("*.png"))),
+            "images": len(list(self.cropped_rgb_dir.glob("*.png"))),
             "depth": len(list(self.depth_dir.glob("*.png"))),
             "labels": len(list(self.label_dir.glob("*.txt"))),
             "masks": len(list(self.mask_dir.glob("*.png"))),
