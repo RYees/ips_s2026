@@ -46,6 +46,7 @@ MIN_TRUE_3D_WIDTH_MM = 15.0  # Objects must have a realistic minimum width
 MIN_VOLUMETRIC_RATIO = 0.15  # Ratio between smallest and largest 3D dimensions
 
 DIAG_LOGS = []
+LAST_PIPELINE_DIAGNOSTICS = {}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Global log file handle — set once in run() / run_masking_from_point_cloud()
@@ -245,6 +246,8 @@ def evaluate_gates(cid, pts, plane_a, plane_b, plane_c, plane_d, plane_norm):
 def run_masking_from_point_cloud(
     pcd: o3d.geometry.PointCloud, info: CaptureInfo
 ) -> tuple[np.ndarray, tuple[float, float, float, float] | None, int, int]:
+    global LAST_PIPELINE_DIAGNOSTICS
+    LAST_PIPELINE_DIAGNOSTICS = {}
 
     target_H, target_W = info.rgb_shape[0], info.rgb_shape[1]
 
@@ -284,12 +287,45 @@ def run_masking_from_point_cloud(
     dist_out_mm = (
         (a * pts_out[:, 0] + b * pts_out[:, 1] + c * pts_out[:, 2] + d) / plane_norm
     ) * 1000.0
+    if len(dist_out_mm) > 0:
+        below_count = int((dist_out_mm <= MIN_OBJECT_HEIGHT_MM).sum())
+        above_count = int((dist_out_mm >= MAX_OBJECT_HEIGHT_MM).sum())
+        log(
+            f"  [INFO] Height gate window : {MIN_OBJECT_HEIGHT_MM:.2f}mm "
+            f"to {MAX_OBJECT_HEIGHT_MM:.2f}mm"
+        )
+        log(
+            f"  [INFO] Dist-from-plane mm : min={dist_out_mm.min():.3f} "
+            f"mean={dist_out_mm.mean():.3f} median={np.median(dist_out_mm):.3f} "
+            f"max={dist_out_mm.max():.3f}"
+        )
+        log(
+            f"  [INFO] Rejected by lower gate: {below_count:,} / {len(dist_out_mm):,}"
+        )
+        log(
+            f"  [INFO] Rejected by upper gate: {above_count:,} / {len(dist_out_mm):,}"
+        )
 
     valid_physical_window = (dist_out_mm > MIN_OBJECT_HEIGHT_MM) & (
         dist_out_mm < MAX_OBJECT_HEIGHT_MM
     )
     pts_filtered = pts_out[valid_physical_window]
     log(f"  [DEBUG] Points passing directional spatial filters: {len(pts_filtered):,}")
+
+    LAST_PIPELINE_DIAGNOSTICS.update(
+        {
+            "height_gate_min_mm": float(MIN_OBJECT_HEIGHT_MM),
+            "height_gate_max_mm": float(MAX_OBJECT_HEIGHT_MM),
+            "dist_min_mm": float(dist_out_mm.min()) if len(dist_out_mm) > 0 else 0.0,
+            "dist_mean_mm": float(dist_out_mm.mean()) if len(dist_out_mm) > 0 else 0.0,
+            "dist_median_mm": float(np.median(dist_out_mm)) if len(dist_out_mm) > 0 else 0.0,
+            "dist_max_mm": float(dist_out_mm.max()) if len(dist_out_mm) > 0 else 0.0,
+            "stage5_input_points": int(len(pts_out)),
+            "stage5_pass_points": int(len(pts_filtered)),
+            "stage5_rejected_lower": int((dist_out_mm <= MIN_OBJECT_HEIGHT_MM).sum()),
+            "stage5_rejected_upper": int((dist_out_mm >= MAX_OBJECT_HEIGHT_MM).sum()),
+        }
+    )
 
     # ── STAGE 6 ───────────────────────────────────────────────────────────────
     log("\n━━━ [STAGE 6] Spatial Structural Isolation Clustering (DBSCAN)")

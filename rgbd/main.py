@@ -15,6 +15,7 @@ if str(ROOT) not in sys.path:
 from camera.camera_interface import CameraInterface
 from processing.annotation_writer import AnnotationWriter
 from processing.utils import frame_to_bgr_image
+import offline_case.masking as masking_pipeline
 from offline_case.masking import CaptureInfo, run_masking_from_point_cloud
 from tkinter import ttk
 
@@ -585,6 +586,7 @@ class RGBDCollectorApp:
         self.captured_plane_inliers = inlier_count
         self.captured_non_plane_pts = outlier_count
         self.captured_mask_stats = self.analyze_mask(mask)
+        stage5 = dict(masking_pipeline.LAST_PIPELINE_DIAGNOSTICS)
 
         object_debug_lines = [
             "\n" + "=" * 80,
@@ -603,6 +605,21 @@ class RGBDCollectorApp:
             f"  Non-Plane Points          : {outlier_count}",
             "=" * 80 + "\n",
         ]
+        if stage5:
+            object_debug_lines.extend(
+                [
+                    "  ── Stage 5 Height-Gate Diagnostics ──",
+                    f"  Height Gate Min (mm)      : {stage5.get('height_gate_min_mm', 0.0):.3f}",
+                    f"  Height Gate Max (mm)      : {stage5.get('height_gate_max_mm', 0.0):.3f}",
+                    f"  Dist Min / Mean / Median  : {stage5.get('dist_min_mm', 0.0):.3f} / "
+                    f"{stage5.get('dist_mean_mm', 0.0):.3f} / {stage5.get('dist_median_mm', 0.0):.3f}",
+                    f"  Dist Max (mm)             : {stage5.get('dist_max_mm', 0.0):.3f}",
+                    f"  Stage 5 Input Points       : {stage5.get('stage5_input_points', 0):,}",
+                    f"  Stage 5 Passed Points      : {stage5.get('stage5_pass_points', 0):,}",
+                    f"  Rejected Below Threshold   : {stage5.get('stage5_rejected_lower', 0):,}",
+                    f"  Rejected Above Threshold   : {stage5.get('stage5_rejected_upper', 0):,}",
+                ]
+            )
         with open(self.object_debug_path, "a", buffering=1) as f_obj_debug:
             f_obj_debug.write("\n".join(object_debug_lines))
 
