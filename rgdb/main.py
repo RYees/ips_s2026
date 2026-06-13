@@ -89,6 +89,7 @@ class RGBDCollectorApp:
         self.info_dir = self.data_dir / "info"
         self.pc_dir = self.data_dir / "pointcloud"
         self.debug_dir = self.data_dir / "debug"
+        # Backwards-compatible aliases for the existing save logic.
         self.img_dir = self.uncropped_rgb_dir
         self.crop_rgb_dir = self.cropped_rgb_dir
         self.mask_debug_dir = self.log_dir / "mask_debug"
@@ -351,7 +352,9 @@ class RGBDCollectorApp:
         mask_u8 = (mask > 0).astype(np.uint8)
         overlay = rgb.copy()
         overlay[mask_u8 > 0] = [0, 255, 0]
-        contours, _ = cv2.findContours(mask_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(
+            mask_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
         if contours:
             largest = max(contours, key=cv2.contourArea)
             cv2.drawContours(overlay, [largest], -1, (0, 0, 255), 2)
@@ -368,7 +371,9 @@ class RGBDCollectorApp:
     ):
         mask_viz = (mask > 0).astype(np.uint8) * 255
         mask_bgr = cv2.cvtColor(mask_viz, cv2.COLOR_GRAY2BGR)
-        contours, _ = cv2.findContours(mask_viz, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(
+            mask_viz, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
         if contours:
             largest = max(contours, key=cv2.contourArea)
             cv2.drawContours(mask_bgr, [largest], -1, (0, 255, 0), 2)
@@ -376,7 +381,11 @@ class RGBDCollectorApp:
         depth_vis = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
         depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
         verification = self.build_verification_overlay(rgb, mask)
-        raw_overlay = self.build_verification_overlay(rgb, raw_mask) if raw_mask is not None else rgb
+        raw_overlay = (
+            self.build_verification_overlay(rgb, raw_mask)
+            if raw_mask is not None
+            else rgb
+        )
         post_close_overlay = (
             self.build_verification_overlay(rgb, post_close_mask)
             if post_close_mask is not None
@@ -389,9 +398,9 @@ class RGBDCollectorApp:
             self._label_panel(self._resize_panel(rgb, panel_size), "Cropped RGB"),
             self._label_panel(self._resize_panel(mask_bgr, panel_size), "Mask"),
             self._label_panel(self._resize_panel(depth_colored, panel_size), "Depth"),
-            self._label_panel(
-                self._resize_panel(verification, panel_size), "Verification Overlay"
-            ),
+            # self._label_panel(
+            #     self._resize_panel(verification, panel_size), "Verification Overlay"
+            # ),
         ]
 
         # Debug panels retained for later triage; keep them commented out for now.
@@ -675,6 +684,7 @@ class RGBDCollectorApp:
         with open(self.object_debug_path, "a", buffering=1) as f_obj_debug:
             f_obj_debug.write("\n".join(object_debug_lines))
 
+        # Persist stage-8 debug masks so the tip-loss difference is visible on disk.
         if stage_masks:
             raw_mask = stage_masks.get("raw_mask")
             post_close_mask = stage_masks.get("post_close_mask")
@@ -692,8 +702,7 @@ class RGBDCollectorApp:
                 print(f"[DEBUG] Saved raw projection overlay to {raw_overlay_path}")
             if post_close_mask is not None:
                 close_path = (
-                    self.mask_debug_dir
-                    / f"{self.current_img_name}_post_close_mask.png"
+                    self.mask_debug_dir / f"{self.current_img_name}_post_close_mask.png"
                 )
                 cv2.imwrite(str(close_path), post_close_mask)
                 print(f"[DEBUG] Saved post-close mask to {close_path}")
@@ -703,14 +712,15 @@ class RGBDCollectorApp:
                     / f"{self.current_img_name}_post_close_overlay.png"
                 )
                 cv2.imwrite(str(close_overlay_path), close_overlay)
-                print(
-                    f"[DEBUG] Saved post-close overlay to {close_overlay_path}"
-                )
+                print(f"[DEBUG] Saved post-close overlay to {close_overlay_path}")
             if final_mask is not None:
-                final_path = self.mask_debug_dir / f"{self.current_img_name}_final_mask.png"
+                final_path = (
+                    self.mask_debug_dir / f"{self.current_img_name}_final_mask.png"
+                )
                 cv2.imwrite(str(final_path), final_mask)
                 print(f"[DEBUG] Saved final mask to {final_path}")
 
+        # Multi-Window Output Display Rendering Logic
         combined = self.build_capture_preview(
             rgb,
             mask,
@@ -745,7 +755,9 @@ class RGBDCollectorApp:
         img_name = self.current_img_name or f"img{self.counter:04d}"
         print(f"\n[INFO] Saving data packages for: {img_name}...")
 
-        cv2.imwrite(str(self.uncropped_rgb_dir / f"{img_name}.png"), self.captured_original_rgb)
+        cv2.imwrite(
+            str(self.uncropped_rgb_dir / f"{img_name}.png"), self.captured_original_rgb
+        )
         cv2.imwrite(str(self.cropped_rgb_dir / f"{img_name}.png"), self.captured_rgb)
 
         depth_vis = cv2.normalize(
