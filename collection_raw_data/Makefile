@@ -1,5 +1,5 @@
 SDK_ROOT := ../../pyorbbecsdk
-VENV := /home/cpsstudent/Documents/.venv/bin/python 
+VENV := ../.env/bin/python
 PYTHONPATH := $(abspath $(SDK_ROOT)/install/lib)
 LD_LIBRARY_PATH := $(abspath $(SDK_ROOT)/install/lib)
 
@@ -34,7 +34,7 @@ debug:
 
 run-app: run-preview
 
-PYTHON ?= python3
+PYTHON ?= $(VENV)
 SAMPLE_STEM ?= img0935
 SAMPLE_SAMPLES_ROOT ?= ../offline_case/samples
 SAMPLE_OUTPUT_DIR ?= ../offline_case/output/$(SAMPLE_STEM)

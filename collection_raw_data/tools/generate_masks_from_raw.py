@@ -11,7 +11,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from processing.segmentation_helper import SegmentationHelper
+from processing.masking import (
+    CaptureInfo,
+    _close_log_file,
+    _set_log_file,
+    run_masking_from_point_cloud,
+)
 from processing.annotation_writer import AnnotationWriter
 
 
@@ -208,11 +213,15 @@ def adjust_intrinsics(info, depth_shape, crop_left, crop_top, legacy=False):
         raise ValueError("Missing intrinsics in info file.")
 
     if not legacy:
-        return make_intrinsics(depth_shape[1], depth_shape[0], fx, fy, cx - crop_left, cy - crop_top)
+        return make_intrinsics(
+            depth_shape[1], depth_shape[0], fx, fy, cx - crop_left, cy - crop_top
+        )
 
     raw_rgb_shape = info["raw_rgb_shape"]
     if raw_rgb_shape is None:
-        return make_intrinsics(depth_shape[1], depth_shape[0], fx, fy, cx - crop_left, cy - crop_top)
+        return make_intrinsics(
+            depth_shape[1], depth_shape[0], fx, fy, cx - crop_left, cy - crop_top
+        )
 
     scale_x = depth_shape[1] / raw_rgb_shape[1]
     scale_y = depth_shape[0] / raw_rgb_shape[0]
@@ -244,6 +253,7 @@ def process_capture(stem: str, dataset_root: Path, overwrite: bool = False):
     overlay_path = debug_dir / f"{stem}_overlay.png"
     report_path = debug_dir / f"{stem}_report.txt"
     label_path = labels_dir / f"{stem}.txt"
+    log_path = debug_dir / f"{stem}_masking.log"
 
     if not rgb_path.exists():
         raise FileNotFoundError(f"Missing RGB image: {rgb_path}")
@@ -255,30 +265,52 @@ def process_capture(stem: str, dataset_root: Path, overwrite: bool = False):
         print(f"[SKIP] {stem} already has a mask. Use --overwrite to replace it.")
         return False
 
-    rgb = load_rgb(rgb_path)
-    depth = load_depth(depth_path)
-    info = parse_info(info_path)
+    _set_log_file(log_path)
+    try:
+        rgb = load_rgb(rgb_path)
+        depth = load_depth(depth_path)
+        info = parse_info(info_path)
 
-    depth_crop, crop_left, crop_top, legacy = resolve_depth_crop(depth, info)
-    if info["cropped_rgb_shape"] is not None:
-        expected_h, expected_w = info["cropped_rgb_shape"]
-        if (depth_crop.shape[0], depth_crop.shape[1]) != (expected_h, expected_w):
-            print(
-                f"[WARN] {stem}: depth crop {depth_crop.shape[:2]} does not match cropped RGB {info['cropped_rgb_shape']}"
-            )
+        depth_crop, crop_left, crop_top, legacy = resolve_depth_crop(depth, info)
+        if info["cropped_rgb_shape"] is not None:
+            expected_h, expected_w = info["cropped_rgb_shape"]
+            if (depth_crop.shape[0], depth_crop.shape[1]) != (expected_h, expected_w):
+                print(
+                    f"[WARN] {stem}: depth crop {depth_crop.shape[:2]} does not match cropped RGB {info['cropped_rgb_shape']}"
+                )
 
-    intrinsics = adjust_intrinsics(info, depth_crop.shape[:2], crop_left, crop_top, legacy=legacy)
-    helper = SegmentationHelper(intrinsics)
-    mask, plane_model, inliers, outliers, _ = helper.segment(depth_crop, rgb)
-    writer = AnnotationWriter()
-    selected_class = int(info.get("selected_class", 0))
+        intrinsics = adjust_intrinsics(
+            info, depth_crop.shape[:2], crop_left, crop_top, legacy=legacy
+        )
+        depth_m = depth_crop.astype(np.float32) / 1000.0
+        depth_m = np.where((depth_m > 0.2) & (depth_m < 1.5), depth_m, 0.0)
+        depth_o3d = o3d.geometry.Image(depth_m)
+        pcd = o3d.geometry.PointCloud.create_from_depth_image(
+            depth_o3d, intrinsics, depth_scale=1.0, depth_trunc=3.0, stride=1
+        )
 
-    cv2.imwrite(str(mask_path), (mask > 0).astype(np.uint8) * 255)
-    cv2.imwrite(str(overlay_path), overlay_mask(rgb, mask))
-    writer.write(str(label_path), mask, rgb.shape[:2], label_class=selected_class)
+        live_info = CaptureInfo(
+            raw_depth_shape=depth_crop.shape[:2],
+            rgb_shape=rgb.shape[:2],
+            crop_top=0,
+            crop_left=0,
+            fx=float(intrinsics.intrinsic_matrix[0, 0]),
+            fy=float(intrinsics.intrinsic_matrix[1, 1]),
+            cx=float(intrinsics.intrinsic_matrix[0, 2]),
+            cy=float(intrinsics.intrinsic_matrix[1, 2]),
+        )
+        mask, plane_model, inliers, outliers = run_masking_from_point_cloud(
+            pcd, live_info
+        )
+        writer = AnnotationWriter()
+        selected_class = int(info.get("selected_class", 0))
 
-    stats = mask_stats(mask)
-    report_lines = [
+        cv2.imwrite(str(mask_path), (mask > 0).astype(np.uint8) * 255)
+        cv2.imwrite(str(overlay_path), overlay_mask(rgb, mask))
+        writer.write(str(label_path), mask, rgb.shape[:2], label_class=selected_class)
+
+        stats = mask_stats(mask)
+        report_lines = [
         f"stem: {stem}",
         f"rgb_path: {rgb_path}",
         f"depth_path: {depth_path}",
@@ -304,9 +336,11 @@ def process_capture(stem: str, dataset_root: Path, overwrite: bool = False):
         f"inliers: {int(inliers)}",
         f"outliers: {int(outliers)}",
     ]
-    report_path.write_text("\n".join(report_lines) + "\n")
-    print(f"[SAVED] {stem}: {mask_path}")
-    return True
+        report_path.write_text("\n".join(report_lines) + "\n")
+        print(f"[SAVED] {stem}: {mask_path}")
+        return True
+    finally:
+        _close_log_file()
 
 
 def main():
