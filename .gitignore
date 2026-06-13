@@ -24,6 +24,7 @@ TestResults.xml
 **/venv/
 **/__pycache__/
 **/dataset/
+**/data/
 **/datasetmask/
 **/datasetold/
 **/dataset_orbbec/
@@ -32,6 +33,8 @@ TestResults.xml
 **/dataset-multiple-masked-taken-lena-110/
 **/dataset-single-obj-masked-final/
 **/offline_case/samples/
+**/collection_raw_data/data/
+**/rgdb/data/
 
 
 .env/
