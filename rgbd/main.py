@@ -380,57 +380,43 @@ class RGBDCollectorApp:
             if post_close_mask is not None
             else rgb
         )
-        raw_mask_bgr = (
-            cv2.cvtColor((raw_mask > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR)
-            if raw_mask is not None
-            else np.zeros_like(mask_bgr)
-        )
-        post_close_mask_bgr = (
-            cv2.cvtColor(
-                (post_close_mask > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR
-            )
-            if post_close_mask is not None
-            else np.zeros_like(mask_bgr)
-        )
         final_overlay = verification
-        if density_map is not None and density_map.size:
-            density_vis = cv2.normalize(
-                density_map.astype(np.float32), None, 0, 255, cv2.NORM_MINMAX
-            ).astype(np.uint8)
-            density_color = cv2.applyColorMap(density_vis, cv2.COLORMAP_INFERNO)
-        else:
-            density_color = np.zeros_like(rgb)
 
-        panel_size = (350, 233)
+        panel_size = (420, 315)
         panels = [
             self._label_panel(self._resize_panel(rgb, panel_size), "Cropped RGB"),
+            self._label_panel(self._resize_panel(mask_bgr, panel_size), "Mask"),
             self._label_panel(self._resize_panel(depth_colored, panel_size), "Depth"),
             self._label_panel(
-                self._resize_panel(raw_overlay, panel_size), "Raw Projection Overlay"
-            ),
-            self._label_panel(self._resize_panel(mask_bgr, panel_size), "Mask"),
-            self._label_panel(
-                self._resize_panel(post_close_overlay, panel_size),
-                "Post-Close Overlay",
-            ),
-            self._label_panel(self._resize_panel(density_color, panel_size), "Density Heatmap"),
-            self._label_panel(
-                self._resize_panel(final_overlay, panel_size), "Final Verification"
-            ),
-            self._label_panel(
-                self._resize_panel(raw_mask_bgr, panel_size),
-                "Raw Mask",
-            ),
-            self._label_panel(
-                self._resize_panel(post_close_mask_bgr, panel_size),
-                "Post-Close Mask",
+                self._resize_panel(verification, panel_size), "Verification Overlay"
             ),
         ]
 
-        top = np.hstack((panels[0], panels[1], panels[2]))
-        middle = np.hstack((panels[3], panels[4], panels[5]))
-        bottom = np.hstack((panels[6], panels[7], panels[8]))
-        return np.vstack((top, middle, bottom))
+        # Debug panels retained for later triage; keep them commented out for now.
+        # if density_map is not None and density_map.size:
+        #     density_vis = cv2.normalize(
+        #         density_map.astype(np.float32), None, 0, 255, cv2.NORM_MINMAX
+        #     ).astype(np.uint8)
+        #     density_color = cv2.applyColorMap(density_vis, cv2.COLORMAP_INFERNO)
+        # else:
+        #     density_color = np.zeros_like(rgb)
+        # raw_mask_bgr = (
+        #     cv2.cvtColor((raw_mask > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR)
+        #     if raw_mask is not None
+        #     else np.zeros_like(mask_bgr)
+        # )
+        # post_close_mask_bgr = (
+        #     cv2.cvtColor(
+        #         (post_close_mask > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR
+        #     )
+        #     if post_close_mask is not None
+        #     else np.zeros_like(mask_bgr)
+        # )
+        # final_overlay = verification
+
+        top = np.hstack((panels[0], panels[1]))
+        bottom = np.hstack((panels[2], panels[3]))
+        return np.vstack((top, bottom))
 
     def Q(self):
         self.update_video()
