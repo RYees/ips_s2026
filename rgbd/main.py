@@ -738,4 +738,18 @@ class RGBDCollectorApp:
         self.captured_original_rgb = None
         self.captured_depth = None
         self.captured_mask = None
-        self.captured_
+        self.captured_pcd = None
+        # Add any missing cleanup bindings here...
+
+
+# ─────────────────────────────────────────────────────────────────────
+# FIXED EXECUTION RUNTIME BLOCK: HOLDS UI ENGINE OPEN
+# ─────────────────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = RGBDCollectorApp(root)
+
+    # This loop blocks the terminal thread and processes GUI events
+    # until you explicitly click "Shutdown Subsystem Enclosure" or press Q
+    root.mainloop()
+# ───────────────────
