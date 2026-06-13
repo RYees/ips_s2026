@@ -1297,3 +1297,9 @@
 [INFO] Using cached color+depth pair (dt=168)
 [INFO] Using cached color+depth pair (dt=168)
 [INFO] Using cached color+depth pair (dt=334)
+[WARNING] Align filter returned None
+[INFO] Using cached color+depth pair (dt=333)
+[INFO] Using cached color+depth pair (dt=533)
+[WARNING] Align filter returned None
+[WARNING] Align filter returned None
+[WARNING] Align filter returned None
