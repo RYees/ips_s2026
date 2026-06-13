@@ -1,0 +1,103 @@
+[WARNING] Align filter returned None
+[WARNING] Align filter returned None
+
+[INFO] Saving data packages for: img0000...
+[INFO] Info saved to /home/cpsstudent/Documents/ips_s2026/collection_raw_data/data/info/img0000.txt
+[COUNT] uncropped_rgb=1, images=1, depth=1, info=1
+[SUCCESS] Packout cycle complete.
+
+[COUNT] uncropped_rgb=1, images=1, depth=1, info=1
+
+[INFO] Saving data packages for: img0001...
+[INFO] Info saved to /home/cpsstudent/Documents/ips_s2026/collection_raw_data/data/info/img0001.txt
+[COUNT] uncropped_rgb=2, images=2, depth=2, info=2
+[SUCCESS] Packout cycle complete.
+
+[COUNT] uncropped_rgb=2, images=2, depth=2, info=2
+
+[INFO] Saving data packages for: img0002...
+[INFO] Info saved to /home/cpsstudent/Documents/ips_s2026/collection_raw_data/data/info/img0002.txt
+[COUNT] uncropped_rgb=3, images=3, depth=3, info=3
+[SUCCESS] Packout cycle complete.
+
+[COUNT] uncropped_rgb=3, images=3, depth=3, info=3
+
+[INFO] Saving data packages for: img0003...
+[INFO] Info saved to /home/cpsstudent/Documents/ips_s2026/collection_raw_data/data/info/img0003.txt
+[COUNT] uncropped_rgb=4, images=4, depth=4, info=4
+[SUCCESS] Packout cycle complete.
+
+[COUNT] uncropped_rgb=4, images=4, depth=4, info=4
+
+[INFO] Saving data packages for: img0004...
+[INFO] Info saved to /home/cpsstudent/Documents/ips_s2026/collection_raw_data/data/info/img0004.txt
+[COUNT] uncropped_rgb=5, images=5, depth=5, info=5
+[SUCCESS] Packout cycle complete.
+
+[COUNT] uncropped_rgb=5, images=5, depth=5, info=5
+
+[INFO] Saving data packages for: img0005...
+[INFO] Info saved to /home/cpsstudent/Documents/ips_s2026/collection_raw_data/data/info/img0005.txt
+[COUNT] uncropped_rgb=6, images=6, depth=6, info=6
+[SUCCESS] Packout cycle complete.
+
+[COUNT] uncropped_rgb=6, images=6, depth=6, info=6
+
+[INFO] Saving data packages for: img0006...
+[INFO] Info saved to /home/cpsstudent/Documents/ips_s2026/collection_raw_data/data/info/img0006.txt
+[COUNT] uncropped_rgb=7, images=7, depth=7, info=7
+[SUCCESS] Packout cycle complete.
+
+[COUNT] uncropped_rgb=7, images=7, depth=7, info=7
+
+[INFO] Saving data packages for: img0007...
+[INFO] Info saved to /home/cpsstudent/Documents/ips_s2026/collection_raw_data/data/info/img0007.txt
+[COUNT] uncropped_rgb=8, images=8, depth=8, info=8
+[SUCCESS] Packout cycle complete.
+
+[COUNT] uncropped_rgb=8, images=8, depth=8, info=8
+
+[INFO] Saving data packages for: img0008...
+[INFO] Info saved to /home/cpsstudent/Documents/ips_s2026/collection_raw_data/data/info/img0008.txt
+[COUNT] uncropped_rgb=9, images=9, depth=9, info=9
+[SUCCESS] Packout cycle complete.
+
+[COUNT] uncropped_rgb=9, images=9, depth=9, info=9
+
+[INFO] Saving data packages for: img0009...
+[INFO] Info saved to /home/cpsstudent/Documents/ips_s2026/collection_raw_data/data/info/img0009.txt
+[COUNT] uncropped_rgb=10, images=10, depth=10, info=10
+[SUCCESS] Packout cycle complete.
+
+[COUNT] uncropped_rgb=10, images=10, depth=10, info=10
+
+[INFO] Saving data packages for: img0010...
+[INFO] Info saved to /home/cpsstudent/Documents/ips_s2026/collection_raw_data/data/info/img0010.txt
+[COUNT] uncropped_rgb=11, images=11, depth=11, info=11
+[SUCCESS] Packout cycle complete.
+
+[COUNT] uncropped_rgb=11, images=11, depth=11, info=11
+
+[INFO] Saving data packages for: img0011...
+[INFO] Info saved to /home/cpsstudent/Documents/ips_s2026/collection_raw_data/data/info/img0011.txt
+[COUNT] uncropped_rgb=12, images=12, depth=12, info=12
+[SUCCESS] Packout cycle complete.
+
+[COUNT] uncropped_rgb=12, images=12, depth=12, info=12
+
+[INFO] Saving data packages for: img0012...
+[INFO] Info saved to /home/cpsstudent/Documents/ips_s2026/collection_raw_data/data/info/img0012.txt
+[COUNT] uncropped_rgb=13, images=13, depth=13, info=13
+[SUCCESS] Packout cycle complete.
+
+[COUNT] uncropped_rgb=13, images=13, depth=13, info=13
+
+[INFO] Saving data packages for: img0013...
+[INFO] Info saved to /home/cpsstudent/Documents/ips_s2026/collection_raw_data/data/info/img0013.txt
+[COUNT] uncropped_rgb=14, images=14, depth=14, info=14
+[SUCCESS] Packout cycle complete.
+
+[COUNT] uncropped_rgb=14, images=14, depth=14, info=14
+
+[SHUTDOWN] Releasing Orbbec camera pipeline streams...
+[SHUTDOWN] Closing debug log files...
