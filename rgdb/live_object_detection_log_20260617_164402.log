@@ -1,0 +1,620 @@
+
+================================================================================
+  masking.py run started: 2026-06-17 16:44:02.418305
+================================================================================
+
+━━━ [STAGE 1] Loading Point Cloud Array
+  [INFO] Total raw points loaded: 361,677
+
+━━━ [STAGE 2] Statistical Outlier Demolition
+  [INFO] Points surviving outlier filter: 349,978
+
+━━━ [STAGE 3] Live Plane Surface Isolation (RANSAC)
+  [INFO] Original RANSAC: a=0.0117, b=0.0612, c=0.9981, d=-0.4923
+  [INFO] Normal vector pointing down. Flipping coefficients up toward lens.
+  [INFO] Points isolated on belt plane: 340,545
+  [INFO] Non-plane points going to workspace filter: 9,433
+
+━━━ [STAGE 5] Direction-Enforced Spatial Pre-Filtering
+  [INFO] Height gate window : 1.50mm to 500.00mm
+  [INFO] Dist-from-plane mm : min=13.037 mean=23.857 median=24.374 max=29.898
+  [INFO] Rejected by lower gate: 0 / 9,433
+  [INFO] Rejected by upper gate: 0 / 9,433
+  [DEBUG] Points passing directional spatial filters: 9,433
+
+━━━ [STAGE 6] Spatial Structural Isolation Clustering (DBSCAN)
+  [INFO] DBSCAN discovered 1 distinct point groups.
+
+━━━ [STAGE 7] Multi-Gate Geometric Evaluation
+  Cluster #00 -> Pts: 9433  | Dims(mm): X= 49.4, Y=205.6, Z= 21.0 | VolRatio: 0.102 | Gates: [G1-4=1 G5_Size=1 G6_3D=0] -> REJECTED
+  [WARNING] Zero clusters passed true 3D volumetric threshold gates.
+
+================================================================================
+                 LIVE OBJECT DETECTION DEBUG
+================================================================================
+  Timestamp Code Generation : 2026-06-17 16:47:19.866
+  Capture Name              : img0000
+  Cropped RGB Shape         : (720, 510, 3)
+  Cropped Depth Shape       : (720, 510)
+  Mask Foreground Pixels    : 0
+  Mask Foreground Ratio     : 0.00000000
+  Mask Connected Components : 0
+  Mask Largest BBox         : None
+  Mask Largest Centroid     : None
+  Plane Inliers             : 340545
+  Non-Plane Points          : 9433
+================================================================================
+
+  ── Stage 5 Height-Gate Diagnostics ──
+  Height Gate Min (mm)      : 1.500
+  Height Gate Max (mm)      : 500.000
+  Dist Min / Mean / Median  : 13.037 / 23.857 / 24.374
+  Dist Max (mm)             : 29.898
+  Stage 5 Input Points       : 9,433
+  Stage 5 Passed Points      : 9,433
+  Rejected Below Threshold   : 0
+  Rejected Above Threshold   : 0
+  ── Stage 8 Projection Diagnostics ──
+  Projected Points           : 0
+  Inside Canvas Bounds       : 0
+  Duplicate Pixel Hits       : 0
+  Raw Mask White Pixels      : 0
+  White Pixels After Close    : 0
+  White Pixels After Open     : 0
+━━━ [STAGE 1] Loading Point Cloud Array
+  [INFO] Total raw points loaded: 361,778
+
+━━━ [STAGE 2] Statistical Outlier Demolition
+  [INFO] Points surviving outlier filter: 350,175
+
+━━━ [STAGE 3] Live Plane Surface Isolation (RANSAC)
+  [INFO] Original RANSAC: a=0.0115, b=0.0613, c=0.9981, d=-0.4925
+  [INFO] Normal vector pointing down. Flipping coefficients up toward lens.
+  [INFO] Points isolated on belt plane: 340,717
+  [INFO] Non-plane points going to workspace filter: 9,458
+
+━━━ [STAGE 5] Direction-Enforced Spatial Pre-Filtering
+  [INFO] Height gate window : 1.50mm to 500.00mm
+  [INFO] Dist-from-plane mm : min=13.611 mean=23.707 median=24.131 max=29.442
+  [INFO] Rejected by lower gate: 0 / 9,458
+  [INFO] Rejected by upper gate: 0 / 9,458
+  [DEBUG] Points passing directional spatial filters: 9,458
+
+━━━ [STAGE 6] Spatial Structural Isolation Clustering (DBSCAN)
+  [INFO] DBSCAN discovered 1 distinct point groups.
+
+━━━ [STAGE 7] Multi-Gate Geometric Evaluation
+  Cluster #00 -> Pts: 9458  | Dims(mm): X= 49.4, Y=205.3, Z= 23.0 | VolRatio: 0.112 | Gates: [G1-4=1 G5_Size=1 G6_3D=0] -> REJECTED
+  [WARNING] Zero clusters passed true 3D volumetric threshold gates.
+
+================================================================================
+                 LIVE OBJECT DETECTION DEBUG
+================================================================================
+  Timestamp Code Generation : 2026-06-17 16:47:43.645
+  Capture Name              : img0000
+  Cropped RGB Shape         : (720, 510, 3)
+  Cropped Depth Shape       : (720, 510)
+  Mask Foreground Pixels    : 0
+  Mask Foreground Ratio     : 0.00000000
+  Mask Connected Components : 0
+  Mask Largest BBox         : None
+  Mask Largest Centroid     : None
+  Plane Inliers             : 340717
+  Non-Plane Points          : 9458
+================================================================================
+
+  ── Stage 5 Height-Gate Diagnostics ──
+  Height Gate Min (mm)      : 1.500
+  Height Gate Max (mm)      : 500.000
+  Dist Min / Mean / Median  : 13.611 / 23.707 / 24.131
+  Dist Max (mm)             : 29.442
+  Stage 5 Input Points       : 9,458
+  Stage 5 Passed Points      : 9,458
+  Rejected Below Threshold   : 0
+  Rejected Above Threshold   : 0
+  ── Stage 8 Projection Diagnostics ──
+  Projected Points           : 0
+  Inside Canvas Bounds       : 0
+  Duplicate Pixel Hits       : 0
+  Raw Mask White Pixels      : 0
+  White Pixels After Close    : 0
+  White Pixels After Open     : 0
+━━━ [STAGE 1] Loading Point Cloud Array
+  [INFO] Total raw points loaded: 361,769
+
+━━━ [STAGE 2] Statistical Outlier Demolition
+  [INFO] Points surviving outlier filter: 350,360
+
+━━━ [STAGE 3] Live Plane Surface Isolation (RANSAC)
+  [INFO] Original RANSAC: a=0.0118, b=0.0611, c=0.9981, d=-0.4924
+  [INFO] Normal vector pointing down. Flipping coefficients up toward lens.
+  [INFO] Points isolated on belt plane: 341,032
+  [INFO] Non-plane points going to workspace filter: 9,328
+
+━━━ [STAGE 5] Direction-Enforced Spatial Pre-Filtering
+  [INFO] Height gate window : 1.50mm to 500.00mm
+  [INFO] Dist-from-plane mm : min=13.619 mean=23.893 median=24.246 max=29.259
+  [INFO] Rejected by lower gate: 0 / 9,328
+  [INFO] Rejected by upper gate: 0 / 9,328
+  [DEBUG] Points passing directional spatial filters: 9,328
+
+━━━ [STAGE 6] Spatial Structural Isolation Clustering (DBSCAN)
+  [INFO] DBSCAN discovered 1 distinct point groups.
+
+━━━ [STAGE 7] Multi-Gate Geometric Evaluation
+  Cluster #00 -> Pts: 9328  | Dims(mm): X= 51.0, Y=205.5, Z= 22.0 | VolRatio: 0.107 | Gates: [G1-4=1 G5_Size=1 G6_3D=0] -> REJECTED
+  [WARNING] Zero clusters passed true 3D volumetric threshold gates.
+
+================================================================================
+                 LIVE OBJECT DETECTION DEBUG
+================================================================================
+  Timestamp Code Generation : 2026-06-17 16:47:56.298
+  Capture Name              : img0000
+  Cropped RGB Shape         : (720, 510, 3)
+  Cropped Depth Shape       : (720, 510)
+  Mask Foreground Pixels    : 0
+  Mask Foreground Ratio     : 0.00000000
+  Mask Connected Components : 0
+  Mask Largest BBox         : None
+  Mask Largest Centroid     : None
+  Plane Inliers             : 341032
+  Non-Plane Points          : 9328
+================================================================================
+
+  ── Stage 5 Height-Gate Diagnostics ──
+  Height Gate Min (mm)      : 1.500
+  Height Gate Max (mm)      : 500.000
+  Dist Min / Mean / Median  : 13.619 / 23.893 / 24.246
+  Dist Max (mm)             : 29.259
+  Stage 5 Input Points       : 9,328
+  Stage 5 Passed Points      : 9,328
+  Rejected Below Threshold   : 0
+  Rejected Above Threshold   : 0
+  ── Stage 8 Projection Diagnostics ──
+  Projected Points           : 0
+  Inside Canvas Bounds       : 0
+  Duplicate Pixel Hits       : 0
+  Raw Mask White Pixels      : 0
+  White Pixels After Close    : 0
+  White Pixels After Open     : 0
+━━━ [STAGE 1] Loading Point Cloud Array
+  [INFO] Total raw points loaded: 361,739
+
+━━━ [STAGE 2] Statistical Outlier Demolition
+  [INFO] Points surviving outlier filter: 353,501
+
+━━━ [STAGE 3] Live Plane Surface Isolation (RANSAC)
+  [INFO] Original RANSAC: a=0.0114, b=0.0617, c=0.9980, d=-0.4922
+  [INFO] Normal vector pointing down. Flipping coefficients up toward lens.
+  [INFO] Points isolated on belt plane: 328,010
+  [INFO] Non-plane points going to workspace filter: 25,491
+
+━━━ [STAGE 5] Direction-Enforced Spatial Pre-Filtering
+  [INFO] Height gate window : 1.50mm to 500.00mm
+  [INFO] Dist-from-plane mm : min=15.141 mean=58.860 median=63.563 max=78.569
+  [INFO] Rejected by lower gate: 0 / 25,491
+  [INFO] Rejected by upper gate: 0 / 25,491
+  [DEBUG] Points passing directional spatial filters: 25,491
+
+━━━ [STAGE 6] Spatial Structural Isolation Clustering (DBSCAN)
+  [INFO] DBSCAN discovered 2 distinct point groups.
+
+━━━ [STAGE 7] Multi-Gate Geometric Evaluation
+  Cluster #00 -> Pts: 25442 | Dims(mm): X=126.5, Y=104.9, Z= 67.0 | VolRatio: 0.530 | Gates: [G1-4=1 G5_Size=1 G6_3D=1] -> PASSED
+  Cluster #01 -> Pts: 42    | Dims(mm): X=  8.4, Y=  5.5, Z=  5.0 | VolRatio: 0.597 | Gates: [G1-4=0 G5_Size=0 G6_3D=1] -> REJECTED
+  [INFO] Winning Cluster selected: ID #0 (Score=0.8589)
+  [INFO] Winning cluster point count: 25,442
+
+━━━ [STAGE 8] Projection — Sensor Space → Cropped Canvas
+
+  ── [STAGE 8a] Coordinate System Parameters ──
+    Intrinsics    : fx=750.148  fy=749.790  cx=386.179  cy=366.086
+    Crop offsets  : left=0 px  top=0 px
+    Depth sensor  : 510W x 720H px
+    RGB canvas    : 510W x 720H px
+    Scale factors : scale_x=1.000000  scale_y=1.000000
+
+  ── [STAGE 8b] 3-D Cluster Bounding Box (world space) ──
+    X range : -0.1085 m  →  0.0179 m  (span 126.5 mm)
+    Y range : -0.0146 m  →  0.0904 m  (span 104.9 mm)
+    Z range : 0.4120 m  →  0.4790 m  (span 67.0 mm)
+    Z depth : mean=0.4321 m  std=0.0140 m  min=0.4120 m  max=0.4790 m
+
+  ── [STAGE 8c] Projection Steps ──
+    [Step 1] Full-sensor pixel coords (before crop subtraction):
+      u_sensor  min=199.0  max=415.0  mean=315.2
+      v_sensor  min=343.0  max=524.0  mean=437.9
+    [OK] Sensor-space OOB: u=0.0%  v=0.0%
+    [Step 2] After crop subtraction (crop_left=0, crop_top=0):
+      u_cropped min=199.0  max=415.0  mean=315.2
+      v_cropped min=343.0  max=524.0  mean=437.9
+    [Step 2 Check] Cropped coords outside canvas: u<0=0.0%  u>W=0.0%  v<0=0.0%  v>H=0.0%
+    [Step 3] After scale to canvas (scale_x=1.0000, scale_y=1.0000):
+      u  min=199  max=415  mean=315.2
+      v  min=343  max=524  mean=437.9
+      Canvas target size : 510W x 720H px
+
+  ── [STAGE 8d] Expected mask centroid on canvas ──
+      Projected centroid : u=315.2 px  v=437.9 px
+      Canvas centre      : u=255.0 px  v=360.0 px
+      Offset from centre : Δu=60.2 px  Δv=77.9 px
+
+  ── [STAGE 8e] Bounds Filter ──
+    Total projected points : 25,442
+    Inside canvas bounds   : 25,442  (100.0%)
+    Duplicate pixel hits    : 0
+  [INFO] Density non-zero pixels: 25,442
+  [INFO] Density peak count     : 1
+  [INFO] Raw mask white pixels before morphology: 25,442
+  [INFO] White pixels after close: 26,252
+  [INFO] Morphological open skipped for tip-loss debugging.
+  [INFO] White pixels after open (skipped): 26,252
+
+  ── [STAGE 8f] Final Mask Stats ──
+    Bounding box : 216W x 181H px
+    Mask centroid: (307.0, 433.5) px
+    White pixels : 26,252
+
+================================================================================
+                 LIVE OBJECT DETECTION DEBUG
+================================================================================
+  Timestamp Code Generation : 2026-06-17 16:48:26.896
+  Capture Name              : img0000
+  Cropped RGB Shape         : (720, 510, 3)
+  Cropped Depth Shape       : (720, 510)
+  Mask Foreground Pixels    : 26252
+  Mask Foreground Ratio     : 0.07149237
+  Mask Connected Components : 1
+  Mask Largest BBox         : (199, 343, 217, 182)
+  Mask Largest Centroid     : (315.6163339936005, 437.48282035654427)
+  Plane Inliers             : 328010
+  Non-Plane Points          : 25491
+================================================================================
+
+  ── Stage 5 Height-Gate Diagnostics ──
+  Height Gate Min (mm)      : 1.500
+  Height Gate Max (mm)      : 500.000
+  Dist Min / Mean / Median  : 15.141 / 58.860 / 63.563
+  Dist Max (mm)             : 78.569
+  Stage 5 Input Points       : 25,491
+  Stage 5 Passed Points      : 25,491
+  Rejected Below Threshold   : 0
+  Rejected Above Threshold   : 0
+  ── Stage 8 Projection Diagnostics ──
+  Projected Points           : 25,442
+  Inside Canvas Bounds       : 25,442
+  Duplicate Pixel Hits       : 0
+  Raw Mask White Pixels      : 25,442
+  White Pixels After Close    : 26,252
+  White Pixels After Open     : 26,252
+━━━ [STAGE 1] Loading Point Cloud Array
+  [INFO] Total raw points loaded: 361,657
+
+━━━ [STAGE 2] Statistical Outlier Demolition
+  [INFO] Points surviving outlier filter: 353,433
+
+━━━ [STAGE 3] Live Plane Surface Isolation (RANSAC)
+  [INFO] Original RANSAC: a=0.0113, b=0.0615, c=0.9980, d=-0.4922
+  [INFO] Normal vector pointing down. Flipping coefficients up toward lens.
+  [INFO] Points isolated on belt plane: 327,932
+  [INFO] Non-plane points going to workspace filter: 25,501
+
+━━━ [STAGE 5] Direction-Enforced Spatial Pre-Filtering
+  [INFO] Height gate window : 1.50mm to 500.00mm
+  [INFO] Dist-from-plane mm : min=14.959 mean=58.804 median=63.495 max=79.583
+  [INFO] Rejected by lower gate: 0 / 25,501
+  [INFO] Rejected by upper gate: 0 / 25,501
+  [DEBUG] Points passing directional spatial filters: 25,501
+
+━━━ [STAGE 6] Spatial Structural Isolation Clustering (DBSCAN)
+  [INFO] DBSCAN discovered 3 distinct point groups.
+
+━━━ [STAGE 7] Multi-Gate Geometric Evaluation
+  Cluster #00 -> Pts: 25428 | Dims(mm): X=126.5, Y=106.2, Z= 68.0 | VolRatio: 0.538 | Gates: [G1-4=1 G5_Size=1 G6_3D=1] -> PASSED
+  Cluster #01 -> Pts: 10    | Dims(mm): X=  1.2, Y=  2.4, Z=  0.0 | VolRatio: 0.000 | Gates: [G1-4=0 G5_Size=0 G6_3D=0] -> REJECTED
+  Cluster #02 -> Pts: 63    | Dims(mm): X= 10.0, Y=  6.7, Z=  7.0 | VolRatio: 0.673 | Gates: [G1-4=0 G5_Size=0 G6_3D=1] -> REJECTED
+  [INFO] Winning Cluster selected: ID #0 (Score=0.8613)
+  [INFO] Winning cluster point count: 25,428
+
+━━━ [STAGE 8] Projection — Sensor Space → Cropped Canvas
+
+  ── [STAGE 8a] Coordinate System Parameters ──
+    Intrinsics    : fx=750.148  fy=749.790  cx=386.179  cy=366.086
+    Crop offsets  : left=0 px  top=0 px
+    Depth sensor  : 510W x 720H px
+    RGB canvas    : 510W x 720H px
+    Scale factors : scale_x=1.000000  scale_y=1.000000
+
+  ── [STAGE 8b] 3-D Cluster Bounding Box (world space) ──
+    X range : -0.1085 m  →  0.0179 m  (span 126.5 mm)
+    Y range : -0.0153 m  →  0.0909 m  (span 106.2 mm)
+    Z range : 0.4110 m  →  0.4790 m  (span 68.0 mm)
+    Z depth : mean=0.4321 m  std=0.0141 m  min=0.4110 m  max=0.4790 m
+
+  ── [STAGE 8c] Projection Steps ──
+    [Step 1] Full-sensor pixel coords (before crop subtraction):
+      u_sensor  min=199.0  max=415.0  mean=315.4
+      v_sensor  min=342.0  max=525.0  mean=437.9
+    [OK] Sensor-space OOB: u=0.0%  v=0.0%
+    [Step 2] After crop subtraction (crop_left=0, crop_top=0):
+      u_cropped min=199.0  max=415.0  mean=315.4
+      v_cropped min=342.0  max=525.0  mean=437.9
+    [Step 2 Check] Cropped coords outside canvas: u<0=0.0%  u>W=0.0%  v<0=0.0%  v>H=0.0%
+    [Step 3] After scale to canvas (scale_x=1.0000, scale_y=1.0000):
+      u  min=199  max=415  mean=315.4
+      v  min=342  max=525  mean=437.9
+      Canvas target size : 510W x 720H px
+
+  ── [STAGE 8d] Expected mask centroid on canvas ──
+      Projected centroid : u=315.4 px  v=437.9 px
+      Canvas centre      : u=255.0 px  v=360.0 px
+      Offset from centre : Δu=60.4 px  Δv=77.9 px
+
+  ── [STAGE 8e] Bounds Filter ──
+    Total projected points : 25,428
+    Inside canvas bounds   : 25,428  (100.0%)
+    Duplicate pixel hits    : 0
+  [INFO] Density non-zero pixels: 25,428
+  [INFO] Density peak count     : 1
+  [INFO] Raw mask white pixels before morphology: 25,428
+  [INFO] White pixels after close: 26,217
+  [INFO] Morphological open skipped for tip-loss debugging.
+  [INFO] White pixels after open (skipped): 26,217
+
+  ── [STAGE 8f] Final Mask Stats ──
+    Bounding box : 216W x 183H px
+    Mask centroid: (307.0, 433.5) px
+    White pixels : 26,217
+
+================================================================================
+                 LIVE OBJECT DETECTION DEBUG
+================================================================================
+  Timestamp Code Generation : 2026-06-17 16:49:17.207
+  Capture Name              : img0000
+  Cropped RGB Shape         : (720, 510, 3)
+  Cropped Depth Shape       : (720, 510)
+  Mask Foreground Pixels    : 26217
+  Mask Foreground Ratio     : 0.07139706
+  Mask Connected Components : 1
+  Mask Largest BBox         : (199, 342, 217, 184)
+  Mask Largest Centroid     : (315.77995193958117, 437.4733951253004)
+  Plane Inliers             : 327932
+  Non-Plane Points          : 25501
+================================================================================
+
+  ── Stage 5 Height-Gate Diagnostics ──
+  Height Gate Min (mm)      : 1.500
+  Height Gate Max (mm)      : 500.000
+  Dist Min / Mean / Median  : 14.959 / 58.804 / 63.495
+  Dist Max (mm)             : 79.583
+  Stage 5 Input Points       : 25,501
+  Stage 5 Passed Points      : 25,501
+  Rejected Below Threshold   : 0
+  Rejected Above Threshold   : 0
+  ── Stage 8 Projection Diagnostics ──
+  Projected Points           : 25,428
+  Inside Canvas Bounds       : 25,428
+  Duplicate Pixel Hits       : 0
+  Raw Mask White Pixels      : 25,428
+  White Pixels After Close    : 26,217
+  White Pixels After Open     : 26,217
+━━━ [STAGE 1] Loading Point Cloud Array
+  [INFO] Total raw points loaded: 361,688
+
+━━━ [STAGE 2] Statistical Outlier Demolition
+  [INFO] Points surviving outlier filter: 353,557
+
+━━━ [STAGE 3] Live Plane Surface Isolation (RANSAC)
+  [INFO] Original RANSAC: a=0.0115, b=0.0617, c=0.9980, d=-0.4922
+  [INFO] Normal vector pointing down. Flipping coefficients up toward lens.
+  [INFO] Points isolated on belt plane: 327,985
+  [INFO] Non-plane points going to workspace filter: 25,572
+
+━━━ [STAGE 5] Direction-Enforced Spatial Pre-Filtering
+  [INFO] Height gate window : 1.50mm to 500.00mm
+  [INFO] Dist-from-plane mm : min=15.012 mean=58.770 median=63.461 max=79.602
+  [INFO] Rejected by lower gate: 0 / 25,572
+  [INFO] Rejected by upper gate: 0 / 25,572
+  [DEBUG] Points passing directional spatial filters: 25,572
+
+━━━ [STAGE 6] Spatial Structural Isolation Clustering (DBSCAN)
+  [INFO] DBSCAN discovered 2 distinct point groups.
+
+━━━ [STAGE 7] Multi-Gate Geometric Evaluation
+  Cluster #00 -> Pts: 25512 | Dims(mm): X=126.5, Y=105.7, Z= 68.0 | VolRatio: 0.538 | Gates: [G1-4=1 G5_Size=1 G6_3D=1] -> PASSED
+  Cluster #01 -> Pts: 56    | Dims(mm): X=  8.8, Y=  6.6, Z=  9.0 | VolRatio: 0.728 | Gates: [G1-4=0 G5_Size=0 G6_3D=1] -> REJECTED
+  [INFO] Winning Cluster selected: ID #0 (Score=0.8613)
+  [INFO] Winning cluster point count: 25,512
+
+━━━ [STAGE 8] Projection — Sensor Space → Cropped Canvas
+
+  ── [STAGE 8a] Coordinate System Parameters ──
+    Intrinsics    : fx=750.148  fy=749.790  cx=386.179  cy=366.086
+    Crop offsets  : left=0 px  top=0 px
+    Depth sensor  : 510W x 720H px
+    RGB canvas    : 510W x 720H px
+    Scale factors : scale_x=1.000000  scale_y=1.000000
+
+  ── [STAGE 8b] 3-D Cluster Bounding Box (world space) ──
+    X range : -0.1085 m  →  0.0179 m  (span 126.5 mm)
+    Y range : -0.0154 m  →  0.0904 m  (span 105.7 mm)
+    Z range : 0.4110 m  →  0.4790 m  (span 68.0 mm)
+    Z depth : mean=0.4322 m  std=0.0140 m  min=0.4110 m  max=0.4790 m
+
+  ── [STAGE 8c] Projection Steps ──
+    [Step 1] Full-sensor pixel coords (before crop subtraction):
+      u_sensor  min=199.0  max=415.0  mean=315.5
+      v_sensor  min=342.0  max=524.0  mean=437.9
+    [OK] Sensor-space OOB: u=0.0%  v=0.0%
+    [Step 2] After crop subtraction (crop_left=0, crop_top=0):
+      u_cropped min=199.0  max=415.0  mean=315.5
+      v_cropped min=342.0  max=524.0  mean=437.9
+    [Step 2 Check] Cropped coords outside canvas: u<0=0.0%  u>W=0.0%  v<0=0.0%  v>H=0.0%
+    [Step 3] After scale to canvas (scale_x=1.0000, scale_y=1.0000):
+      u  min=199  max=415  mean=315.5
+      v  min=342  max=524  mean=437.9
+      Canvas target size : 510W x 720H px
+
+  ── [STAGE 8d] Expected mask centroid on canvas ──
+      Projected centroid : u=315.5 px  v=437.9 px
+      Canvas centre      : u=255.0 px  v=360.0 px
+      Offset from centre : Δu=60.5 px  Δv=77.9 px
+
+  ── [STAGE 8e] Bounds Filter ──
+    Total projected points : 25,512
+    Inside canvas bounds   : 25,512  (100.0%)
+    Duplicate pixel hits    : 0
+  [INFO] Density non-zero pixels: 25,512
+  [INFO] Density peak count     : 1
+  [INFO] Raw mask white pixels before morphology: 25,512
+  [INFO] White pixels after close: 26,187
+  [INFO] Morphological open skipped for tip-loss debugging.
+  [INFO] White pixels after open (skipped): 26,187
+
+  ── [STAGE 8f] Final Mask Stats ──
+    Bounding box : 216W x 182H px
+    Mask centroid: (307.0, 433.0) px
+    White pixels : 26,187
+
+================================================================================
+                 LIVE OBJECT DETECTION DEBUG
+================================================================================
+  Timestamp Code Generation : 2026-06-17 16:49:44.160
+  Capture Name              : img0000
+  Cropped RGB Shape         : (720, 510, 3)
+  Cropped Depth Shape       : (720, 510)
+  Mask Foreground Pixels    : 26187
+  Mask Foreground Ratio     : 0.07131536
+  Mask Connected Components : 1
+  Mask Largest BBox         : (199, 342, 217, 183)
+  Mask Largest Centroid     : (315.5683354336121, 437.4638561118112)
+  Plane Inliers             : 327985
+  Non-Plane Points          : 25572
+================================================================================
+
+  ── Stage 5 Height-Gate Diagnostics ──
+  Height Gate Min (mm)      : 1.500
+  Height Gate Max (mm)      : 500.000
+  Dist Min / Mean / Median  : 15.012 / 58.770 / 63.461
+  Dist Max (mm)             : 79.602
+  Stage 5 Input Points       : 25,572
+  Stage 5 Passed Points      : 25,572
+  Rejected Below Threshold   : 0
+  Rejected Above Threshold   : 0
+  ── Stage 8 Projection Diagnostics ──
+  Projected Points           : 25,512
+  Inside Canvas Bounds       : 25,512
+  Duplicate Pixel Hits       : 0
+  Raw Mask White Pixels      : 25,512
+  White Pixels After Close    : 26,187
+  White Pixels After Open     : 26,187
+━━━ [STAGE 1] Loading Point Cloud Array
+  [INFO] Total raw points loaded: 361,666
+
+━━━ [STAGE 2] Statistical Outlier Demolition
+  [INFO] Points surviving outlier filter: 353,342
+
+━━━ [STAGE 3] Live Plane Surface Isolation (RANSAC)
+  [INFO] Original RANSAC: a=0.0115, b=0.0613, c=0.9981, d=-0.4924
+  [INFO] Normal vector pointing down. Flipping coefficients up toward lens.
+  [INFO] Points isolated on belt plane: 327,841
+  [INFO] Non-plane points going to workspace filter: 25,501
+
+━━━ [STAGE 5] Direction-Enforced Spatial Pre-Filtering
+  [INFO] Height gate window : 1.50mm to 500.00mm
+  [INFO] Dist-from-plane mm : min=15.149 mean=58.818 median=63.486 max=78.822
+  [INFO] Rejected by lower gate: 0 / 25,501
+  [INFO] Rejected by upper gate: 0 / 25,501
+  [DEBUG] Points passing directional spatial filters: 25,501
+
+━━━ [STAGE 6] Spatial Structural Isolation Clustering (DBSCAN)
+  [INFO] DBSCAN discovered 2 distinct point groups.
+
+━━━ [STAGE 7] Multi-Gate Geometric Evaluation
+  Cluster #00 -> Pts: 25442 | Dims(mm): X=126.7, Y=104.6, Z= 67.0 | VolRatio: 0.529 | Gates: [G1-4=1 G5_Size=1 G6_3D=1] -> PASSED
+  Cluster #01 -> Pts: 56    | Dims(mm): X=  9.9, Y=  7.0, Z=  9.0 | VolRatio: 0.701 | Gates: [G1-4=0 G5_Size=0 G6_3D=1] -> REJECTED
+  [INFO] Winning Cluster selected: ID #0 (Score=0.8586)
+  [INFO] Winning cluster point count: 25,442
+
+━━━ [STAGE 8] Projection — Sensor Space → Cropped Canvas
+
+  ── [STAGE 8a] Coordinate System Parameters ──
+    Intrinsics    : fx=750.148  fy=749.790  cx=386.179  cy=366.086
+    Crop offsets  : left=0 px  top=0 px
+    Depth sensor  : 510W x 720H px
+    RGB canvas    : 510W x 720H px
+    Scale factors : scale_x=1.000000  scale_y=1.000000
+
+  ── [STAGE 8b] 3-D Cluster Bounding Box (world space) ──
+    X range : -0.1088 m  →  0.0179 m  (span 126.7 mm)
+    Y range : -0.0141 m  →  0.0906 m  (span 104.6 mm)
+    Z range : 0.4120 m  →  0.4790 m  (span 67.0 mm)
+    Z depth : mean=0.4323 m  std=0.0140 m  min=0.4120 m  max=0.4790 m
+
+  ── [STAGE 8c] Projection Steps ──
+    [Step 1] Full-sensor pixel coords (before crop subtraction):
+      u_sensor  min=199.0  max=415.0  mean=315.3
+      v_sensor  min=344.0  max=524.0  mean=437.9
+    [OK] Sensor-space OOB: u=0.0%  v=0.0%
+    [Step 2] After crop subtraction (crop_left=0, crop_top=0):
+      u_cropped min=199.0  max=415.0  mean=315.3
+      v_cropped min=344.0  max=524.0  mean=437.9
+    [Step 2 Check] Cropped coords outside canvas: u<0=0.0%  u>W=0.0%  v<0=0.0%  v>H=0.0%
+    [Step 3] After scale to canvas (scale_x=1.0000, scale_y=1.0000):
+      u  min=199  max=415  mean=315.3
+      v  min=344  max=524  mean=437.9
+      Canvas target size : 510W x 720H px
+
+  ── [STAGE 8d] Expected mask centroid on canvas ──
+      Projected centroid : u=315.3 px  v=437.9 px
+      Canvas centre      : u=255.0 px  v=360.0 px
+      Offset from centre : Δu=60.3 px  Δv=77.9 px
+
+  ── [STAGE 8e] Bounds Filter ──
+    Total projected points : 25,442
+    Inside canvas bounds   : 25,442  (100.0%)
+    Duplicate pixel hits    : 0
+  [INFO] Density non-zero pixels: 25,442
+  [INFO] Density peak count     : 1
+  [INFO] Raw mask white pixels before morphology: 25,442
+  [INFO] White pixels after close: 26,192
+  [INFO] Morphological open skipped for tip-loss debugging.
+  [INFO] White pixels after open (skipped): 26,192
+
+  ── [STAGE 8f] Final Mask Stats ──
+    Bounding box : 216W x 180H px
+    Mask centroid: (307.0, 434.0) px
+    White pixels : 26,192
+
+================================================================================
+                 LIVE OBJECT DETECTION DEBUG
+================================================================================
+  Timestamp Code Generation : 2026-06-17 16:52:49.663
+  Capture Name              : img0000
+  Cropped RGB Shape         : (720, 510, 3)
+  Cropped Depth Shape       : (720, 510)
+  Mask Foreground Pixels    : 26192
+  Mask Foreground Ratio     : 0.07132898
+  Mask Connected Components : 2
+  Mask Largest BBox         : (199, 344, 217, 181)
+  Mask Largest Centroid     : (315.7669046619068, 437.5698904203734)
+  Plane Inliers             : 327841
+  Non-Plane Points          : 25501
+================================================================================
+
+  ── Stage 5 Height-Gate Diagnostics ──
+  Height Gate Min (mm)      : 1.500
+  Height Gate Max (mm)      : 500.000
+  Dist Min / Mean / Median  : 15.149 / 58.818 / 63.486
+  Dist Max (mm)             : 78.822
+  Stage 5 Input Points       : 25,501
+  Stage 5 Passed Points      : 25,501
+  Rejected Below Threshold   : 0
+  Rejected Above Threshold   : 0
+  ── Stage 8 Projection Diagnostics ──
+  Projected Points           : 25,442
+  Inside Canvas Bounds       : 25,442
+  Duplicate Pixel Hits       : 0
+  Raw Mask White Pixels      : 25,442
+  White Pixels After Close    : 26,192
+  White Pixels After Open     : 26,192
