@@ -398,9 +398,9 @@ class RGBDCollectorApp:
             self._label_panel(self._resize_panel(rgb, panel_size), "Cropped RGB"),
             self._label_panel(self._resize_panel(mask_bgr, panel_size), "Mask"),
             self._label_panel(self._resize_panel(depth_colored, panel_size), "Depth"),
-            # self._label_panel(
-            #     self._resize_panel(verification, panel_size), "Verification Overlay"
-            # ),
+            self._label_panel(
+                self._resize_panel(verification, panel_size), "Verification Overlay"
+            ),
         ]
 
         # Debug panels retained for later triage; keep them commented out for now.
