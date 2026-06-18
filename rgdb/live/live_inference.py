@@ -82,32 +82,6 @@ def orbbec_frame_to_bgr(frame) -> np.ndarray | None:
 
 
 # ─────────────────────────────────────────────────────────────
-# LETTERBOX CORRECTION
-#
-# Model was trained on 510×720 crops at imgsz=640.
-# YOLO pads the 510×720 crop to 640×640 before inference:
-#   scale = min(640/510, 640/720) = min(1.255, 0.888) = 0.888
-#   pad_x = (640 - 510*0.888) / 2 = (640 - 452.8) / 2 = 93.6px
-#   pad_y = (640 - 720*0.888) / 2 = (640 - 640)   / 2 = 0px
-#
-# mask.xy coords are in that padded space — this undoes it.
-# ─────────────────────────────────────────────────────────────
-def unletterbox(
-    polygon: np.ndarray, crop_h: int, crop_w: int, model_imgsz: int = 640
-) -> np.ndarray:
-    scale = min(model_imgsz / crop_w, model_imgsz / crop_h)
-    pad_x = (model_imgsz - crop_w * scale) / 2
-    pad_y = (model_imgsz - crop_h * scale) / 2
-
-    pts = polygon.astype(np.float64)
-    pts[:, 0] = (pts[:, 0] - pad_x) / scale
-    pts[:, 1] = (pts[:, 1] - pad_y) / scale
-    pts[:, 0] = np.clip(pts[:, 0], 0, crop_w - 1)
-    pts[:, 1] = np.clip(pts[:, 1], 0, crop_h - 1)
-    return pts.astype(np.int32)
-
-
-# ─────────────────────────────────────────────────────────────
 # DRAWING
 # ─────────────────────────────────────────────────────────────
 def draw_detection(
@@ -288,8 +262,11 @@ def main():
                     if result.masks is None or len(result.boxes) == 0:
                         continue
                     for mask_xy, box in zip(result.masks.xy, result.boxes):
-                        # Undo YOLO's internal letterbox padding
-                        polygon = unletterbox(mask_xy, crop_h, crop_w, 640)
+                        # Ultralytics returns mask polygons in the original
+                        # source-image coordinate system for the crop we pass
+                        # into predict(). Do not apply an extra unletterbox step
+                        # here, or the polygon will drift left/up.
+                        polygon = mask_xy.astype(np.int32)
 
                         # Filter tiny / ghost detections
                         if cv2.contourArea(polygon) / (crop_w * crop_h) < MIN_MASK_AREA:
