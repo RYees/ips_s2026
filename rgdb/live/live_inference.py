@@ -22,7 +22,48 @@ from pyorbbecsdk import OBFormat
 MODEL_PATH = "/home/cpsstudent/Documents/ips_s2026/rgdb/live/mbest.pt"
 
 CLASS_NAMES = {0: "Copper", 1: "Steel"}
-CLASS_COLORS = {0: (139, 0, 0), 1: (128, 128, 0)}  # BGR
+CLASS_COLORS = {0: (255, 0, 0), 1: (180, 180, 0)}  # Copper blue, steel teal-ish
+
+THEMES = {
+    "industrial": {
+        "name": "Industrial Control Room",
+        "bg": (22, 26, 30),
+        "panel": (36, 40, 46),
+        "panel_alt": (28, 32, 38),
+        "text": (245, 245, 245),
+        "muted": (178, 186, 196),
+        "accent": (0, 179, 199),
+        "accent_soft": (0, 110, 124),
+        "card": (18, 21, 25),
+        "card_line": (255, 255, 255),
+    },
+    "clean": {
+        "name": "Modern Clean Dashboard",
+        "bg": (239, 243, 247),
+        "panel": (255, 255, 255),
+        "panel_alt": (246, 249, 252),
+        "text": (28, 36, 45),
+        "muted": (90, 102, 117),
+        "accent": (235, 118, 52),
+        "accent_soft": (208, 85, 25),
+        "card": (250, 251, 253),
+        "card_line": (220, 226, 233),
+    },
+    "hud": {
+        "name": "High-Tech HUD",
+        "bg": (7, 10, 19),
+        "panel": (10, 16, 30),
+        "panel_alt": (6, 12, 22),
+        "text": (231, 248, 255),
+        "muted": (141, 194, 227),
+        "accent": (0, 245, 255),
+        "accent_soft": (130, 90, 255),
+        "card": (4, 8, 16),
+        "card_line": (0, 245, 255),
+    },
+}
+THEME_KEYS = list(THEMES.keys())
+THEME_LABELS = {key: val["name"] for key, val in THEMES.items()}
 
 CONF_THRESHOLD = 0.30  # lowered — new model is more conservative
 IOU_THRESHOLD = 0.40
@@ -85,65 +126,133 @@ def orbbec_frame_to_bgr(frame) -> np.ndarray | None:
 # DRAWING
 # ─────────────────────────────────────────────────────────────
 def draw_detection(
-    frame: np.ndarray, polygon: np.ndarray, color: tuple, label: str
+    frame: np.ndarray, polygon: np.ndarray, color: tuple, thickness: int = 3
 ) -> None:
     if len(polygon) < 3:
         return
-    cv2.polylines(frame, [polygon], isClosed=True, color=color, thickness=3)
-    tx = int(polygon[:, 0].min())
-    ty = max(15, int(polygon[:, 1].min()) - 8)
+    cv2.polylines(frame, [polygon], isClosed=True, color=color, thickness=thickness)
+
+
+def draw_legend(frame: np.ndarray, theme: dict) -> None:
+    """Draw a persistent legend card so the object outlines stay uncluttered."""
+    h, w = frame.shape[:2]
+    box_w, box_h = 250, 110
+    x1, y1 = 14, 46
+    x2, y2 = x1 + box_w, y1 + box_h
+
+    overlay = frame.copy()
+    cv2.rectangle(overlay, (x1, y1), (x2, y2), theme["card"], -1)
+    cv2.addWeighted(overlay, 0.70, frame, 0.30, 0, frame)
+    cv2.rectangle(frame, (x1, y1), (x2, y2), theme["card_line"], 1)
+
     cv2.putText(
         frame,
-        label,
-        (tx, ty),
+        "Legend",
+        (x1 + 10, y1 + 22),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.55,
-        (0, 0, 0),
-        3,
-        cv2.LINE_AA,
-    )
-    cv2.putText(
-        frame,
-        label,
-        (tx, ty),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        (255, 255, 255),
+        theme["text"],
         1,
         cv2.LINE_AA,
     )
 
+    row_y = y1 + 48
+    for cls_id, name in [(0, "Copper"), (1, "Steel")]:
+        color = CLASS_COLORS.get(cls_id, (255, 255, 255))
+        cv2.rectangle(frame, (x1 + 10, row_y - 12), (x1 + 32, row_y + 8), color, -1)
+        cv2.rectangle(
+            frame, (x1 + 10, row_y - 12), (x1 + 32, row_y + 8), theme["text"], 1
+        )
+        cv2.putText(
+            frame,
+            f"{name}",
+            (x1 + 42, row_y + 4),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            theme["text"],
+            1,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            frame,
+            "blue" if cls_id == 0 else "teal",
+            (x2 - 62, row_y + 4),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.42,
+            theme["muted"],
+            1,
+            cv2.LINE_AA,
+        )
+        row_y += 24
+
 
 def draw_hud(
-    frame: np.ndarray, recording: bool, detection_count: int, fps: float
+    frame: np.ndarray,
+    recording: bool,
+    detection_count: int,
+    fps: float,
+    theme: dict,
+    theme_label: str,
 ) -> None:
     h, w = frame.shape[:2]
     overlay = frame.copy()
-    cv2.rectangle(overlay, (0, 0), (w, 36), (20, 20, 20), -1)
-    cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
+    cv2.rectangle(overlay, (0, 0), (w, 42), theme["panel"], -1)
+    cv2.addWeighted(overlay, 0.60, frame, 0.40, 0, frame)
+    cv2.rectangle(frame, (0, 0), (w, 42), theme["accent_soft"], 1)
     cv2.putText(
         frame,
         f"FPS: {fps:.1f}   Detections: {detection_count}",
         (10, 24),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.6,
-        (200, 200, 200),
+        theme["text"],
+        1,
+    )
+    cv2.putText(
+        frame,
+        theme_label,
+        (w - 310, 24),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.58,
+        theme["muted"],
         1,
     )
     if recording:
-        cv2.circle(frame, (w - 20, 18), 8, (0, 0, 220), -1)
+        cv2.circle(frame, (w - 20, 18), 8, (0, 0, 255), -1)
         cv2.putText(
-            frame, "REC", (w - 60, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 220), 2
+            frame, "REC", (w - 60, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 255), 2
         )
-    cv2.rectangle(frame, (0, h - 30), (w, h), (20, 20, 20), -1)
+    cv2.rectangle(overlay, (0, h - 34), (w, h), theme["panel"], -1)
+    cv2.addWeighted(overlay, 0.55, frame, 0.45, 0, frame)
+    cv2.rectangle(frame, (0, h - 34), (w, h), theme["accent_soft"], 1)
     cv2.putText(
         frame,
-        "[S] Screenshot   [R] Record video   [Q] Quit",
+        "[S] Screenshot   [R] Record   [T] Theme   [Q] Quit",
         (10, h - 10),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.48,
-        (170, 170, 170),
+        theme["text"],
         1,
+    )
+
+
+def draw_theme_badge(frame: np.ndarray, theme: dict) -> None:
+    badge_w, badge_h = 320, 34
+    x1, y1 = 14, 86
+    x2, y2 = x1 + badge_w, y1 + badge_h
+    overlay = frame.copy()
+    cv2.rectangle(overlay, (x1, y1), (x2, y2), theme["panel_alt"], -1)
+    cv2.addWeighted(overlay, 0.72, frame, 0.28, 0, frame)
+    cv2.rectangle(frame, (x1, y1), (x2, y2), theme["accent"], 1)
+    cv2.putText(
+        frame,
+        f"Theme: {theme['name']}",
+        (x1 + 10, y1 + 22),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        theme["text"],
+        1,
+        cv2.LINE_AA,
     )
 
 
@@ -217,6 +326,8 @@ def main():
     frame_count = 0
     video_writer = None
     recording = False
+    theme_idx = 0
+    theme_key = THEME_KEYS[theme_idx]
     fps_timer = time.time()
     fps = 0.0
     fps_frames = 0
@@ -276,17 +387,14 @@ def main():
                         polygon[:, 0] += CROP_LEFT
 
                         class_id = int(box.cls[0].item())
-                        conf_score = box.conf[0].item()
                         name = CLASS_NAMES.get(class_id, "Unknown")
                         color = CLASS_COLORS.get(class_id, (0, 255, 0))
-                        cached_polygons.append(
-                            (polygon, color, f"{name} {conf_score:.2f}")
-                        )
+                        cached_polygons.append((polygon, color))
                         detected_classes.append(name)
 
             # Draw cached polygons (stable on skipped frames — no flicker)
-            for polygon, color, label in cached_polygons:
-                draw_detection(annotated, polygon, color, label)
+            for polygon, color in cached_polygons:
+                draw_detection(annotated, polygon, color, thickness=4)
 
             # FPS counter
             fps_frames += 1
@@ -295,7 +403,17 @@ def main():
                 fps_timer = time.time()
                 fps_frames = 0
 
-            draw_hud(annotated, recording, len(detected_classes), fps)
+            theme = THEMES[theme_key]
+            draw_hud(
+                annotated,
+                recording,
+                len(detected_classes),
+                fps,
+                theme,
+                theme["name"],
+            )
+            draw_theme_badge(annotated, theme)
+            draw_legend(annotated, theme)
 
             if recording and video_writer is not None:
                 video_writer.write(annotated)
@@ -316,6 +434,22 @@ def main():
                     video_writer = None
                     recording = False
                     print("[RECORD] Stopped.")
+            elif key == ord("t"):
+                theme_idx = (theme_idx + 1) % len(THEME_KEYS)
+                theme_key = THEME_KEYS[theme_idx]
+                print(f"[THEME] Switched to {THEMES[theme_key]['name']}")
+            elif key == ord("1"):
+                theme_idx = THEME_KEYS.index("industrial")
+                theme_key = "industrial"
+                print(f"[THEME] Switched to {THEMES[theme_key]['name']}")
+            elif key == ord("2"):
+                theme_idx = THEME_KEYS.index("clean")
+                theme_key = "clean"
+                print(f"[THEME] Switched to {THEMES[theme_key]['name']}")
+            elif key == ord("3"):
+                theme_idx = THEME_KEYS.index("hud")
+                theme_key = "hud"
+                print(f"[THEME] Switched to {THEMES[theme_key]['name']}")
 
     except KeyboardInterrupt:
         print("\n[INFO] Stopped by user.")
