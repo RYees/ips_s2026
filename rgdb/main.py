@@ -1,4 +1,5 @@
 import cv2
+import os
 import numpy as np
 import tkinter as tk
 from PIL import Image, ImageTk
@@ -243,6 +244,18 @@ class RGBDCollectorApp:
             command=self.save_data,
         )
         self.save_btn.pack(fill=tk.X, padx=20, pady=20)
+
+        self.status_var = tk.StringVar(value="Status: idle")
+        self.status_label = tk.Label(
+            self.right_panel,
+            textvariable=self.status_var,
+            bg="#3c3f41",
+            fg="white",
+            anchor=tk.W,
+            justify=tk.LEFT,
+            wraplength=390,
+        )
+        self.status_label.pack(fill=tk.X, padx=20, pady=(0, 10))
 
         # Modern Slider Adjustments Frame
         self.crop_frame = tk.LabelFrame(
@@ -754,48 +767,78 @@ class RGBDCollectorApp:
 
         img_name = self.current_img_name or f"img{self.counter:04d}"
         print(f"\n[INFO] Saving data packages for: {img_name}...")
+        final_paths = []
+        temp_paths = []
 
-        cv2.imwrite(
-            str(self.uncropped_rgb_dir / f"{img_name}.png"), self.captured_original_rgb
-        )
-        cv2.imwrite(str(self.cropped_rgb_dir / f"{img_name}.png"), self.captured_rgb)
+        def stage_path(final_path: Path) -> Path:
+            tmp_path = final_path.with_name(f"{final_path.stem}.tmp{final_path.suffix}")
+            final_paths.append(final_path)
+            temp_paths.append(tmp_path)
+            return tmp_path
 
-        depth_vis = cv2.normalize(
-            self.captured_depth, None, 0, 255, cv2.NORM_MINMAX
-        ).astype(np.uint8)
-        depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
-        cv2.imwrite(str(self.depth_dir / f"{img_name}.png"), depth_colored)
+        def write_image(path: Path, image) -> None:
+            if not cv2.imwrite(str(path), image):
+                raise IOError(f"Failed to write image: {path}")
 
-        selected_class = int(self.class_var.get())
-        label_mask = self.match_mask_to_image(
-            self.captured_mask, self.captured_rgb.shape[:2]
-        )
-        self.writer.write(
-            str(self.label_dir / f"{img_name}.txt"),
-            label_mask,
-            self.captured_rgb.shape[:2],
-            label_class=selected_class,
-        )
+        def commit_staged_files() -> None:
+            for tmp_path, final_path in zip(temp_paths, final_paths):
+                os.replace(tmp_path, final_path)
 
-        cv2.imwrite(str(self.mask_dir / f"{img_name}.png"), label_mask * 255)
+        def cleanup_staged_files() -> None:
+            for tmp_path in temp_paths:
+                try:
+                    if tmp_path.exists():
+                        tmp_path.unlink()
+                except Exception:
+                    pass
 
-        pcd_path = self.pc_dir / f"{img_name}.ply"
-        if self.captured_pcd is not None and len(self.captured_pcd.points) > 0:
-            o3d.io.write_point_cloud(str(pcd_path), self.captured_pcd)
-            print(
-                f"[SAVED] Verified 3D Point Cloud saved successfully ({len(self.captured_pcd.points)} points)"
+        try:
+            uncropped_tmp = stage_path(self.uncropped_rgb_dir / f"{img_name}.png")
+            cropped_tmp = stage_path(self.cropped_rgb_dir / f"{img_name}.png")
+            depth_tmp = stage_path(self.depth_dir / f"{img_name}.png")
+            label_tmp = stage_path(self.label_dir / f"{img_name}.txt")
+            mask_tmp = stage_path(self.mask_dir / f"{img_name}.png")
+            pcd_tmp = stage_path(self.pc_dir / f"{img_name}.ply")
+            info_tmp = stage_path(self.info_dir / f"{img_name}.txt")
+
+            write_image(uncropped_tmp, self.captured_original_rgb)
+            write_image(cropped_tmp, self.captured_rgb)
+
+            depth_vis = cv2.normalize(
+                self.captured_depth, None, 0, 255, cv2.NORM_MINMAX
+            ).astype(np.uint8)
+            depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
+            write_image(depth_tmp, depth_colored)
+
+            selected_class = int(self.class_var.get())
+            label_mask = self.match_mask_to_image(
+                self.captured_mask, self.captured_rgb.shape[:2]
             )
-        else:
-            print("[ERROR] Cannot save .ply file: tracked cloud is empty!")
+            if not self.writer.write(
+                str(label_tmp),
+                label_mask,
+                self.captured_rgb.shape[:2],
+                label_class=selected_class,
+            ):
+                raise ValueError("Mask contour missing; refusing to save partial snapshot.")
 
-        current_crop = {
-            "top": self.crop_top_var.get(),
-            "bottom": self.crop_bottom_var.get(),
-            "left": self.crop_left_var.get(),
-            "right": self.crop_right_var.get(),
-        }
+            write_image(mask_tmp, label_mask * 255)
 
-        if self.captured_plane_model is not None:
+            if self.captured_pcd is None or len(self.captured_pcd.points) <= 0:
+                raise ValueError("Tracked point cloud is empty; refusing to save partial snapshot.")
+            if not o3d.io.write_point_cloud(str(pcd_tmp), self.captured_pcd):
+                raise IOError(f"Failed to write point cloud: {pcd_tmp}")
+
+            current_crop = {
+                "top": self.crop_top_var.get(),
+                "bottom": self.crop_bottom_var.get(),
+                "left": self.crop_left_var.get(),
+                "right": self.crop_right_var.get(),
+            }
+
+            if self.captured_plane_model is None:
+                raise ValueError("Capture metadata is missing; refusing to save partial snapshot.")
+
             self.save_info_txt(
                 img_name,
                 selected_class,
@@ -815,28 +858,34 @@ class RGBDCollectorApp:
                 self.captured_plane_inliers,
                 self.captured_non_plane_pts,
                 mask_stats=self.captured_mask_stats,
+                txt_path=info_tmp,
             )
-        else:
+
+            commit_staged_files()
             print(
-                "[WARNING] Skipping info.txt save because capture metadata is missing."
+                f"[SAVED] Verified 3D Point Cloud saved successfully ({len(self.captured_pcd.points)} points)"
             )
+            self.status_var.set(f"Status: saved {img_name}")
+            self.print_dataset_counts()
+            self.counter = self.next_capture_index()
+            self.current_img_name = None
+            self.reset_capture_state()
 
-        self.print_dataset_counts()
-        self.counter = self.next_capture_index()
-        self.current_img_name = None
-        self.reset_capture_state()
+            print("[SUCCESS] Packout cycle complete.\n")
+            self.print_dataset_counts()
+            self.counter = self.next_capture_index()
+            self.current_img_name = None
+            self.reset_capture_state()
 
-        print("[SUCCESS] Packout cycle complete.\n")
-        self.print_dataset_counts()
-        self.counter = self.next_capture_index()
-        self.current_img_name = None
-        self.reset_capture_state()
-
-        # Re-enable live stream monitoring automatically after a save
-        self.is_capturing = True
-        self.capture_btn.config(state=tk.NORMAL)
-        self.save_btn.config(state=tk.DISABLED)
-        self.retake_btn.config(state=tk.DISABLED)
+            # Re-enable live stream monitoring automatically after a save
+            self.is_capturing = True
+            self.capture_btn.config(state=tk.NORMAL)
+            self.save_btn.config(state=tk.DISABLED)
+            self.retake_btn.config(state=tk.DISABLED)
+        except Exception as exc:
+            cleanup_staged_files()
+            print(f"[ERROR] Save aborted; nothing committed: {exc}")
+            self.status_var.set(f"Status: save aborted - {exc}")
 
     def save_info_txt(
         self,
@@ -858,8 +907,9 @@ class RGBDCollectorApp:
         plane_inliers,
         non_plane_pts,
         mask_stats=None,
+        txt_path=None,
     ):
-        txt_path = self.info_dir / f"{img_name}.txt"
+        txt_path = txt_path or (self.info_dir / f"{img_name}.txt")
         with open(txt_path, "w") as f:
             f.write("Crop:\n")
             f.write(
