@@ -35,6 +35,7 @@ TestResults.xml
 **/offline_case/samples/
 **/collection_raw_data/data/
 **/rgdb/data/
+**/rgdb/mask_debug/
 
 
 .env/

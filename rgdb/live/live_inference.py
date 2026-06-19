@@ -19,7 +19,7 @@ from pyorbbecsdk import OBFormat
 # ─────────────────────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────────────────────
-MODEL_PATH = "/home/cpsstudent/Documents/ips_s2026/rgbd/live/best.pt"
+MODEL_PATH = "/home/cpsstudent/Documents/ips_s2026/rgdb/live/mbest.pt"
 
 CLASS_NAMES = {0: "Copper", 1: "Steel"}
 CLASS_COLORS = {0: (139, 0, 0), 1: (128, 128, 0)}  # BGR
