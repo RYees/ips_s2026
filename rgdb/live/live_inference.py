@@ -19,7 +19,12 @@ from pyorbbecsdk import OBFormat
 # ─────────────────────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────────────────────
-MODEL_PATH = "/home/cpsstudent/Documents/ips_s2026/rgdb/live/mbest.pt"
+MODEL_DIR = Path("/home/cpsstudent/Documents/ips_s2026/rgdb/live")
+MODEL_FILES = {
+    "mbest": MODEL_DIR / "mbest.pt",
+    "sbest": MODEL_DIR / "sbest.pt",
+}
+DEFAULT_MODEL_KEY = "mbest"
 
 CLASS_NAMES = {0: "Copper", 1: "Steel"}
 CLASS_COLORS = {0: (255, 0, 0), 1: (180, 180, 0)}  # Copper blue, steel teal-ish
@@ -41,6 +46,12 @@ DIR_IMAGES.mkdir(parents=True, exist_ok=True)
 DIR_VIDEOS.mkdir(parents=True, exist_ok=True)
 
 cam_instance = None
+
+
+def model_mode_label(model_key: str) -> str:
+    if model_key == "sbest":
+        return "Single Detection"
+    return "Multi Detection"
 
 
 # ─────────────────────────────────────────────────────────────
@@ -100,6 +111,7 @@ def draw_navbar(
     detection_count: int,
     fps: float,
     info_open: bool,
+    model_key: str,
 ) -> tuple[int, int, int, int]:
     h, w = frame.shape[:2]
     top_h = 42
@@ -114,7 +126,7 @@ def draw_navbar(
         cv2.FONT_HERSHEY_SIMPLEX,
         0.55,
         (245, 245, 245),
-        1,
+        2,
     )
 
     def chip_width(label: str) -> int:
@@ -134,7 +146,7 @@ def draw_navbar(
             cv2.FONT_HERSHEY_SIMPLEX,
             0.44,
             (245, 245, 245),
-            1,
+            2,
             cv2.LINE_AA,
         )
 
@@ -143,6 +155,9 @@ def draw_navbar(
 
     steel_x = btn_x - 10 - chip_width("Steel")
     copper_x = steel_x - 12 - chip_width("Copper")
+    mode_label = model_mode_label(model_key)
+    mode_x = copper_x - 12 - chip_width(mode_label)
+    chip(mode_x, mode_label, (0, 150, 180))
     chip(copper_x, "Copper", CLASS_COLORS[0])
     chip(steel_x, "Steel", CLASS_COLORS[1])
 
@@ -156,7 +171,7 @@ def draw_navbar(
             cv2.FONT_HERSHEY_SIMPLEX,
             0.45,
             (0, 0, 255),
-            1,
+            2,
             cv2.LINE_AA,
         )
 
@@ -171,7 +186,7 @@ def draw_navbar(
         cv2.FONT_HERSHEY_SIMPLEX,
         0.42,
         (255, 255, 255),
-        1,
+        2,
         cv2.LINE_AA,
     )
 
@@ -187,12 +202,12 @@ def draw_navbar(
         cv2.FONT_HERSHEY_SIMPLEX,
         0.48,
         (245, 245, 245),
-        1,
+        2,
     )
     return btn_x, btn_y, btn_w, btn_h
 
 
-def draw_info_panel(frame: np.ndarray, panel_w: int) -> None:
+def draw_info_panel(frame: np.ndarray, panel_w: int, model_key: str) -> None:
     if panel_w <= 0:
         return
     h, w = frame.shape[:2]
@@ -214,10 +229,10 @@ def draw_info_panel(frame: np.ndarray, panel_w: int) -> None:
     )
 
     lines = [
-        ("Model", Path(MODEL_PATH).name),
+        ("Model", Path(MODEL_FILES.get(model_key, MODEL_FILES["mbest"])).name),
+        ("Mode", model_mode_label(model_key)),
         ("Task", "segmentation"),
         ("Crop", f"x=[{CROP_LEFT}:{CROP_RIGHT}]"),
-        ("Confidence", f"{CONF_THRESHOLD:.2f}"),
         ("IoU", f"{IOU_THRESHOLD:.2f}"),
         ("Copper", "blue outline"),
         ("Steel", "teal outline"),
@@ -297,8 +312,11 @@ def capture_worker(cam, frame_q, stop_event):
 def main():
     global cam_instance
 
-    print("[INFO] Loading model...")
-    model = YOLO(MODEL_PATH)
+    active_model_key = DEFAULT_MODEL_KEY
+    active_model_path = MODEL_FILES[active_model_key]
+
+    print(f"[INFO] Loading model: {active_model_path.name}")
+    model = YOLO(str(active_model_path))
 
     print("[INFO] Initializing camera...")
     cam_instance = CameraInterface()
@@ -329,6 +347,8 @@ def main():
         "info_open": False,
         "info_width": 0,
         "info_btn_rect": (0, 0, 0, 0),
+        "model_key": active_model_key,
+        "model_path": active_model_path,
     }
 
     def on_mouse(event, x, y, flags, param):
@@ -417,13 +437,14 @@ def main():
             elif ui_state["info_width"] > target_w:
                 ui_state["info_width"] = max(target_w, ui_state["info_width"] - 28)
 
-            draw_info_panel(annotated, ui_state["info_width"])
+            draw_info_panel(annotated, ui_state["info_width"], ui_state["model_key"])
             ui_state["info_btn_rect"] = draw_navbar(
                 annotated,
                 recording,
                 len(detected_classes),
                 fps,
                 ui_state["info_open"],
+                ui_state["model_key"],
             )
 
             if recording and video_writer is not None:
@@ -445,6 +466,15 @@ def main():
                     video_writer = None
                     recording = False
                     print("[RECORD] Stopped.")
+            elif key == ord("m"):
+                next_key = "sbest" if ui_state["model_key"] == "mbest" else "mbest"
+                ui_state["model_key"] = next_key
+                ui_state["model_path"] = MODEL_FILES[next_key]
+                print(f"[INFO] Switching model to {ui_state['model_path'].name}...")
+                model = YOLO(str(ui_state["model_path"]))
+                cached_polygons = []
+                detected_classes = []
+                print(f"[INFO] Model loaded: {ui_state['model_path'].name}")
 
     except KeyboardInterrupt:
         print("\n[INFO] Stopped by user.")
