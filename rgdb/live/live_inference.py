@@ -23,6 +23,8 @@ MODEL_PATH = "/home/cpsstudent/Documents/ips_s2026/rgdb/live/mbest.pt"
 
 CLASS_NAMES = {0: "Copper", 1: "Steel"}
 CLASS_COLORS = {0: (255, 0, 0), 1: (180, 180, 0)}  # Copper blue, steel teal-ish
+WINDOW_NAME = "Industrial Sorting Feed"
+INFO_PANEL_W = 360
 
 CONF_THRESHOLD = 0.30  # lowered — new model is more conservative
 IOU_THRESHOLD = 0.40
@@ -92,72 +94,89 @@ def draw_detection(
     cv2.polylines(frame, [polygon], isClosed=True, color=color, thickness=thickness)
 
 
-def draw_legend(frame: np.ndarray) -> None:
-    """Draw a persistent legend in the header so the object area stays clean."""
-    h, w = frame.shape[:2]
-    box_w, box_h = 240, 70
-    x1, y1 = w - box_w - 14, 10
-    x2, y2 = x1 + box_w, y1 + box_h
-
-    overlay = frame.copy()
-    cv2.rectangle(overlay, (x1, y1), (x2, y2), (20, 24, 30), -1)
-    cv2.addWeighted(overlay, 0.72, frame, 0.28, 0, frame)
-    cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 255, 255), 1)
-
-    cv2.putText(
-        frame,
-        "Legend",
-        (x1 + 10, y1 + 22),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        (245, 245, 245),
-        1,
-        cv2.LINE_AA,
-    )
-
-    row_y = y1 + 44
-    for cls_id, name in [(0, "Copper"), (1, "Steel")]:
-        color = CLASS_COLORS.get(cls_id, (255, 255, 255))
-        cv2.rectangle(frame, (x1 + 10, row_y - 12), (x1 + 32, row_y + 8), color, -1)
-        cv2.rectangle(frame, (x1 + 10, row_y - 12), (x1 + 32, row_y + 8), (255, 255, 255), 1)
-        cv2.putText(
-            frame,
-            f"{name}",
-            (x1 + 42, row_y + 4),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (245, 245, 245),
-            1,
-            cv2.LINE_AA,
-        )
-        row_y += 24
-
-
-def draw_hud(
+def draw_navbar(
     frame: np.ndarray,
     recording: bool,
     detection_count: int,
     fps: float,
-) -> None:
+    info_open: bool,
+) -> tuple[int, int, int, int]:
     h, w = frame.shape[:2]
+    top_h = 42
     overlay = frame.copy()
-    cv2.rectangle(overlay, (0, 0), (w, 42), (20, 20, 20), -1)
+    cv2.rectangle(overlay, (0, 0), (w, top_h), (20, 20, 20), -1)
     cv2.addWeighted(overlay, 0.60, frame, 0.40, 0, frame)
-    cv2.rectangle(frame, (0, 0), (w, 42), (0, 110, 124), 1)
+    cv2.rectangle(frame, (0, 0), (w, top_h), (0, 110, 124), 1)
     cv2.putText(
         frame,
         f"FPS: {fps:.1f}   Detections: {detection_count}",
         (10, 24),
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.6,
+        0.55,
         (245, 245, 245),
         1,
     )
-    if recording:
-        cv2.circle(frame, (w - 20, 18), 8, (0, 0, 255), -1)
+
+    def chip_width(label: str) -> int:
+        (tw, _), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.44, 1)
+        return 16 + 8 + tw + 10
+
+    def chip(x, label, color):
+        box_w = 16
+        box_h = 16
+        y0 = 13
+        cv2.rectangle(frame, (x, y0), (x + box_w, y0 + box_h), color, -1)
+        cv2.rectangle(frame, (x, y0), (x + box_w, y0 + box_h), (255, 255, 255), 1)
         cv2.putText(
-            frame, "REC", (w - 60, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 255), 2
+            frame,
+            label,
+            (x + box_w + 8, 26),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.44,
+            (245, 245, 245),
+            1,
+            cv2.LINE_AA,
         )
+
+    btn_w, btn_h = 64, 22
+    btn_x, btn_y = w - btn_w - 10, 10
+
+    steel_x = btn_x - 10 - chip_width("Steel")
+    copper_x = steel_x - 12 - chip_width("Copper")
+    chip(copper_x, "Copper", CLASS_COLORS[0])
+    chip(steel_x, "Steel", CLASS_COLORS[1])
+
+    if recording:
+        rec_x = max(180, copper_x - 76)
+        cv2.circle(frame, (rec_x, 21), 6, (0, 0, 255), -1)
+        cv2.putText(
+            frame,
+            "REC",
+            (rec_x + 12, 25),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.45,
+            (0, 0, 255),
+            1,
+            cv2.LINE_AA,
+        )
+
+    btn_overlay = frame.copy()
+    cv2.rectangle(btn_overlay, (btn_x, btn_y), (btn_x + btn_w, btn_y + btn_h), (0, 110, 124), -1)
+    cv2.addWeighted(btn_overlay, 0.82, frame, 0.18, 0, frame)
+    cv2.rectangle(frame, (btn_x, btn_y), (btn_x + btn_w, btn_y + btn_h), (255, 255, 255), 1)
+    cv2.putText(
+        frame,
+        "Info" if not info_open else "Close",
+        (btn_x + 8, btn_y + 15),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.42,
+        (255, 255, 255),
+        1,
+        cv2.LINE_AA,
+    )
+
+    if recording:
+        pass
     cv2.rectangle(overlay, (0, h - 34), (w, h), (20, 20, 20), -1)
     cv2.addWeighted(overlay, 0.55, frame, 0.45, 0, frame)
     cv2.rectangle(frame, (0, h - 34), (w, h), (0, 110, 124), 1)
@@ -170,6 +189,65 @@ def draw_hud(
         (245, 245, 245),
         1,
     )
+    return btn_x, btn_y, btn_w, btn_h
+
+
+def draw_info_panel(frame: np.ndarray, panel_w: int) -> None:
+    if panel_w <= 0:
+        return
+    h, w = frame.shape[:2]
+    x1 = w - panel_w
+    overlay = frame.copy()
+    cv2.rectangle(overlay, (x1, 0), (w, h), (10, 14, 20), -1)
+    cv2.addWeighted(overlay, 0.92, frame, 0.08, 0, frame)
+    cv2.rectangle(frame, (x1, 0), (w, h), (255, 255, 255), 1)
+    cv2.rectangle(frame, (x1, 0), (w, 42), (0, 110, 124), 1)
+    cv2.putText(
+        frame,
+        "Model Info",
+        (x1 + 14, 26),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.62,
+        (245, 245, 245),
+        1,
+        cv2.LINE_AA,
+    )
+
+    lines = [
+        ("Model", Path(MODEL_PATH).name),
+        ("Task", "segmentation"),
+        ("Crop", f"x=[{CROP_LEFT}:{CROP_RIGHT}]"),
+        ("Confidence", f"{CONF_THRESHOLD:.2f}"),
+        ("IoU", f"{IOU_THRESHOLD:.2f}"),
+        ("Copper", "blue outline"),
+        ("Steel", "teal outline"),
+        ("View", "outline-only overlay"),
+        ("Controls", "S save, R record, Q quit"),
+    ]
+
+    y = 72
+    for title, value in lines:
+        cv2.putText(
+            frame,
+            f"{title}:",
+            (x1 + 14, y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.47,
+            (155, 205, 220),
+            1,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            frame,
+            value,
+            (x1 + 122, y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.47,
+            (245, 245, 245),
+            1,
+            cv2.LINE_AA,
+        )
+        y += 28
 
 
 # ─────────────────────────────────────────────────────────────
@@ -247,6 +325,22 @@ def main():
     fps_frames = 0
     cached_polygons = []
     detected_classes = []
+    ui_state = {
+        "info_open": False,
+        "info_width": 0,
+        "info_btn_rect": (0, 0, 0, 0),
+    }
+
+    def on_mouse(event, x, y, flags, param):
+        if event != cv2.EVENT_LBUTTONDOWN:
+            return
+        bx, by, bw, bh = ui_state["info_btn_rect"]
+        if bx <= x <= bx + bw and by <= y <= by + bh:
+            ui_state["info_open"] = not ui_state["info_open"]
+            print(f"[UI] Info panel {'opened' if ui_state['info_open'] else 'closed'}.")
+
+    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
+    cv2.setMouseCallback(WINDOW_NAME, on_mouse)
 
     try:
         while True:
@@ -317,13 +411,25 @@ def main():
                 fps_timer = time.time()
                 fps_frames = 0
 
-            draw_hud(annotated, recording, len(detected_classes), fps)
-            draw_legend(annotated)
+            target_w = INFO_PANEL_W if ui_state["info_open"] else 0
+            if ui_state["info_width"] < target_w:
+                ui_state["info_width"] = min(target_w, ui_state["info_width"] + 28)
+            elif ui_state["info_width"] > target_w:
+                ui_state["info_width"] = max(target_w, ui_state["info_width"] - 28)
+
+            draw_info_panel(annotated, ui_state["info_width"])
+            ui_state["info_btn_rect"] = draw_navbar(
+                annotated,
+                recording,
+                len(detected_classes),
+                fps,
+                ui_state["info_open"],
+            )
 
             if recording and video_writer is not None:
                 video_writer.write(annotated)
 
-            cv2.imshow("Industrial Sorting Feed", annotated)
+            cv2.imshow(WINDOW_NAME, annotated)
 
             key = cv2.waitKey(1) & 0xFF
             if key == ord("q"):
