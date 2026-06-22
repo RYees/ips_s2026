@@ -433,43 +433,42 @@ def main():
             frame_count += 1
             annotated = bgr.copy()  # draw on the FULL frame for display
 
-            # Run inference every other frame; reuse cache on skipped frames
-            if frame_count % 2 == 0:
-                results = model.predict(
-                    source=bgr_crop,  # 510px crop — same as training
-                    conf=CONF_THRESHOLD,
-                    iou=IOU_THRESHOLD,
-                    half=False,
-                    stream=False,
-                    verbose=False,
-                )
+            # Run inference on every frame so stale detections clear quickly
+            results = model.predict(
+                source=bgr_crop,  # 510px crop — same as training
+                conf=CONF_THRESHOLD,
+                iou=IOU_THRESHOLD,
+                half=False,
+                stream=False,
+                verbose=False,
+            )
 
-                cached_polygons = []
-                detected_classes = []
+            cached_polygons = []
+            detected_classes = []
 
-                for result in results:
-                    if result.masks is None or len(result.boxes) == 0:
+            for result in results:
+                if result.masks is None or len(result.boxes) == 0:
+                    continue
+                for mask_xy, box in zip(result.masks.xy, result.boxes):
+                    # Ultralytics returns mask polygons in the original
+                    # source-image coordinate system for the crop we pass
+                    # into predict(). Do not apply an extra unletterbox step
+                    # here, or the polygon will drift left/up.
+                    polygon = mask_xy.astype(np.int32)
+
+                    # Filter tiny / ghost detections
+                    if cv2.contourArea(polygon) / (crop_w * crop_h) < MIN_MASK_AREA:
                         continue
-                    for mask_xy, box in zip(result.masks.xy, result.boxes):
-                        # Ultralytics returns mask polygons in the original
-                        # source-image coordinate system for the crop we pass
-                        # into predict(). Do not apply an extra unletterbox step
-                        # here, or the polygon will drift left/up.
-                        polygon = mask_xy.astype(np.int32)
 
-                        # Filter tiny / ghost detections
-                        if cv2.contourArea(polygon) / (crop_w * crop_h) < MIN_MASK_AREA:
-                            continue
+                    # Shift x from crop space → full frame space for drawing
+                    polygon[:, 0] += CROP_LEFT
 
-                        # Shift x from crop space → full frame space for drawing
-                        polygon[:, 0] += CROP_LEFT
-
-                        class_id = int(box.cls[0].item())
-                        name = CLASS_NAMES.get(class_id, "Unknown")
-                        color = CLASS_COLORS.get(class_id, (0, 255, 0))
-                        confidence = float(box.conf[0].item()) if box.conf is not None else 0.0
-                        cached_polygons.append((polygon, color, confidence))
-                        detected_classes.append(name)
+                    class_id = int(box.cls[0].item())
+                    name = CLASS_NAMES.get(class_id, "Unknown")
+                    color = CLASS_COLORS.get(class_id, (0, 255, 0))
+                    confidence = float(box.conf[0].item()) if box.conf is not None else 0.0
+                    cached_polygons.append((polygon, color, confidence))
+                    detected_classes.append(name)
 
             # Draw cached polygons (stable on skipped frames — no flicker)
             for polygon, color, confidence in cached_polygons:
