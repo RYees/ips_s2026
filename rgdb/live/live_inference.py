@@ -43,8 +43,10 @@ CROP_RIGHT = 760
 
 DIR_IMAGES = Path("live-data/images")
 DIR_VIDEOS = Path("live-data/videos")
+DIR_LOGS = Path("live-data/logs")
 DIR_IMAGES.mkdir(parents=True, exist_ok=True)
 DIR_VIDEOS.mkdir(parents=True, exist_ok=True)
+DIR_LOGS.mkdir(parents=True, exist_ok=True)
 
 cam_instance = None
 
@@ -70,6 +72,19 @@ def create_camera_interface_with_retry(attempts: int = 5, delay_s: float = 0.8):
         "Unable to open Orbbec camera after multiple attempts. "
         "Make sure no other process is using the device and try again."
     ) from last_exc
+
+
+def create_fps_log_file() -> tuple[Path, object]:
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    path = DIR_LOGS / f"live_fps_{ts}.log"
+    fh = path.open("a", encoding="utf-8")
+    return path, fh
+
+
+def log_line(fh, message: str) -> None:
+    print(message)
+    fh.write(message + "\n")
+    fh.flush()
 
 
 # ─────────────────────────────────────────────────────────────
@@ -364,11 +379,13 @@ def main():
 
     active_model_key = DEFAULT_MODEL_KEY
     active_model_path = MODEL_FILES[active_model_key]
+    fps_log_path, fps_log_fh = create_fps_log_file()
 
-    print(f"[INFO] Loading model: {active_model_path.name}")
+    log_line(fps_log_fh, f"[INFO] FPS log: {fps_log_path}")
+    log_line(fps_log_fh, f"[INFO] Loading model: {active_model_path.name}")
     model = YOLO(str(active_model_path))
 
-    print("[INFO] Initializing camera...")
+    log_line(fps_log_fh, "[INFO] Initializing camera...")
     cam_instance = create_camera_interface_with_retry()
     cam_instance.setup_streams()
 
@@ -379,10 +396,11 @@ def main():
     )
     cap_thread.start()
 
-    print("[INFO] Ready.  S=screenshot  R=record  Q=quit")
-    print(
+    log_line(fps_log_fh, "[INFO] Ready.  S=screenshot  R=record  Q=quit")
+    log_line(
+        fps_log_fh,
         f"[INFO] Inference crop: x=[{CROP_LEFT}:{CROP_RIGHT}]  "
-        f"({CROP_RIGHT - CROP_LEFT}px wide — matches training data)"
+        f"({CROP_RIGHT - CROP_LEFT}px wide — matches training data)",
     )
 
     frame_count = 0
@@ -391,6 +409,8 @@ def main():
     fps_timer = time.time()
     fps = 0.0
     fps_frames = 0
+    inference_time_sum = 0.0
+    inference_runs = 0
     cached_polygons = []
     detected_classes = []
     ui_state = {
@@ -434,6 +454,7 @@ def main():
             annotated = bgr.copy()  # draw on the FULL frame for display
 
             # Run inference on every frame so stale detections clear quickly
+            infer_start = time.perf_counter()
             results = model.predict(
                 source=bgr_crop,  # 510px crop — same as training
                 conf=CONF_THRESHOLD,
@@ -442,6 +463,9 @@ def main():
                 stream=False,
                 verbose=False,
             )
+            infer_ms = (time.perf_counter() - infer_start) * 1000.0
+            inference_time_sum += infer_ms
+            inference_runs += 1
 
             cached_polygons = []
             detected_classes = []
@@ -479,8 +503,16 @@ def main():
             fps_frames += 1
             if (elapsed := time.time() - fps_timer) >= 1.0:
                 fps = fps_frames / elapsed
+                avg_infer_ms = (inference_time_sum / inference_runs) if inference_runs else 0.0
+                live_msg = (
+                    f"[FPS] live={fps:.2f} fps | infer_avg={avg_infer_ms:.1f} ms "
+                    f"| detections={len(detected_classes)} | model={ui_state['model_path'].name}"
+                )
+                log_line(fps_log_fh, live_msg)
                 fps_timer = time.time()
                 fps_frames = 0
+                inference_time_sum = 0.0
+                inference_runs = 0
 
             target_w = INFO_PANEL_W if ui_state["info_open"] else 0
             if ui_state["info_width"] < target_w:
@@ -521,22 +553,26 @@ def main():
                 next_key = "sbest" if ui_state["model_key"] == "mbest" else "mbest"
                 ui_state["model_key"] = next_key
                 ui_state["model_path"] = MODEL_FILES[next_key]
-                print(f"[INFO] Switching model to {ui_state['model_path'].name}...")
+                log_line(fps_log_fh, f"[INFO] Switching model to {ui_state['model_path'].name}...")
                 model = YOLO(str(ui_state["model_path"]))
                 cached_polygons = []
                 detected_classes = []
-                print(f"[INFO] Model loaded: {ui_state['model_path'].name}")
+                log_line(fps_log_fh, f"[INFO] Model loaded: {ui_state['model_path'].name}")
 
     except KeyboardInterrupt:
-        print("\n[INFO] Stopped by user.")
+        log_line(fps_log_fh, "\n[INFO] Stopped by user.")
     except Exception as e:
-        print(f"[ERROR] {e}")
+        log_line(fps_log_fh, f"[ERROR] {e}")
         raise
     finally:
         if video_writer is not None:
             video_writer.release()
         stop_evt.set()
         cleanup_camera_hardware()
+        try:
+            fps_log_fh.close()
+        except Exception:
+            pass
         cv2.destroyAllWindows()
 
 
