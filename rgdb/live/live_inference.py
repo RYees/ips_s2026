@@ -3,6 +3,7 @@ import threading
 import queue
 import time
 import atexit
+import gc
 from datetime import datetime
 from pathlib import Path
 
@@ -54,6 +55,23 @@ def model_mode_label(model_key: str) -> str:
     return "Multi Detection"
 
 
+def create_camera_interface_with_retry(attempts: int = 5, delay_s: float = 0.8):
+    last_exc = None
+    for attempt in range(1, attempts + 1):
+        try:
+            return CameraInterface()
+        except Exception as exc:
+            last_exc = exc
+            print(f"[WARNING] Camera open failed on attempt {attempt}/{attempts}: {exc}")
+            gc.collect()
+            if attempt < attempts:
+                time.sleep(delay_s)
+    raise RuntimeError(
+        "Unable to open Orbbec camera after multiple attempts. "
+        "Make sure no other process is using the device and try again."
+    ) from last_exc
+
+
 # ─────────────────────────────────────────────────────────────
 # CLEANUP
 # ─────────────────────────────────────────────────────────────
@@ -103,6 +121,38 @@ def draw_detection(
     if len(polygon) < 3:
         return
     cv2.polylines(frame, [polygon], isClosed=True, color=color, thickness=thickness)
+
+
+def draw_confidence_tag(frame: np.ndarray, polygon: np.ndarray, confidence: float) -> None:
+    if len(polygon) < 3:
+        return
+    x, y, w, h = cv2.boundingRect(polygon)
+    label = f"{confidence:.2f}"
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    scale = 0.46
+    thickness = 1
+    (tw, th), baseline = cv2.getTextSize(label, font, scale, thickness)
+
+    tx = max(0, min(x, frame.shape[1] - tw - 8))
+    ty = max(th + 6, y - 6)
+
+    cv2.rectangle(
+        frame,
+        (tx - 3, ty - th - 4),
+        (tx + tw + 3, ty + baseline + 2),
+        (0, 0, 0),
+        -1,
+    )
+    cv2.putText(
+        frame,
+        label,
+        (tx, ty),
+        font,
+        scale,
+        (255, 255, 255),
+        2,
+        cv2.LINE_AA,
+    )
 
 
 def draw_navbar(
@@ -319,7 +369,7 @@ def main():
     model = YOLO(str(active_model_path))
 
     print("[INFO] Initializing camera...")
-    cam_instance = CameraInterface()
+    cam_instance = create_camera_interface_with_retry()
     cam_instance.setup_streams()
 
     stop_evt = threading.Event()
@@ -417,12 +467,14 @@ def main():
                         class_id = int(box.cls[0].item())
                         name = CLASS_NAMES.get(class_id, "Unknown")
                         color = CLASS_COLORS.get(class_id, (0, 255, 0))
-                        cached_polygons.append((polygon, color))
+                        confidence = float(box.conf[0].item()) if box.conf is not None else 0.0
+                        cached_polygons.append((polygon, color, confidence))
                         detected_classes.append(name)
 
             # Draw cached polygons (stable on skipped frames — no flicker)
-            for polygon, color in cached_polygons:
+            for polygon, color, confidence in cached_polygons:
                 draw_detection(annotated, polygon, color, thickness=4)
+                draw_confidence_tag(annotated, polygon, confidence)
 
             # FPS counter
             fps_frames += 1
