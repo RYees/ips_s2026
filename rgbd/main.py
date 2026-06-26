@@ -93,9 +93,9 @@ class RGBDCollectorApp:
         # Backwards-compatible aliases for the existing save logic.
         self.img_dir = self.uncropped_rgb_dir
         self.crop_rgb_dir = self.cropped_rgb_dir
-        self.mask_debug_dir = self.log_dir / "mask_debug"
+        self.mask_debug_dir = self.debug_dir / "mask_debug"
         self.object_debug_path = (
-            self.log_dir
+            self.debug_dir
             / f"live_object_detection_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
         )
         for d in [
@@ -637,7 +637,7 @@ class RGBDCollectorApp:
         debug_output_string = "\n".join(log_lines)
         print(debug_output_string, flush=True)
 
-        with open(self.log_dir / "live_capture_debug.log", "a") as f_debug:
+        with open(self.debug_dir / "live_capture_debug.log", "a") as f_debug:
             f_debug.write(debug_output_string)
         # ─────────────────────────────────────────────────────────────────────
 
