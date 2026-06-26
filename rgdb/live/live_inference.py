@@ -20,7 +20,7 @@ from pyorbbecsdk import OBFormat
 # ─────────────────────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────────────────────
-MODEL_DIR = Path(__file__).resolve().parent
+MODEL_DIR = Path(__file__).resolve().parent / "models"
 MODEL_FILES = {
     "m8best": MODEL_DIR / "m8best.pt",
     "m26best": MODEL_DIR / "m26best.pt",
