@@ -6,7 +6,7 @@ This repository contains the live RGB-D conveyor-belt pipeline used for:
 - data collection with RGB, depth, masks, labels, point clouds, and metadata
 - offline dataset preparation and verification
 
-The detailed user guide is split across the `docs/` folder. Start with `docs/README.md`.
+The detailed user guide is split across the `docs/` folder. Start with `docs/README.md` if you want the full walkthrough.
 
 ## Quick Start
 
@@ -80,13 +80,13 @@ See `docs/dataset-layout.md` for how those splits are used.
 
 The live demo ships with model switching built in. The current model names are documented in `docs/models.md`.
 
-If you publish final weights to GitHub Releases, a cleaner naming scheme is:
+If you publish the final weights on GitHub, the recommended upload location is GitHub Releases, with a cleaner naming scheme of:
 
 - `best_single.pt`
 - `best_multiple.pt`
 - `best_multiple_depth.pt`
 
-Keep the repo's current model map in sync with any renamed release assets.
+Keep the repo's current model map in sync with any renamed release assets, and make sure the assets are downloadable from the repository README.
 
 ## Full Guide
 

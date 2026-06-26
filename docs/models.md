@@ -15,7 +15,7 @@ The default is `m26best.pt`.
 
 ## Naming for GitHub Release Assets
 
-If you publish the final weights as GitHub Release assets, a cleaner naming scheme is:
+If you publish the final weights on GitHub, place them in GitHub Releases and use a cleaner naming scheme of:
 
 - `best_single.pt`
 - `best_multiple.pt`
@@ -25,6 +25,6 @@ If you use those names, update the model map in `rgbd/live/live_inference.py` so
 
 ## Where to Place Them
 
-Keep the model files next to the live demo code or update the model directory path in the live demo configuration.
+Keep the model files next to the live demo code or upload them as GitHub Release assets and document the download location in the README.
 
 The important thing is that the filenames in the code match the filenames on disk.
