@@ -1,19 +1,19 @@
-# IPS S2026 RGB-D Sorting System
+# IPS S2026 Copper and Steel Conveyor-Belt RGB-D System
 
-This repository contains the live RGB-D conveyor-belt pipeline used for:
+This repository contains the RGB-D data collection and live inference system for:
 
-- live object detection and segmentation
-- data collection with RGB, depth, masks, labels, point clouds, and metadata
-- offline dataset preparation and verification
+- capturing copper and steel objects on a moving conveyor belt
+- generating training datasets for model development
+- running the live segmentation demo for the current conveyor-belt stream
+- using the live model weights stored in `rgbd/live/models/`
 
-The detailed user guide is split across the `docs/` folder. Start with `docs/README.md` if you want the full walkthrough.
+The detailed user guide is split across the `docs/` folder. Start with `docs/README.md` for the full walkthrough.
 
 ## Quick Start
 
-1. Install the requirements for Python and the Orbbec SDK.
-2. Make sure the `pyorbbecsdk` Python bindings are available.
-3. The data-collection UI also depends on the shared `offline_case/` masking utilities from the full CPS workspace.
-4. From the `rgbd/` folder, run:
+1. Install the Python requirements.
+2. Install the Orbbec SDK Python wrapper.
+3. From the `rgbd/` folder, run:
 
    ```bash
    make run
@@ -63,18 +63,6 @@ rgbd/data/
 ```
 
 The save logic is atomic: if any required artifact is missing, the snapshot is not committed.
-
-## Dataset Paths on the CPS Server
-
-The prepared training splits already live on the CPS server at:
-
-```text
-/mnt/cps_persistent1_shared/ips_s2026/data-finals/dataset-singles-seg
-/mnt/cps_persistent1_shared/ips_s2026/data-finals/dataset-multiples-seg
-/mnt/cps_persistent1_shared/ips_s2026/data-finals/dataset-singles-cls
-```
-
-See `docs/dataset-layout.md` for how those splits are used.
 
 ## Model Files
 

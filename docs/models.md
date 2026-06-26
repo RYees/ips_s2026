@@ -13,6 +13,8 @@ The live demo currently supports six selectable weights:
 
 The default is `m26best.pt`.
 
+The live demo expects these `.pt` files to be available in `rgbd/live/models/`.
+
 ## Naming for GitHub Release Assets
 
 If you publish the final weights on GitHub, place them in GitHub Releases and use a cleaner naming scheme of:
