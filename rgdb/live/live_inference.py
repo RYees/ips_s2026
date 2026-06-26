@@ -30,7 +30,7 @@ MODEL_FILES = {
     "s11best": MODEL_DIR / "s11best.pt",
 }
 MODEL_SWITCH_KEYS = list(MODEL_FILES.keys())
-DEFAULT_MODEL_KEY = "m8best"
+DEFAULT_MODEL_KEY = "m26best"
 
 CLASS_NAMES = {0: "Copper", 1: "Steel"}
 CLASS_COLORS = {0: (255, 0, 0), 1: (180, 180, 0)}  # Copper blue, steel teal-ish
