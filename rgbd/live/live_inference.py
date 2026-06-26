@@ -21,16 +21,10 @@ from pyorbbecsdk import OBFormat
 # CONFIG
 # ─────────────────────────────────────────────────────────────
 MODEL_DIR = Path(__file__).resolve().parent / "models"
-MODEL_FILES = {
-    "m8best": MODEL_DIR / "m8best.pt",
-    "m26best": MODEL_DIR / "m26best.pt",
-    "m11best": MODEL_DIR / "m11best.pt",
-    "s8best": MODEL_DIR / "s8best.pt",
-    "s26best": MODEL_DIR / "s26best.pt",
-    "s11best": MODEL_DIR / "s11best.pt",
-}
-MODEL_SWITCH_KEYS = list(MODEL_FILES.keys())
-DEFAULT_MODEL_KEY = "m26best"
+MODEL_FILES: dict[str, Path] = {}
+MODEL_SWITCH_KEYS: list[str] = []
+DEFAULT_MODEL_KEY = ""
+MODEL_SOURCE_DIR = MODEL_DIR
 
 CLASS_NAMES = {0: "Copper", 1: "Steel"}
 CLASS_COLORS = {0: (255, 0, 0), 1: (180, 180, 0)}  # Copper blue, steel teal-ish
@@ -57,26 +51,57 @@ DIR_LOGS.mkdir(parents=True, exist_ok=True)
 cam_instance = None
 
 
+def discover_model_files() -> tuple[dict[str, Path], Path]:
+    candidate_dirs = [MODEL_DIR, Path(__file__).resolve().parent]
+    for candidate in candidate_dirs:
+        if not candidate.exists():
+            continue
+        files = sorted(
+            (p for p in candidate.iterdir() if p.is_file() and p.suffix.lower() == ".pt"),
+            key=lambda p: (p.stem.lower(), p.name.lower()),
+        )
+        if files:
+            return {path.stem: path for path in files}, candidate
+    return {}, MODEL_DIR
+
+
+def refresh_model_catalog() -> None:
+    global MODEL_FILES, MODEL_SWITCH_KEYS, DEFAULT_MODEL_KEY, MODEL_SOURCE_DIR
+    MODEL_FILES, MODEL_SOURCE_DIR = discover_model_files()
+    MODEL_SWITCH_KEYS = list(MODEL_FILES.keys())
+    if "m26best" in MODEL_FILES:
+        DEFAULT_MODEL_KEY = "m26best"
+    elif MODEL_SWITCH_KEYS:
+        DEFAULT_MODEL_KEY = MODEL_SWITCH_KEYS[0]
+    else:
+        DEFAULT_MODEL_KEY = ""
+
+
 def model_mode_label(model_key: str) -> str:
-    if model_key.startswith("s"):
+    lowered = model_key.lower()
+    if lowered.startswith("s") or "single" in lowered:
         return "Single Detection"
-    return "Multi Detection"
+    if lowered.startswith("m") or "multi" in lowered:
+        return "Multi Detection"
+    return "Model"
 
 
 def model_family_label(model_key: str) -> str:
-    if model_key.startswith("m"):
+    lowered = model_key.lower()
+    if lowered.startswith("m") or "multi" in lowered:
         return "Multi"
-    if model_key.startswith("s"):
+    if lowered.startswith("s") or "single" in lowered:
         return "Single"
     return "Unknown"
 
 
 def model_backbone_label(model_key: str) -> str:
-    if "26" in model_key:
+    lowered = model_key.lower()
+    if "26" in lowered:
         return "YOLO26"
-    if "11" in model_key:
+    if "11" in lowered:
         return "YOLO11"
-    if "8" in model_key:
+    if "8" in lowered:
         return "YOLO8"
     return "Unknown"
 
@@ -255,7 +280,11 @@ def draw_navbar(
     model_btn_x = btn_x - 10 - model_btn_w
     model_btn_y = 10
 
-    current_model_label = f"Model: {Path(MODEL_FILES.get(model_key, MODEL_FILES[DEFAULT_MODEL_KEY])).stem}"
+    current_model_path = MODEL_FILES.get(model_key)
+    if current_model_path is None and DEFAULT_MODEL_KEY:
+        current_model_path = MODEL_FILES.get(DEFAULT_MODEL_KEY)
+    current_model_name = current_model_path.stem if current_model_path else "No model"
+    current_model_label = f"Model: {current_model_name}"
     current_model_x = model_btn_x - 10 - chip_width(current_model_label)
     steel_x = current_model_x - 12 - chip_width("Steel")
     copper_x = steel_x - 12 - chip_width("Copper")
@@ -404,7 +433,9 @@ def draw_model_menu(frame: np.ndarray, button_rect: tuple[int, int, int, int], o
         return []
 
     bx, by, bw, bh = button_rect
-    item_w = 132
+    longest_label = max(MODEL_SWITCH_KEYS, key=len, default="No models")
+    (tw, _), _ = cv2.getTextSize(longest_label, cv2.FONT_HERSHEY_SIMPLEX, 0.42, 1)
+    item_w = max(132, min(260, tw + 22))
     item_h = 26
     x = max(10, bx + bw - item_w)
     y = by + bh + 6
@@ -422,7 +453,7 @@ def draw_model_menu(frame: np.ndarray, button_rect: tuple[int, int, int, int], o
         rects.append(rect)
         cv2.rectangle(frame, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (35, 39, 50), -1)
         cv2.rectangle(frame, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (70, 74, 90), 1)
-        label = f"{model_backbone_label(model_key)}  {model_family_label(model_key)}"
+        label = model_key
         cv2.putText(
             frame,
             label,
@@ -484,11 +515,16 @@ def capture_worker(cam, frame_q, stop_event):
 def main():
     global cam_instance
 
+    refresh_model_catalog()
+    if not MODEL_SWITCH_KEYS:
+        raise RuntimeError(f"No .pt model files found in {MODEL_DIR}")
     active_model_key = DEFAULT_MODEL_KEY
     fps_log_path, fps_log_fh = create_fps_log_file()
     model, active_model_path = load_model_by_key(active_model_key)
 
     log_line(fps_log_fh, f"[INFO] FPS log: {fps_log_path}")
+    log_line(fps_log_fh, f"[INFO] Model directory: {MODEL_SOURCE_DIR}")
+    log_line(fps_log_fh, f"[INFO] Available models: {', '.join(MODEL_SWITCH_KEYS)}")
     log_line(fps_log_fh, f"[INFO] Loading model: {active_model_path.name}")
 
     log_line(fps_log_fh, "[INFO] Initializing camera...")
