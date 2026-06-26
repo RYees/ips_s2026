@@ -69,8 +69,8 @@ def refresh_model_catalog() -> None:
     global MODEL_FILES, MODEL_SWITCH_KEYS, DEFAULT_MODEL_KEY, MODEL_SOURCE_DIR
     MODEL_FILES, MODEL_SOURCE_DIR = discover_model_files()
     MODEL_SWITCH_KEYS = list(MODEL_FILES.keys())
-    if "m26best" in MODEL_FILES:
-        DEFAULT_MODEL_KEY = "m26best"
+    if "best_multiple_26" in MODEL_FILES:
+        DEFAULT_MODEL_KEY = "best_multiple_26"
     elif MODEL_SWITCH_KEYS:
         DEFAULT_MODEL_KEY = MODEL_SWITCH_KEYS[0]
     else:

@@ -34,39 +34,56 @@ This project captures synchronized RGB and depth frames from an Orbbec Femto Bol
 ├── README.md                    # This file
 ```
 
-### Installation and setup
+### Setup procedure
 
-1. Install system packages (Linux recommended):
+User guide to install Orbbec SDK V2 Python Wrapper can also be found at Orbbec SDK V2 Python Wrapper.
+
+1. Clone the repository to get the latest version:
+
     ```bash
-    sudo apt-get update
-    sudo apt-get install python3-dev python3-venv python3-pip python3-opencv cmake
+    git clone https://github.com/orbbec/pyorbbecsdk.git
+    git checkout v2-main
     ```
 
-2. Install and build the Orbbec Python SDK (`pyorbbecsdk`):
+2. Install the necessary python development packages:
+
     ```bash
-    git clone https://github.com/orbbec/pyorbbec/sdk.git
+    sudo apt-get install python3-dev python3-venv python3-pip python3-opencv
+    ```
+
+3. Create a virtual environment and build the project:
+
+    ```bash
     cd pyorbbecsdk
-    git checkout v2-main
     python3 -m venv ./venv
     source venv/bin/activate
     pip3 install -r requirements.txt
     mkdir build
     cd build
-    cmake -Dpybind11_DIR=$(pybind11-config --cmakedir) ..
+    cmake -Dpybind11_DIR=`pybind11-config --cmakedir` ..
     make -j4
     make install
     ```
 
-3. Configure the Orbbec SDK environment:
+4. Set up the environment in `pyorbbecsdk`:
+
     ```bash
     cd ..
     export PYTHONPATH=$PYTHONPATH:$(pwd)/install/lib/
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/install/lib/
     sudo bash ./scripts/install_udev_rules.sh
     sudo udevadm control --reload-rules && sudo udevadm trigger
     ```
 
-4. Install this project's Python dependencies:
+5. Generate stubs for better IntelliSense support in your IDE:
+
+    ```bash
+    source env.sh
+    pip3 install pybind11-stubgen
+    pybind11-stubgen pyorbbecsdk
+    ```
+
+6. Clone this repository in the same parent folder as `pyorbbecsdk`, then install this project's Python dependencies:
+
     ```bash
     cd /Users/rzapp/Documents/A{sp}A/ips_s2026/rgbd
     python3 -m venv ./venv
@@ -74,7 +91,7 @@ This project captures synchronized RGB and depth frames from an Orbbec Femto Bol
     pip install -r requirements.txt
     ```
 
-5. Connect the Orbbec Femto Bolt camera to the Linux machine before running the app.
+7. Connect the Orbbec Femto Bolt camera to the Linux machine before running the app. The `rgbd/Makefile` assumes `pyorbbecsdk` is available at `../../pyorbbecsdk` relative to the `rgbd/` folder.
 
 ### Running the main capture app
 
@@ -130,6 +147,21 @@ dataset/
 ├── pointcloud/     # Saved point clouds in .ply format
 ├── info/           # Metadata logs and intrinsics info
 ```
+
+### Live demo model files
+
+The live inference demo loads `.pt` files from `rgdb/live/models/` and shows the selected file name in the navbar.
+
+Current weights:
+
+- `best_multiple_26.pt`
+- `best_single_26.pt`
+- `m11best.pt`
+- `m8best.pt`
+- `s11best.pt`
+- `s8best.pt`
+
+See `rgdb/docs/models.md` for the current model list.
 
 ### Notes
 
