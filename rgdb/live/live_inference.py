@@ -20,7 +20,7 @@ from pyorbbecsdk import OBFormat
 # ─────────────────────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────────────────────
-MODEL_DIR = Path("/home/cpsstudent/Documents/ips_s2026/rgdb/live")
+MODEL_DIR = Path(__file__).resolve().parent
 MODEL_FILES = {
     "m8best": MODEL_DIR / "m8best.pt",
     "m26best": MODEL_DIR / "m26best.pt",
@@ -46,9 +46,10 @@ MIN_MASK_AREA = 0.002
 CROP_LEFT = 250
 CROP_RIGHT = 760
 
-DIR_IMAGES = Path("live-data/images")
-DIR_VIDEOS = Path("live-data/videos")
-DIR_LOGS = Path("live-data/logs")
+LIVE_ROOT = Path(__file__).resolve().parents[1]
+DIR_IMAGES = LIVE_ROOT / "live-data" / "images"
+DIR_VIDEOS = LIVE_ROOT / "live-data" / "videos"
+DIR_LOGS = LIVE_ROOT / "logs"
 DIR_IMAGES.mkdir(parents=True, exist_ok=True)
 DIR_VIDEOS.mkdir(parents=True, exist_ok=True)
 DIR_LOGS.mkdir(parents=True, exist_ok=True)
