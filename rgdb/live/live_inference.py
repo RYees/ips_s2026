@@ -255,13 +255,16 @@ def draw_navbar(
     model_btn_x = btn_x - 10 - model_btn_w
     model_btn_y = 10
 
-    steel_x = btn_x - 10 - chip_width("Steel")
+    current_model_label = f"Model: {Path(MODEL_FILES.get(model_key, MODEL_FILES[DEFAULT_MODEL_KEY])).stem}"
+    current_model_x = model_btn_x - 10 - chip_width(current_model_label)
+    steel_x = current_model_x - 12 - chip_width("Steel")
     copper_x = steel_x - 12 - chip_width("Copper")
     mode_label = model_mode_label(model_key)
     mode_x = copper_x - 12 - chip_width(mode_label)
     chip(mode_x, mode_label, (0, 150, 180))
     chip(copper_x, "Copper", CLASS_COLORS[0])
     chip(steel_x, "Steel", CLASS_COLORS[1])
+    chip(current_model_x, current_model_label, (70, 70, 90))
 
     if recording:
         rec_x = max(180, mode_x - 76)
