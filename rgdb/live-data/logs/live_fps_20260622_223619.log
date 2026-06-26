@@ -1,0 +1,30 @@
+[INFO] FPS log: live-data/logs/live_fps_20260622_223619.log
+[INFO] Loading model: mbest.pt
+[INFO] Initializing camera...
+[INFO] Ready.  S=screenshot  R=record  Q=quit
+[INFO] Inference crop: x=[250:760]  (510px wide — matches training data)
+[FPS] live=0.15 fps | infer_avg=6084.0 ms | detections=9 | model=mbest.pt
+[FPS] live=0.23 fps | infer_avg=4256.7 ms | detections=9 | model=mbest.pt
+[FPS] live=0.52 fps | infer_avg=1713.6 ms | detections=9 | model=mbest.pt
+[FPS] live=0.39 fps | infer_avg=2372.9 ms | detections=9 | model=mbest.pt
+[FPS] live=0.24 fps | infer_avg=3944.3 ms | detections=8 | model=mbest.pt
+[FPS] live=0.51 fps | infer_avg=1830.8 ms | detections=11 | model=mbest.pt
+[FPS] live=0.40 fps | infer_avg=2336.8 ms | detections=10 | model=mbest.pt
+[FPS] live=0.44 fps | infer_avg=2133.4 ms | detections=11 | model=mbest.pt
+[FPS] live=0.52 fps | infer_avg=1795.0 ms | detections=10 | model=mbest.pt
+[FPS] live=0.44 fps | infer_avg=2086.5 ms | detections=10 | model=mbest.pt
+[FPS] live=0.37 fps | infer_avg=2520.9 ms | detections=10 | model=mbest.pt
+[FPS] live=0.42 fps | infer_avg=2218.4 ms | detections=9 | model=mbest.pt
+[FPS] live=0.47 fps | infer_avg=1972.1 ms | detections=11 | model=mbest.pt
+[FPS] live=0.52 fps | infer_avg=1810.9 ms | detections=12 | model=mbest.pt
+[FPS] live=0.45 fps | infer_avg=2070.9 ms | detections=11 | model=mbest.pt
+[FPS] live=0.44 fps | infer_avg=2144.0 ms | detections=11 | model=mbest.pt
+[FPS] live=0.46 fps | infer_avg=2032.0 ms | detections=11 | model=mbest.pt
+[FPS] live=0.34 fps | infer_avg=2795.2 ms | detections=12 | model=mbest.pt
+[FPS] live=0.48 fps | infer_avg=1960.2 ms | detections=11 | model=mbest.pt
+[FPS] live=0.60 fps | infer_avg=1536.0 ms | detections=11 | model=mbest.pt
+[FPS] live=0.37 fps | infer_avg=2530.5 ms | detections=10 | model=mbest.pt
+[FPS] live=0.45 fps | infer_avg=2082.5 ms | detections=11 | model=mbest.pt
+[FPS] live=0.38 fps | infer_avg=2482.1 ms | detections=10 | model=mbest.pt
+[FPS] live=0.18 fps | infer_avg=5300.0 ms | detections=10 | model=mbest.pt
+[FPS] live=0.16 fps | infer_avg=6152.1 ms | detections=11 | model=mbest.pt

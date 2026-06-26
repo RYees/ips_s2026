@@ -1,0 +1,20 @@
+[INFO] FPS log: /home/cpsstudent/Documents/ips_s2026/rgdb/logs/live_fps_20260626_195707.log
+[INFO] Loading model: m26best.pt
+[INFO] Initializing camera...
+[INFO] Ready.  S=screenshot  R=record  Q=quit
+[INFO] Inference crop: x=[250:760]  (510px wide — matches training data)
+[FPS] live=0.16 fps | infer_avg=5658.7 ms | detections=2 | model=m26best.pt
+[FPS] live=0.26 fps | infer_avg=3701.2 ms | detections=2 | model=m26best.pt
+[FPS] live=0.42 fps | infer_avg=2200.3 ms | detections=2 | model=m26best.pt
+[FPS] live=0.44 fps | infer_avg=2128.5 ms | detections=2 | model=m26best.pt
+[FPS] live=0.52 fps | infer_avg=1778.5 ms | detections=2 | model=m26best.pt
+[FPS] live=0.35 fps | infer_avg=2673.2 ms | detections=2 | model=m26best.pt
+[FPS] live=0.60 fps | infer_avg=1475.4 ms | detections=2 | model=m26best.pt
+[FPS] live=0.59 fps | infer_avg=1579.1 ms | detections=3 | model=m26best.pt
+[FPS] live=0.59 fps | infer_avg=1481.4 ms | detections=2 | model=m26best.pt
+[FPS] live=0.58 fps | infer_avg=1594.0 ms | detections=2 | model=m26best.pt
+[FPS] live=0.53 fps | infer_avg=1768.8 ms | detections=2 | model=m26best.pt
+[FPS] live=0.48 fps | infer_avg=1878.8 ms | detections=2 | model=m26best.pt
+[FPS] live=0.52 fps | infer_avg=1792.4 ms | detections=2 | model=m26best.pt
+
+[INFO] Stopped by user.

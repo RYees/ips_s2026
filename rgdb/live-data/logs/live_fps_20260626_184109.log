@@ -1,0 +1,46 @@
+[INFO] FPS log: live-data/logs/live_fps_20260626_184109.log
+[INFO] Loading model: m8best.pt
+[INFO] Initializing camera...
+[INFO] Ready.  S=screenshot  R=record  Q=quit
+[INFO] Inference crop: x=[250:760]  (510px wide — matches training data)
+[FPS] live=0.12 fps | infer_avg=5695.4 ms | detections=0 | model=m8best.pt
+[FPS] live=0.17 fps | infer_avg=5518.5 ms | detections=0 | model=m8best.pt
+[FPS] live=0.34 fps | infer_avg=2670.6 ms | detections=0 | model=m8best.pt
+[FPS] live=0.52 fps | infer_avg=1784.4 ms | detections=0 | model=m8best.pt
+[FPS] live=0.55 fps | infer_avg=1701.4 ms | detections=0 | model=m8best.pt
+[FPS] live=0.55 fps | infer_avg=1695.8 ms | detections=0 | model=m8best.pt
+[FPS] live=0.58 fps | infer_avg=1597.0 ms | detections=0 | model=m8best.pt
+[FPS] live=0.61 fps | infer_avg=1532.0 ms | detections=0 | model=m8best.pt
+[FPS] live=0.56 fps | infer_avg=1636.9 ms | detections=0 | model=m8best.pt
+[FPS] live=0.64 fps | infer_avg=1435.4 ms | detections=0 | model=m8best.pt
+[FPS] live=0.63 fps | infer_avg=1500.1 ms | detections=0 | model=m8best.pt
+[FPS] live=0.62 fps | infer_avg=1513.2 ms | detections=0 | model=m8best.pt
+[FPS] live=0.68 fps | infer_avg=1357.3 ms | detections=0 | model=m8best.pt
+[FPS] live=0.63 fps | infer_avg=1456.9 ms | detections=0 | model=m8best.pt
+[FPS] live=0.63 fps | infer_avg=1480.3 ms | detections=0 | model=m8best.pt
+[FPS] live=0.60 fps | infer_avg=1550.0 ms | detections=0 | model=m8best.pt
+[FPS] live=0.65 fps | infer_avg=1399.5 ms | detections=0 | model=m8best.pt
+[FPS] live=0.66 fps | infer_avg=1399.0 ms | detections=0 | model=m8best.pt
+[FPS] live=0.59 fps | infer_avg=1560.1 ms | detections=0 | model=m8best.pt
+[FPS] live=0.56 fps | infer_avg=1669.1 ms | detections=0 | model=m8best.pt
+[FPS] live=0.44 fps | infer_avg=2107.6 ms | detections=1 | model=m8best.pt
+[FPS] live=0.52 fps | infer_avg=1794.9 ms | detections=0 | model=m8best.pt
+[FPS] live=0.49 fps | infer_avg=1963.3 ms | detections=0 | model=m8best.pt
+[FPS] live=0.56 fps | infer_avg=1667.7 ms | detections=0 | model=m8best.pt
+[FPS] live=0.49 fps | infer_avg=1840.1 ms | detections=0 | model=m8best.pt
+[FPS] live=0.41 fps | infer_avg=2250.8 ms | detections=0 | model=m8best.pt
+[FPS] live=0.61 fps | infer_avg=1492.9 ms | detections=0 | model=m8best.pt
+[FPS] live=0.44 fps | infer_avg=2109.8 ms | detections=0 | model=m8best.pt
+[FPS] live=0.55 fps | infer_avg=1689.4 ms | detections=0 | model=m8best.pt
+[FPS] live=0.68 fps | infer_avg=1309.3 ms | detections=0 | model=m8best.pt
+[FPS] live=0.54 fps | infer_avg=1763.3 ms | detections=0 | model=m8best.pt
+[INFO] Switching model to s11best.pt...
+[INFO] Switching model to s11best.pt...
+[FPS] live=0.43 fps | infer_avg=2123.8 ms | detections=0 | model=s11best.pt
+[FPS] live=0.60 fps | infer_avg=1509.6 ms | detections=0 | model=s11best.pt
+[FPS] live=0.47 fps | infer_avg=1980.3 ms | detections=0 | model=s11best.pt
+[INFO] Switching model to s26best.pt...
+[INFO] Model loaded: s26best.pt
+[FPS] live=0.22 fps | infer_avg=3284.5 ms | detections=0 | model=s26best.pt
+[FPS] live=0.23 fps | infer_avg=3996.4 ms | detections=0 | model=s26best.pt
+[FPS] live=0.16 fps | infer_avg=5902.8 ms | detections=0 | model=s26best.pt

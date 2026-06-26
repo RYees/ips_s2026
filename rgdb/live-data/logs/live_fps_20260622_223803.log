@@ -1,0 +1,8 @@
+[INFO] FPS log: live-data/logs/live_fps_20260622_223803.log
+[INFO] Loading model: mbest.pt
+[INFO] Initializing camera...
+[INFO] Ready.  S=screenshot  R=record  Q=quit
+[INFO] Inference crop: x=[250:760]  (510px wide — matches training data)
+[FPS] live=0.13 fps | infer_avg=7159.6 ms | detections=11 | model=mbest.pt
+[FPS] live=0.31 fps | infer_avg=3039.8 ms | detections=12 | model=mbest.pt
+[FPS] live=0.52 fps | infer_avg=1779.4 ms | detections=11 | model=mbest.pt
