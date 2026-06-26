@@ -37,6 +37,18 @@ The detailed user guide is split across the `docs/` folder. Start with `docs/REA
 - `rgbd/logs/` - runtime logs for the live demo
 - `docs/` - separate guides for installation, UI controls, data layout, and models
 
+## Prepared Training Datasets
+
+The real datasets collected by this system and used for model training are already prepared on the CPS server:
+
+```text
+/mnt/cps_persistent1_shared/ips_s2026/data-finals/dataset-singles-seg
+/mnt/cps_persistent1_shared/ips_s2026/data-finals/dataset-multiples-seg
+/mnt/cps_persistent1_shared/ips_s2026/data-finals/dataset-singles-cls
+```
+
+Each dataset is already split and ready for training, with roughly 2,000 items per dataset.
+
 ## Data Collection Output
 
 When a frame is saved, the collection UI writes the package into `rgbd/data/` using this layout:

@@ -1,4 +1,4 @@
-# Dataset Layout
+# Prepared Training Datasets
 
 ## CPS Server Locations
 
@@ -15,6 +15,8 @@ The prepared datasets live on the CPS server at:
 - `dataset-singles-seg` - single-object segmentation training
 - `dataset-multiples-seg` - multiple-object segmentation training
 - `dataset-singles-cls` - single-object classification training
+
+Each dataset is already split and ready for training, with roughly 2,000 items per dataset.
 
 ## Collected Data Structure
 
