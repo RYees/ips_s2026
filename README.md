@@ -66,15 +66,7 @@ The save logic is atomic: if any required artifact is missing, the snapshot is n
 
 ## Model Files
 
-The live demo ships with model switching built in. The current model names are documented in `docs/models.md`.
-
-If you publish the final weights on GitHub, the recommended upload location is GitHub Releases, with a cleaner naming scheme of:
-
-- `best_single.pt`
-- `best_multiple.pt`
-- `best_multiple_depth.pt`
-
-Keep the repo's current model map in sync with any renamed release assets, and make sure the assets are downloadable from the repository README.
+The live demo ships with model switching built in. The current model names are documented in `docs/models.md` and load from `rgbd/live/models/`.
 
 ## Full Guide
 
