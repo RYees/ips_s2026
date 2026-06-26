@@ -1,1 +1,3 @@
 *.pt
+!live/models/
+!live/models/*.pt
