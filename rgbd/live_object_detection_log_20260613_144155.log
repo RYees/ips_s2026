@@ -1,0 +1,16 @@
+
+================================================================================
+                 LIVE OBJECT DETECTION DEBUG
+================================================================================
+  Timestamp Code Generation : 2026-06-13 14:42:01.742
+  Capture Name              : img1464
+  Cropped RGB Shape         : (720, 510, 3)
+  Cropped Depth Shape       : (720, 510)
+  Mask Foreground Pixels    : 7244
+  Mask Foreground Ratio     : 0.01972767
+  Mask Connected Components : 1
+  Mask Largest BBox         : (281, 281, 75, 183)
+  Mask Largest Centroid     : (320.8025952512424, 373.8906681391496)
+  Plane Inliers             : 347156
+  Non-Plane Points          : 6002
+================================================================================

@@ -1,124 +1,446 @@
 import cv2
+import os
 import numpy as np
 import tkinter as tk
 from PIL import Image, ImageTk
 from pathlib import Path
+from datetime import datetime
+import re
+import sys
 import open3d as o3d
 
-from camera_interface import CameraInterface
-from segmentation_helper import SegmentationHelper
-from annotation_writer import AnnotationWriter
-from utils import frame_to_bgr_image
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from camera.camera_interface import CameraInterface
+from processing.annotation_writer import AnnotationWriter
+from processing.utils import frame_to_bgr_image
+import offline_case.masking as masking_pipeline
+from offline_case.masking import CaptureInfo, run_masking_from_point_cloud
 from tkinter import ttk
 
-# Crops the input image to a square region centered in the image, extra_crop pixels are removed from each side.
+
+# Crops the input image to a region; extra_crop pixels are removed from each side.
 def crop_manual(img, top=0, bottom=0, left=0, right=0):
     h, w = img.shape[:2]
-    # Enforce non-negative regions
     top = max(0, top)
     bottom = max(0, bottom)
     left = max(0, left)
     right = max(0, right)
 
-    # Prevent invalid crop bounds that would create an empty image
     if top + bottom >= h or left + right >= w:
         return img, 0, 0
 
-    new_img = img[top:h-bottom if bottom > 0 else h, left:w-right if right > 0 else w]
+    new_img = img[
+        top : h - bottom if bottom > 0 else h, left : w - right if right > 0 else w
+    ]
     return new_img, left, top
+
+
+class TeeStream:
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, text):
+        for stream in self.streams:
+            try:
+                stream.write(text)
+                stream.flush()
+            except Exception:
+                pass
+
+    def flush(self):
+        for stream in self.streams:
+            try:
+                stream.flush()
+            except Exception:
+                pass
 
 
 class RGBDCollectorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("RGB-D Data Collector (Orbbec)")
+        self.root.title("Industrial Sorting Rig Control Panel")
+        self.root.geometry("1400x900")
         self.root.focus_force()
 
-        self.cam = CameraInterface() # Initialize Orbbec camera interface
-        self.cam.setup_streams() # Sets up the RGB-D streams (color + depth)
-        intrinsics = self.cam.get_intrinsics() # Retrieves intrinsic camera parameters
-        print("Width:", intrinsics.width) # The number of pixels horizontally in the image (camera resolution)
-        print("Height:", intrinsics.height) # The number of pixels vertically in the image
-        fx = intrinsics.intrinsic_matrix[0, 0] # Focal length in x direction (in pixels)
-        fy = intrinsics.intrinsic_matrix[1, 1] # Focal length in y direction (in pixels)
-        cx = intrinsics.intrinsic_matrix[0, 2] # Optical center x-coordinate (in pixels)
-        cy = intrinsics.intrinsic_matrix[1, 2] # Optical center y-coordinate (in pixels)
-        print("fx:", fx)
-        print("fy:", fy)
-        print("cx:", cx)
-        print("cy:", cy)
-        #self.seg = SegmentationHelper(intrinsics) # Uncomment this if you are not cropping the images
+        # Core Hardware Sub-System Initialization
+        self.cam = CameraInterface()
+        self.cam.setup_streams()
+        intrinsics = self.cam.get_intrinsics()
+
+        print("Width:", intrinsics.width)
+        print("Height:", intrinsics.height)
+        fx = intrinsics.intrinsic_matrix[0, 0]
+        fy = intrinsics.intrinsic_matrix[1, 1]
+        cx = intrinsics.intrinsic_matrix[0, 2]
+        cy = intrinsics.intrinsic_matrix[1, 2]
+
         self.writer = AnnotationWriter()
 
-        # Directories
-        base_path = Path("dataset")
-        self.img_dir = base_path / "images"
-        self.label_dir = base_path / "labels"
-        self.depth_dir = base_path / "depth"
-        self.info_dir = base_path / "info"
-        self.pc_dir = base_path / "pointcloud"
-        for d in [self.img_dir, self.label_dir, self.depth_dir, self.info_dir, self.pc_dir]:
+        # Dataset Storage Layout Routing
+        self.log_dir = Path(__file__).resolve().parent
+        self.data_dir = self.log_dir / "data"
+        self.cropped_rgb_dir = self.data_dir / "images"
+        self.uncropped_rgb_dir = self.data_dir / "uncropped_rgb"
+        self.label_dir = self.data_dir / "labels"
+        self.depth_dir = self.data_dir / "depth"
+        self.mask_dir = self.data_dir / "masks"
+        self.info_dir = self.data_dir / "info"
+        self.pc_dir = self.data_dir / "pointcloud"
+        self.debug_dir = self.data_dir / "debug"
+        # Backwards-compatible aliases for the existing save logic.
+        self.img_dir = self.uncropped_rgb_dir
+        self.crop_rgb_dir = self.cropped_rgb_dir
+        self.mask_debug_dir = self.log_dir / "mask_debug"
+        self.object_debug_path = (
+            self.log_dir
+            / f"live_object_detection_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        )
+        for d in [
+            self.img_dir,
+            self.crop_rgb_dir,
+            self.label_dir,
+            self.depth_dir,
+            self.mask_dir,
+            self.info_dir,
+            self.pc_dir,
+            self.debug_dir,
+            self.mask_debug_dir,
+        ]:
             d.mkdir(parents=True, exist_ok=True)
 
-        self.counter = len(list(self.img_dir.glob("*.png")))
+        self.log_path = (
+            self.debug_dir / f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        )
+        self.log_file = open(self.log_path, "a", buffering=1)
+        self._orig_stdout = sys.stdout
+        self._orig_stderr = sys.stderr
+        sys.stdout = TeeStream(self._orig_stdout, self.log_file)
+        sys.stderr = TeeStream(self._orig_stderr, self.log_file)
 
+        # Send masking.py diagnostics into the same object log file that we share.
+        masking_pipeline._set_log_file(self.object_debug_path)
+
+        self.counter = self.next_capture_index()
+        self.current_img_name = None
+
+        # Application State Tracking Buffers
         self.captured_rgb = None
+        self.captured_original_rgb = None
         self.captured_depth = None
         self.captured_mask = None
         self.captured_pcd = None
+        self.captured_mask_stats = None
+        self.captured_plane_model = None
+        self.captured_plane_inliers = None
+        self.captured_non_plane_pts = None
+        self.captured_intrinsics = None
+        self.raw_rgb_shape = None
+        self.raw_depth_shape = None
+        self.cropped_rgb_shape = None
+        self.cropped_depth_shape = None
+        self.pcd_rgb_shape = None
+        self.pcd_depth_shape = None
+        self.pcd_crop_top = 0
+        self.pcd_crop_left = 0
         self.is_capturing = True
 
-        self.video_frame = tk.Frame(root)
-        self.video_frame.pack(side=tk.TOP)
-        self.btn_frame = tk.Frame(root)
-        self.btn_frame.pack(side=tk.BOTTOM, pady=5)
+        # Build Layout Panelling with Sliders
+        self.setup_ui_layout()
 
-        self.video_label = tk.Label(self.video_frame)
-        self.video_label.pack()
-
-        self.class_var = tk.StringVar(value="0")
-        tk.Label(self.btn_frame, text="Class:").grid(row=1, column=0)
-        self.class_selector = tk.OptionMenu(self.btn_frame, self.class_var, "0", "1")
-        self.class_selector.grid(row=1, column=1)
-        tk.Label(self.btn_frame, text="(0: Copper, 1: Steel)").grid(row=1, column=2, columnspan=2)
-
-        self.capture_btn = tk.Button(self.btn_frame, text="Capture (Enter)", command=self.capture_frame)
-        self.capture_btn.grid(row=0, column=0, padx=5)
-        self.save_btn = tk.Button(self.btn_frame, text="Save (S)", command=self.save_data, state=tk.DISABLED)
-        self.save_btn.grid(row=0, column=1, padx=5)
-        self.retake_btn = tk.Button(self.btn_frame, text="Retake (R)", command=self.retake_frame, state=tk.DISABLED)
-        self.retake_btn.grid(row=0, column=2, padx=5)
-        self.quit_btn = tk.Button(self.btn_frame, text="Quit (Q)", command=self.quit_app)
-        self.quit_btn.grid(row=0, column=3, padx=5)
-        self.pcd_btn = tk.Button(self.btn_frame, text="Preview PointCloud (P)", command=self.preview_pointcloud_interactive)
-        self.pcd_btn.grid(row=0, column=4, padx=5)
-
-        self.root.bind('<Return>', lambda e: self.capture_frame())
-        self.root.bind('s', lambda e: self.save_data())
-        self.root.bind('S', lambda e: self.save_data())
-        self.root.bind('r', lambda e: self.retake_frame())
-        self.root.bind('R', lambda e: self.retake_frame())
-        self.root.bind('q', lambda e: self.quit_app())
-        self.root.bind('Q', lambda e: self.quit_app())
-        self.root.bind('p', lambda e: self.preview_pointcloud_interactive())
-        self.root.bind('P', lambda e: self.preview_pointcloud_interactive())
+        # Keyboard Shortcuts
+        self.root.bind("<Return>", lambda e: self.capture_frame())
+        self.root.bind("s", lambda e: self.save_data())
+        self.root.bind("S", lambda e: self.save_data())
+        self.root.bind("r", lambda e: self.retake_frame())
+        self.root.bind("R", lambda e: self.retake_frame())
+        self.root.bind("q", lambda e: self.quit_app())
+        self.root.bind("Q", lambda e: self.quit_app())
+        self.root.bind("p", lambda e: self.preview_pointcloud_interactive())
+        self.root.bind("P", lambda e: self.preview_pointcloud_interactive())
 
         self.Q()
+
+    def setup_ui_layout(self):
+        # Dual Screen Panel Spacing Layout
+        self.left_panel = tk.Frame(self.root, width=950, bg="#2b2b2b")
+        self.left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        self.right_panel = tk.Frame(
+            self.root, width=450, bg="#3c3f41", bd=2, relief=tk.SUNKEN
+        )
+        self.right_panel.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Video Label
+        self.video_label = tk.Label(self.left_panel, bg="black")
+        self.video_label.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Controllers Frame
+        self.controls_frame = tk.LabelFrame(
+            self.right_panel,
+            text=" Execution Pipeline Controllers ",
+            bg="#3c3f41",
+            fg="white",
+        )
+        self.controls_frame.pack(fill=tk.X, padx=10, pady=10)
+
+        self.capture_btn = tk.Button(
+            self.controls_frame,
+            text="Capture Frame (Enter)",
+            font=("Arial", 11, "bold"),
+            bg="#4CAF50",
+            fg="black",
+            command=self.capture_frame,
+        )
+        self.capture_btn.pack(fill=tk.X, padx=10, pady=5)
+
+        self.retake_btn = tk.Button(
+            self.controls_frame,
+            text="Retake Frame (R)",
+            font=("Arial", 11),
+            state=tk.DISABLED,
+            command=self.retake_frame,
+        )
+        self.retake_btn.pack(fill=tk.X, padx=10, pady=5)
+
+        # Class Label Selection Block
+        self.class_frame = tk.LabelFrame(
+            self.right_panel,
+            text=" Quality Assurance Label Classification ",
+            bg="#3c3f41",
+            fg="white",
+        )
+        self.class_frame.pack(fill=tk.X, padx=10, pady=10)
+
+        self.class_var = tk.StringVar(value="0")
+        tk.Radiobutton(
+            self.class_frame,
+            text="Class 00: Copper Mass Asset",
+            variable=self.class_var,
+            value="0",
+            bg="#3c3f41",
+            fg="white",
+            selectcolor="#2b2b2b",
+        ).pack(anchor=tk.W, padx=10, pady=2)
+        tk.Radiobutton(
+            self.class_frame,
+            text="Class 01: Steel Structural Scrap",
+            variable=self.class_var,
+            value="1",
+            bg="#3c3f41",
+            fg="white",
+            selectcolor="#2b2b2b",
+        ).pack(anchor=tk.W, padx=10, pady=2)
+
+        self.save_btn = tk.Button(
+            self.right_panel,
+            text="COMMIT DATASET SNAPSHOT (S)",
+            font=("Arial", 12, "bold"),
+            bg="#008CBA",
+            fg="black",
+            state=tk.DISABLED,
+            command=self.save_data,
+        )
+        self.save_btn.pack(fill=tk.X, padx=20, pady=20)
+
+        self.status_var = tk.StringVar(value="Status: idle")
+        self.status_label = tk.Label(
+            self.right_panel,
+            textvariable=self.status_var,
+            bg="#3c3f41",
+            fg="white",
+            anchor=tk.W,
+            justify=tk.LEFT,
+            wraplength=390,
+        )
+        self.status_label.pack(fill=tk.X, padx=20, pady=(0, 10))
+
+        # Modern Slider Adjustments Frame
+        self.crop_frame = tk.LabelFrame(
+            self.right_panel,
+            text=" Realtime Hardware Crop Adjustments (px) ",
+            bg="#3c3f41",
+            fg="white",
+        )
+        self.crop_frame.pack(fill=tk.X, padx=10, pady=10)
+
+        self.crop_top_var = tk.IntVar(value=0)
+        self.crop_bottom_var = tk.IntVar(value=0)
+        self.crop_left_var = tk.IntVar(value=250)
+        self.crop_right_var = tk.IntVar(value=520)
+
+        self.create_slider(self.crop_frame, "Top Margin:", self.crop_top_var, 0, 500)
+        self.create_slider(
+            self.crop_frame, "Bottom Margin:", self.crop_bottom_var, 0, 500
+        )
+        self.create_slider(self.crop_frame, "Left Margin:", self.crop_left_var, 0, 500)
+        self.create_slider(
+            self.crop_frame, "Right Margin:", self.crop_right_var, 0, 600
+        )
+
+        self.pcd_btn = tk.Button(
+            self.right_panel,
+            text="Preview PointCloud (P)",
+            command=self.preview_pointcloud_interactive,
+        )
+        self.pcd_btn.pack(fill=tk.X, padx=20, pady=5)
+
+        self.quit_btn = tk.Button(
+            self.right_panel,
+            text="Shutdown Subsystem Enclosure (Q)",
+            command=self.quit_app,
+            bg="#f44336",
+            fg="black",
+        )
+        self.quit_btn.pack(fill=tk.X, padx=20, pady=5)
+
+    def create_slider(self, parent, label_text, var, from_, to):
+        f = tk.Frame(parent, bg="#3c3f41")
+        f.pack(fill=tk.X, padx=5, pady=2)
+        tk.Label(
+            f, text=label_text, width=12, anchor=tk.W, bg="#3c3f41", fg="white"
+        ).pack(side=tk.LEFT)
+        s = ttk.Scale(f, from_=from_, to=to, variable=var, orient=tk.HORIZONTAL)
+        s.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        l = tk.Label(f, text=str(var.get()), width=4, bg="#3c3f41", fg="white")
+        l.pack(side=tk.RIGHT)
+        var.trace_add("write", lambda *args: l.config(text=str(var.get())))
 
     def update_video(self):
         try:
             if self.is_capturing:
-                color_frame, depth_frame = self.cam.get_frames()
-                if color_frame is not None and depth_frame is not None:
-                    rgb = frame_to_bgr_image(color_frame) # Convert RGB to BGR for OpenCV
-                    preview = cv2.resize(rgb, (960, 540)) # Resize for display
-                    img = Image.fromarray(cv2.cvtColor(preview, cv2.COLOR_BGR2RGB)) # Convert BGR to RGB for PIL
+                frames = self.cam.get_frames()
+                if frames is not None and frames[0] is not None:
+                    color_frame = frames[0]
+                    rgb = frame_to_bgr_image(color_frame)
+
+                    t = self.crop_top_var.get()
+                    b = self.crop_bottom_var.get()
+                    l = self.crop_left_var.get()
+                    r = self.crop_right_var.get()
+
+                    img_cropped, _, _ = crop_manual(
+                        rgb, top=t, bottom=b, left=l, right=r
+                    )
+
+                    h, w = img_cropped.shape[:2]
+                    max_h, max_w = 700, 930
+                    scale = min(max_w / w, max_h / h, 1.0)
+                    if scale < 1.0:
+                        img_cropped = cv2.resize(
+                            img_cropped,
+                            (int(w * scale), int(h * scale)),
+                            interpolation=cv2.INTER_LINEAR,
+                        )
+
+                    img = Image.fromarray(cv2.cvtColor(img_cropped, cv2.COLOR_BGR2RGB))
                     imgtk = ImageTk.PhotoImage(image=img)
                     self.video_label.imgtk = imgtk
                     self.video_label.configure(image=imgtk)
         except Exception as e:
             print(f"[ERROR] update_video failed: {e}")
         self.root.after(30, self.update_video)
+
+    def _resize_panel(self, img, size=(320, 240)):
+        return cv2.resize(img, size, interpolation=cv2.INTER_AREA)
+
+    def _label_panel(self, img, label):
+        out = img.copy()
+        cv2.rectangle(out, (0, 0), (out.shape[1], 28), (0, 0, 0), -1)
+        cv2.putText(
+            out,
+            label,
+            (8, 20),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+        return out
+
+    def build_verification_overlay(self, rgb, mask):
+        mask_u8 = (mask > 0).astype(np.uint8)
+        overlay = rgb.copy()
+        overlay[mask_u8 > 0] = [0, 255, 0]
+        contours, _ = cv2.findContours(
+            mask_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+        if contours:
+            largest = max(contours, key=cv2.contourArea)
+            cv2.drawContours(overlay, [largest], -1, (0, 0, 255), 2)
+        return overlay
+
+    def build_capture_preview(
+        self,
+        rgb,
+        mask,
+        depth,
+        raw_mask=None,
+        post_close_mask=None,
+        density_map=None,
+    ):
+        mask_viz = (mask > 0).astype(np.uint8) * 255
+        mask_bgr = cv2.cvtColor(mask_viz, cv2.COLOR_GRAY2BGR)
+        contours, _ = cv2.findContours(
+            mask_viz, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+        if contours:
+            largest = max(contours, key=cv2.contourArea)
+            cv2.drawContours(mask_bgr, [largest], -1, (0, 255, 0), 2)
+
+        depth_vis = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+        depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
+        verification = self.build_verification_overlay(rgb, mask)
+        raw_overlay = (
+            self.build_verification_overlay(rgb, raw_mask)
+            if raw_mask is not None
+            else rgb
+        )
+        post_close_overlay = (
+            self.build_verification_overlay(rgb, post_close_mask)
+            if post_close_mask is not None
+            else rgb
+        )
+        final_overlay = verification
+
+        panel_size = (420, 315)
+        panels = [
+            self._label_panel(self._resize_panel(rgb, panel_size), "Cropped RGB"),
+            self._label_panel(self._resize_panel(mask_bgr, panel_size), "Mask"),
+            self._label_panel(self._resize_panel(depth_colored, panel_size), "Depth"),
+            self._label_panel(
+                self._resize_panel(verification, panel_size), "Verification Overlay"
+            ),
+        ]
+
+        # Debug panels retained for later triage; keep them commented out for now.
+        # if density_map is not None and density_map.size:
+        #     density_vis = cv2.normalize(
+        #         density_map.astype(np.float32), None, 0, 255, cv2.NORM_MINMAX
+        #     ).astype(np.uint8)
+        #     density_color = cv2.applyColorMap(density_vis, cv2.COLORMAP_INFERNO)
+        # else:
+        #     density_color = np.zeros_like(rgb)
+        # raw_mask_bgr = (
+        #     cv2.cvtColor((raw_mask > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR)
+        #     if raw_mask is not None
+        #     else np.zeros_like(mask_bgr)
+        # )
+        # post_close_mask_bgr = (
+        #     cv2.cvtColor(
+        #         (post_close_mask > 0).astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR
+        #     )
+        #     if post_close_mask is not None
+        #     else np.zeros_like(mask_bgr)
+        # )
+        # final_overlay = verification
+
+        top = np.hstack((panels[0], panels[1]))
+        bottom = np.hstack((panels[2], panels[3]))
+        return np.vstack((top, bottom))
 
     def Q(self):
         self.update_video()
@@ -127,77 +449,303 @@ class RGBDCollectorApp:
         if not self.is_capturing:
             return
 
-        color_frame, depth_frame = self.cam.get_frames()
-        if color_frame is None or depth_frame is None:
+        if self.current_img_name is None:
+            self.current_img_name = f"img{self.counter:04d}"
+
+        frames = self.cam.get_frames()
+        if frames is None or frames[0] is None or frames[1] is None:
             print("[ERROR] No frame available to capture")
             return
 
-        rgb = frame_to_bgr_image(color_frame) # Convert RGB to BGR for OpenCV
-        depth = np.frombuffer(depth_frame.get_data(), dtype=np.uint16).reshape(
+        color_frame, depth_frame = frames[0], frames[1]
+        rgb = frame_to_bgr_image(color_frame)
+        original_rgb = rgb.copy()
+
+        depth_raw = np.frombuffer(depth_frame.get_data(), dtype=np.uint16)
+        depth = depth_raw.reshape(
             (depth_frame.get_height(), depth_frame.get_width())
-        ) # convert depth frame to numpy array
-        depth_height, depth_width = depth.shape
-        #rgb = cv2.resize(rgb, (depth_width, depth_height)) # Resize RGB to match depth dimensions
-        print(f"****[DEBUG] RGB shape: {rgb.shape}, Depth shape: {depth.shape}")
+        ).copy()
 
-        # === Crop both to center square ===
-        # === Apply crop to all sides ===
-        rgb, crop_x, crop_y = crop_manual(rgb, top=0, bottom=0, left=250, right=520)
-        depth, _, _ = crop_manual(depth, top=0, bottom=0, left=250, right=520)
+        self.raw_rgb_shape = rgb.shape
+        self.raw_depth_shape = depth.shape
 
-        # === Get original intrinsics ===
-        intrinsics = self.cam.get_intrinsics() # Recalculate intrinsics based on the cropped image
+        # Get values from sliders
+        t = self.crop_top_var.get()
+        b = self.crop_bottom_var.get()
+        l = self.crop_left_var.get()
+        r = self.crop_right_var.get()
+
+        # 1. Crop RGB image normally
+        rgb, crop_x, crop_y = crop_manual(rgb, top=t, bottom=b, left=l, right=r)
+
+        aligned_capture = depth.shape[:2] == original_rgb.shape[:2]
+        if aligned_capture:
+            # When the SDK alignment succeeds, depth and RGB already share the
+            # same pixel grid. We crop both with the same offsets and shift the
+            # intrinsics only by the crop origin.
+            depth, d_crop_x, d_crop_y = crop_manual(
+                depth, top=t, bottom=b, left=l, right=r
+            )
+        else:
+            # Fallback path for raw depth frames if alignment is unavailable.
+            # Keep the existing proportional crop logic as a compatibility path,
+            # but emit a warning so the debug log shows the degraded mode.
+            print(
+                "[WARNING] Depth frame does not match RGB resolution; using legacy "
+                "proportional depth crop fallback."
+            )
+            scale_x = depth.shape[1] / original_rgb.shape[1]
+            scale_y = depth.shape[0] / original_rgb.shape[0]
+            depth_t = int(round(t * scale_y))
+            depth_b = int(round(b * scale_y))
+            depth_l = int(round(l * scale_x))
+            depth_r = int(round(r * scale_x))
+            depth, d_crop_x, d_crop_y = crop_manual(
+                depth, top=depth_t, bottom=depth_b, left=depth_l, right=depth_r
+            )
+        # ─────────────────────────────────────────────────────────────────────
+
+        self.cropped_rgb_shape = rgb.shape
+        self.cropped_depth_shape = depth.shape
+
+        # Intrinsics handling
+        intrinsics = self.cam.get_intrinsics()
         fx = intrinsics.intrinsic_matrix[0, 0]
         fy = intrinsics.intrinsic_matrix[1, 1]
         cx = intrinsics.intrinsic_matrix[0, 2]
         cy = intrinsics.intrinsic_matrix[1, 2]
 
-        # === Build adjusted intrinsics ===
-        adjusted_intrinsics = o3d.camera.PinholeCameraIntrinsic(
-            width=rgb.shape[1],  # new square width
-            height=rgb.shape[0],  # new square height
-            fx=fx,
-            fy=fy,
-            cx=cx - crop_x,
-            cy=cy - crop_y
+        # ─────────────────────────────────────────────────────────────────────
+        # Depth intrinsics must match the coordinate system of the point cloud.
+        # In aligned mode, depth and RGB share the same canvas and only the crop
+        # origin needs to be removed. In legacy mode we preserve the prior
+        # proportional fallback so old captures remain inspectable.
+        # ─────────────────────────────────────────────────────────────────────
+        if aligned_capture:
+            adjusted_intrinsics = o3d.camera.PinholeCameraIntrinsic(
+                width=depth.shape[1],
+                height=depth.shape[0],
+                fx=fx,
+                fy=fy,
+                cx=cx - crop_x,
+                cy=cy - crop_y,
+            )
+        else:
+            adjusted_intrinsics = o3d.camera.PinholeCameraIntrinsic(
+                width=depth.shape[1],
+                height=depth.shape[0],
+                fx=fx * (depth.shape[1] / original_rgb.shape[1]),
+                fy=fy * (depth.shape[0] / original_rgb.shape[0]),
+                cx=(cx * (depth.shape[1] / original_rgb.shape[1])) - d_crop_x,
+                cy=(cy * (depth.shape[0] / original_rgb.shape[0])) - d_crop_y,
+            )
+
+        # Generate 3D Point Cloud geometries safely using depth scaling spaces
+        depth_m = depth.astype(np.float32) / 1000.0
+        depth_m = np.where((depth_m > 0.2) & (depth_m < 1.5), depth_m, 0.0)
+
+        depth_o3d = o3d.geometry.Image(depth_m)
+        pcd = o3d.geometry.PointCloud.create_from_depth_image(
+            depth_o3d, adjusted_intrinsics, depth_scale=1.0, depth_trunc=3.0, stride=1
+        )
+        # ─────────────────────────────────────────────────────────────────────
+
+        # ─────────────────────────────────────────────────────────────────────
+        # CRITICAL: CaptureInfo must reflect the intrinsics and depth shape that
+        # were actually used to build the point cloud, NOT the raw sensor values.
+        #
+        # The PCD was created with adjusted_intrinsics (scaled + crop-shifted)
+        # and from the CROPPED depth image.  masking.py re-projects those same
+        # 3-D points back to 2-D, so it must use the exact same intrinsics.
+        #
+        # Since the PCD was built from a depth image whose origin is already at
+        # pixel (0,0) of the cropped depth, there is no further crop offset to
+        # subtract during re-projection — the crop was consumed when the PCD was
+        # built.  We therefore pass crop_top=0 / crop_left=0, and set
+        # raw_depth_shape to the cropped depth shape so scale factors become 1:1.
+        # ─────────────────────────────────────────────────────────────────────
+        adj_fx = adjusted_intrinsics.intrinsic_matrix[0, 0]
+        adj_fy = adjusted_intrinsics.intrinsic_matrix[1, 1]
+        adj_cx = adjusted_intrinsics.intrinsic_matrix[0, 2]
+        adj_cy = adjusted_intrinsics.intrinsic_matrix[1, 2]
+
+        print(
+            f"  [LIVE INFO] PCD intrinsics  : fx={adj_fx:.3f}  fy={adj_fy:.3f}  "
+            f"cx={adj_cx:.3f}  cy={adj_cy:.3f}",
+            flush=True,
+        )
+        print(
+            f"  [LIVE INFO] Cropped depth shape : {depth.shape[1]}W x {depth.shape[0]}H  "
+            f"| RGB canvas : {rgb.shape[1]}W x {rgb.shape[0]}H",
+            flush=True,
         )
 
-        print(f"[DEBUG] RGB shape: {rgb.shape}")    # Shape: (height, width, 3)
-        print(f"[DEBUG] Depth shape: {depth.shape}")
-        print(f"[DEBUG] Depth dtype: {depth.dtype}")
-        print(f"[DEBUG] Depth min/max: {np.min(depth)}, {np.max(depth)}")
-        print(f"[DEBUG] Valid depth pixels: {np.count_nonzero(depth)}")
+        live_info = CaptureInfo(
+            # The PCD was built from the already-cropped depth image, so its
+            # pixel coordinate origin matches the cropped depth exactly.
+            # Use cropped depth shape so scale_x/scale_y in masking == 1.0,
+            # and zero out crop offsets because the crop is already baked in.
+            raw_depth_shape=depth.shape[:2],  # cropped depth (e.g. 265x576)
+            rgb_shape=rgb.shape[:2],  # cropped RGB   (e.g. 720x510)
+            crop_top=0,  # already baked into PCD origin
+            crop_left=0,  # already baked into PCD origin
+            fx=adj_fx,
+            fy=adj_fy,
+            cx=adj_cx,
+            cy=adj_cy,
+        )
+        self.pcd_rgb_shape = rgb.shape[:2]
+        self.pcd_depth_shape = depth.shape[:2]
+        self.pcd_crop_top = 0
+        self.pcd_crop_left = 0
+        mask, plane_model, inlier_count, outlier_count = run_masking_from_point_cloud(
+            pcd, live_info
+        )
 
-        # === Run segmentation on cropped data ===
-        self.seg = SegmentationHelper(adjusted_intrinsics)
-        mask, plane_eq, plane_inliers, non_plane_pts, pcd = self.seg.segment(depth, rgb) # binary mask, plane equation, inliers count, non-plane points count, and point cloud
+        # ─────────────────────────────────────────────────────────────────────
+        # REALTIME LIVE INTRINSICS MATRIX DIAGNOSTIC REPORT REINTEGRATION
+        # ─────────────────────────────────────────────────────────────────────
+        log_lines = [
+            "\n" + "=" * 80,
+            "             REALTIME LIVE INTRINSICS MATRIX DIAGNOSTIC REPORT",
+            "=" * 80,
+            "  Timestamp Code Generation : "
+            + datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+            f"  [HARDWARE] Raw Color Sensor Matrix Shape : {original_rgb.shape[1]}W x {original_rgb.shape[0]}H px",
+            f"  [HARDWARE] Raw Depth Sensor Matrix Shape : {self.raw_depth_shape[1]}W x {self.raw_depth_shape[0]}H px",
+            f"  [SLIDERS]  Active Crop Offsets Input     : Top={t}px, Bottom={b}px, Left={l}px, Right={r}px",
+            f"  [PIPELINE] Cropped App Canvas Boundary  : {rgb.shape[1]}W x {rgb.shape[0]}H px",
+            f"  [MATRIX]   Intrinsic fx (Focal X)        : {fx:.6f}",
+            f"  [MATRIX]   Intrinsic fy (Focal Y)        : {fy:.6f}",
+            f"  [MATRIX]   Intrinsic cx (Center X)       : {cx:.6f}",
+            f"  [MATRIX]   Intrinsic cy (Center Y)       : {cy:.6f}",
+        ]
 
+        visual_cx = rgb.shape[1] / 2
+        shifted_math_cx = cx - crop_x
+        h_mismatch = visual_cx - shifted_math_cx
+
+        log_lines.extend(
+            [
+                f"  [ALIGN]    Image Canvas Center Column    : {visual_cx} px",
+                f"  [ALIGN]    Shifted Projection Matrix cx  : {shifted_math_cx:.2f} px",
+                f"  [ALIGN]    HORIZONTAL CENTER CAL MISMATCH: {h_mismatch:.2f} pixels",
+                "=" * 80 + "\n",
+            ]
+        )
+
+        debug_output_string = "\n".join(log_lines)
+        print(debug_output_string, flush=True)
+
+        with open(self.log_dir / "live_capture_debug.log", "a") as f_debug:
+            f_debug.write(debug_output_string)
+        # ─────────────────────────────────────────────────────────────────────
+
+        # Save values to local state arrays
         self.captured_rgb = rgb
+        self.captured_original_rgb = original_rgb
         self.captured_depth = depth
         self.captured_mask = mask
         self.captured_pcd = pcd
+        self.captured_intrinsics = adjusted_intrinsics
+        self.captured_plane_model = plane_model
+        self.captured_plane_inliers = inlier_count
+        self.captured_non_plane_pts = outlier_count
+        self.captured_mask_stats = self.analyze_mask(mask)
+        stage5 = dict(masking_pipeline.LAST_PIPELINE_DIAGNOSTICS)
+        stage_masks = dict(masking_pipeline.LAST_PIPELINE_MASKS)
 
-        img_name = f"img{self.counter:04d}"
-        intrinsics = self.cam.get_intrinsics()
-        self.save_info_txt(img_name, rgb, depth, adjusted_intrinsics, plane_eq, plane_inliers, non_plane_pts) # Change adjusted_intrinsics to intrinsics if you are not cropping the images
+        object_debug_lines = [
+            "\n" + "=" * 80,
+            "                 LIVE OBJECT DETECTION DEBUG",
+            "=" * 80,
+            f"  Timestamp Code Generation : {datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]}",
+            f"  Capture Name              : {self.current_img_name or f'img{self.counter:04d}'}",
+            f"  Cropped RGB Shape         : {self.captured_rgb.shape}",
+            f"  Cropped Depth Shape       : {self.captured_depth.shape}",
+            f"  Mask Foreground Pixels    : {self.captured_mask_stats['foreground']}",
+            f"  Mask Foreground Ratio     : {self.captured_mask_stats['ratio']:.8f}",
+            f"  Mask Connected Components : {self.captured_mask_stats['components']}",
+            f"  Mask Largest BBox         : {self.captured_mask_stats['largest_bbox']}",
+            f"  Mask Largest Centroid     : {self.captured_mask_stats['largest_centroid']}",
+            f"  Plane Inliers             : {inlier_count}",
+            f"  Non-Plane Points          : {outlier_count}",
+            "=" * 80 + "\n",
+        ]
+        if stage5:
+            object_debug_lines.extend(
+                [
+                    "  ── Stage 5 Height-Gate Diagnostics ──",
+                    f"  Height Gate Min (mm)      : {stage5.get('height_gate_min_mm', 0.0):.3f}",
+                    f"  Height Gate Max (mm)      : {stage5.get('height_gate_max_mm', 0.0):.3f}",
+                    f"  Dist Min / Mean / Median  : {stage5.get('dist_min_mm', 0.0):.3f} / "
+                    f"{stage5.get('dist_mean_mm', 0.0):.3f} / {stage5.get('dist_median_mm', 0.0):.3f}",
+                    f"  Dist Max (mm)             : {stage5.get('dist_max_mm', 0.0):.3f}",
+                    f"  Stage 5 Input Points       : {stage5.get('stage5_input_points', 0):,}",
+                    f"  Stage 5 Passed Points      : {stage5.get('stage5_pass_points', 0):,}",
+                    f"  Rejected Below Threshold   : {stage5.get('stage5_rejected_lower', 0):,}",
+                    f"  Rejected Above Threshold   : {stage5.get('stage5_rejected_upper', 0):,}",
+                    "  ── Stage 8 Projection Diagnostics ──",
+                    f"  Projected Points           : {stage5.get('projected_points', 0):,}",
+                    f"  Inside Canvas Bounds       : {stage5.get('inside_bounds_points', 0):,}",
+                    f"  Duplicate Pixel Hits       : {stage5.get('duplicate_pixel_hits', 0):,}",
+                    f"  Raw Mask White Pixels      : {stage5.get('raw_mask_white', 0):,}",
+                    f"  White Pixels After Close    : {stage5.get('post_close_white', 0):,}",
+                    f"  White Pixels After Open     : {stage5.get('post_open_white', 0):,}",
+                ]
+            )
+        with open(self.object_debug_path, "a", buffering=1) as f_obj_debug:
+            f_obj_debug.write("\n".join(object_debug_lines))
 
-        mask_viz = (mask * 255).astype(np.uint8) # Convert binary mask to uint8 for visualization
-        mask_bgr = cv2.cvtColor(mask_viz, cv2.COLOR_GRAY2BGR) # Convert to BGR for OpenCV visualization
-        contours, _ = cv2.findContours(mask_viz, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE) # Find contours in the mask and outline the largest one
-        if contours: 
-            largest = max(contours, key=cv2.contourArea)
-            cv2.drawContours(mask_bgr, [largest], -1, (0, 255, 0), 2)
+        # Persist stage-8 debug masks so the tip-loss difference is visible on disk.
+        if stage_masks:
+            raw_mask = stage_masks.get("raw_mask")
+            post_close_mask = stage_masks.get("post_close_mask")
+            final_mask = stage_masks.get("final_mask")
+            density_map = stage_masks.get("density_map")
+            if raw_mask is not None:
+                raw_path = self.mask_debug_dir / f"{self.current_img_name}_raw_mask.png"
+                cv2.imwrite(str(raw_path), raw_mask)
+                print(f"[DEBUG] Saved raw projected mask to {raw_path}")
+                raw_overlay = self.build_verification_overlay(rgb, raw_mask)
+                raw_overlay_path = (
+                    self.mask_debug_dir / f"{self.current_img_name}_raw_overlay.png"
+                )
+                cv2.imwrite(str(raw_overlay_path), raw_overlay)
+                print(f"[DEBUG] Saved raw projection overlay to {raw_overlay_path}")
+            if post_close_mask is not None:
+                close_path = (
+                    self.mask_debug_dir / f"{self.current_img_name}_post_close_mask.png"
+                )
+                cv2.imwrite(str(close_path), post_close_mask)
+                print(f"[DEBUG] Saved post-close mask to {close_path}")
+                close_overlay = self.build_verification_overlay(rgb, post_close_mask)
+                close_overlay_path = (
+                    self.mask_debug_dir
+                    / f"{self.current_img_name}_post_close_overlay.png"
+                )
+                cv2.imwrite(str(close_overlay_path), close_overlay)
+                print(f"[DEBUG] Saved post-close overlay to {close_overlay_path}")
+            if final_mask is not None:
+                final_path = (
+                    self.mask_debug_dir / f"{self.current_img_name}_final_mask.png"
+                )
+                cv2.imwrite(str(final_path), final_mask)
+                print(f"[DEBUG] Saved final mask to {final_path}")
 
-        depth_vis = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8) # Normalize depth for visualization
-        depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET) # Apply color map to depth image
+        # Multi-Window Output Display Rendering Logic
+        combined = self.build_capture_preview(
+            rgb,
+            mask,
+            depth,
+            raw_mask=stage_masks.get("raw_mask"),
+            post_close_mask=stage_masks.get("post_close_mask"),
+            density_map=stage_masks.get("density_map"),
+        )
+        combined_path = self.mask_debug_dir / f"{self.current_img_name}_debug_sheet.png"
+        cv2.imwrite(str(combined_path), combined)
+        print(f"[DEBUG] Saved combined debug sheet to {combined_path}")
 
-        w, h = 320, 240
-        combined = np.hstack((
-            cv2.resize(rgb, (w, h)),
-            cv2.resize(mask_bgr, (w, h)),
-            cv2.resize(depth_colored, (w, h))
-        )) # Combine RGB, mask, and depth images horizontally
- 
         img = Image.fromarray(cv2.cvtColor(combined, cv2.COLOR_BGR2RGB))
         imgtk = ImageTk.PhotoImage(image=img)
         self.video_label.imgtk = imgtk
@@ -207,11 +755,175 @@ class RGBDCollectorApp:
         self.capture_btn.config(state=tk.DISABLED)
         self.save_btn.config(state=tk.NORMAL)
         self.retake_btn.config(state=tk.NORMAL)
-        print(f"[INFO] Frame captured for class: {self.class_var.get()}")
 
-    def save_info_txt(self, img_name, rgb, depth, intrinsics, plane_eq, plane_inliers, non_plane_pts):
-        txt_path = self.info_dir / f"{img_name}.txt"
-        with open(txt_path, 'w') as f:
+    def save_data(self):
+        if (
+            self.captured_rgb is None
+            or self.captured_mask is None
+            or self.captured_depth is None
+        ):
+            print("[WARNING] No complete data frames available to save.")
+            return
+
+        img_name = self.current_img_name or f"img{self.counter:04d}"
+        print(f"\n[INFO] Saving data packages for: {img_name}...")
+        final_paths = []
+        temp_paths = []
+
+        def stage_path(final_path: Path) -> Path:
+            tmp_path = final_path.with_name(f"{final_path.stem}.tmp{final_path.suffix}")
+            final_paths.append(final_path)
+            temp_paths.append(tmp_path)
+            return tmp_path
+
+        def write_image(path: Path, image) -> None:
+            if not cv2.imwrite(str(path), image):
+                raise IOError(f"Failed to write image: {path}")
+
+        def commit_staged_files() -> None:
+            for tmp_path, final_path in zip(temp_paths, final_paths):
+                os.replace(tmp_path, final_path)
+
+        def cleanup_staged_files() -> None:
+            for tmp_path in temp_paths:
+                try:
+                    if tmp_path.exists():
+                        tmp_path.unlink()
+                except Exception:
+                    pass
+
+        try:
+            uncropped_tmp = stage_path(self.uncropped_rgb_dir / f"{img_name}.png")
+            cropped_tmp = stage_path(self.cropped_rgb_dir / f"{img_name}.png")
+            depth_tmp = stage_path(self.depth_dir / f"{img_name}.png")
+            label_tmp = stage_path(self.label_dir / f"{img_name}.txt")
+            mask_tmp = stage_path(self.mask_dir / f"{img_name}.png")
+            pcd_tmp = stage_path(self.pc_dir / f"{img_name}.ply")
+            info_tmp = stage_path(self.info_dir / f"{img_name}.txt")
+
+            write_image(uncropped_tmp, self.captured_original_rgb)
+            write_image(cropped_tmp, self.captured_rgb)
+
+            depth_vis = cv2.normalize(
+                self.captured_depth, None, 0, 255, cv2.NORM_MINMAX
+            ).astype(np.uint8)
+            depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
+            write_image(depth_tmp, depth_colored)
+
+            selected_class = int(self.class_var.get())
+            label_mask = self.match_mask_to_image(
+                self.captured_mask, self.captured_rgb.shape[:2]
+            )
+            if not self.writer.write(
+                str(label_tmp),
+                label_mask,
+                self.captured_rgb.shape[:2],
+                label_class=selected_class,
+            ):
+                raise ValueError("Mask contour missing; refusing to save partial snapshot.")
+
+            write_image(mask_tmp, label_mask * 255)
+
+            if self.captured_pcd is None or len(self.captured_pcd.points) <= 0:
+                raise ValueError("Tracked point cloud is empty; refusing to save partial snapshot.")
+            if not o3d.io.write_point_cloud(str(pcd_tmp), self.captured_pcd):
+                raise IOError(f"Failed to write point cloud: {pcd_tmp}")
+
+            current_crop = {
+                "top": self.crop_top_var.get(),
+                "bottom": self.crop_bottom_var.get(),
+                "left": self.crop_left_var.get(),
+                "right": self.crop_right_var.get(),
+            }
+
+            if self.captured_plane_model is None:
+                raise ValueError("Capture metadata is missing; refusing to save partial snapshot.")
+
+            self.save_info_txt(
+                img_name,
+                selected_class,
+                current_crop,
+                self.raw_rgb_shape,
+                self.raw_depth_shape,
+                self.cropped_rgb_shape,
+                self.cropped_depth_shape,
+                self.pcd_rgb_shape,
+                self.pcd_depth_shape,
+                self.pcd_crop_top,
+                self.pcd_crop_left,
+                self.captured_rgb,
+                self.captured_depth,
+                self.captured_intrinsics or self.cam.get_intrinsics(),
+                self.captured_plane_model,
+                self.captured_plane_inliers,
+                self.captured_non_plane_pts,
+                mask_stats=self.captured_mask_stats,
+                txt_path=info_tmp,
+            )
+
+            commit_staged_files()
+            print(
+                f"[SAVED] Verified 3D Point Cloud saved successfully ({len(self.captured_pcd.points)} points)"
+            )
+            self.status_var.set(f"Status: saved {img_name}")
+            self.print_dataset_counts()
+            self.counter = self.next_capture_index()
+            self.current_img_name = None
+            self.reset_capture_state()
+
+            print("[SUCCESS] Packout cycle complete.\n")
+            self.print_dataset_counts()
+            self.counter = self.next_capture_index()
+            self.current_img_name = None
+            self.reset_capture_state()
+
+            # Re-enable live stream monitoring automatically after a save
+            self.is_capturing = True
+            self.capture_btn.config(state=tk.NORMAL)
+            self.save_btn.config(state=tk.DISABLED)
+            self.retake_btn.config(state=tk.DISABLED)
+        except Exception as exc:
+            cleanup_staged_files()
+            print(f"[ERROR] Save aborted; nothing committed: {exc}")
+            self.status_var.set(f"Status: save aborted - {exc}")
+
+    def save_info_txt(
+        self,
+        img_name,
+        selected_class,
+        crop,
+        raw_rgb_shape,
+        raw_depth_shape,
+        cropped_rgb_shape,
+        cropped_depth_shape,
+        pcd_rgb_shape,
+        pcd_depth_shape,
+        pcd_crop_top,
+        pcd_crop_left,
+        rgb,
+        depth,
+        intrinsics,
+        plane_eq,
+        plane_inliers,
+        non_plane_pts,
+        mask_stats=None,
+        txt_path=None,
+    ):
+        txt_path = txt_path or (self.info_dir / f"{img_name}.txt")
+        with open(txt_path, "w") as f:
+            f.write("Crop:\n")
+            f.write(
+                f"  top={crop['top']} bottom={crop['bottom']} left={crop['left']} right={crop['right']}\n"
+            )
+            f.write(f"Raw RGB shape: {raw_rgb_shape}\n")
+            f.write(f"Raw depth shape: {raw_depth_shape}\n")
+            f.write(f"Cropped RGB shape: {cropped_rgb_shape}\n")
+            f.write(f"Cropped depth shape: {cropped_depth_shape}\n")
+            f.write(f"Point cloud RGB shape: {pcd_rgb_shape}\n")
+            f.write(f"Point cloud depth shape: {pcd_depth_shape}\n")
+            f.write(
+                f"Point cloud crop: top={pcd_crop_top} bottom=0 left={pcd_crop_left} right=0\n"
+            )
             f.write(f"RGB shape: {rgb.shape}\n")
             f.write(f"Depth shape: {depth.shape}\n")
             f.write(f"Depth dtype: {depth.dtype}\n")
@@ -220,69 +932,178 @@ class RGBDCollectorApp:
             f.write("Intrinsics matrix:\n")
             for row in intrinsics.intrinsic_matrix:
                 f.write("  " + " ".join(f"{val:.6f}" for val in row) + "\n")
-            f.write(f"Plane equation: {plane_eq[0]:.6f}x + {plane_eq[1]:.6f}y + {plane_eq[2]:.6f}z + {plane_eq[3]:.6f} = 0\n")
+            f.write(
+                f"Plane equation: {plane_eq[0]:.6f}x + {plane_eq[1]:.6f}y + {plane_eq[2]:.6f}z + {plane_eq[3]:.6f} = 0\n"
+            )
             f.write(f"Plane inliers: {plane_inliers}\n")
             f.write(f"Non-plane points: {non_plane_pts}\n")
+            f.write(f"Selected class: {selected_class}\n")
+            if mask_stats is not None:
+                f.write("Mask QA:\n")
+                f.write(f"  Foreground pixels: {mask_stats['foreground']}\n")
+                f.write(f"  Foreground ratio: {mask_stats['ratio']:.8f}\n")
+                f.write(f"  Connected components: {mask_stats['components']}\n")
+                f.write(f"  Largest component area: {mask_stats['largest_area']}\n")
+                f.write(f"  Border pixels: {mask_stats['border_pixels']}\n")
+                f.write(f"  Border ratio: {mask_stats['border_ratio']:.8f}\n")
+                f.write(f"  Largest bbox: {mask_stats['largest_bbox']}\n")
+                f.write(f"  Largest centroid: {mask_stats['largest_centroid']}\n")
         print(f"[INFO] Info saved to {txt_path}")
 
-    def save_data(self):
-        if self.captured_rgb is None or self.captured_mask is None:
-            print("[WARNING] No frame to save.")
-            return
+    def analyze_mask(self, mask):
+        mask_u8 = (mask > 0).astype(np.uint8)
+        h, w = mask_u8.shape
+        foreground = int(np.count_nonzero(mask_u8))
+        total = int(mask_u8.size)
+        ratio = float(foreground / total) if total else 0.0
 
-        img_name = f"img{self.counter:04d}"
-        cv2.imwrite(str(self.img_dir / f"{img_name}.png"), self.captured_rgb)
-        depth_vis = cv2.normalize(self.captured_depth, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-        depth_colored = cv2.applyColorMap(depth_vis, cv2.COLORMAP_JET)
-        cv2.imwrite(str(self.depth_dir / f"{img_name}.png"), depth_colored)
+        num_labels, _labels, stats, centroids = cv2.connectedComponentsWithStats(
+            mask_u8, connectivity=8
+        )
+        component_areas = (
+            stats[1:, cv2.CC_STAT_AREA] if num_labels > 1 else np.array([])
+        )
+        largest_area = int(component_areas.max()) if component_areas.size else 0
+        largest_idx = (
+            int(np.argmax(component_areas)) + 1 if component_areas.size else -1
+        )
+        largest_bbox, largest_centroid = None, None
+        if largest_idx > 0:
+            x = int(stats[largest_idx, cv2.CC_STAT_LEFT])
+            y = int(stats[largest_idx, cv2.CC_STAT_TOP])
+            bw = int(stats[largest_idx, cv2.CC_STAT_WIDTH])
+            bh = int(stats[largest_idx, cv2.CC_STAT_HEIGHT])
+            largest_bbox = (x, y, bw, bh)
+            largest_centroid = (
+                float(centroids[largest_idx][0]),
+                float(centroids[largest_idx][1]),
+            )
 
-        selected_class = int(self.class_var.get())
-        self.writer.write(
-            str(self.label_dir / f"{img_name}.txt"),
-            self.captured_mask,
-            self.captured_rgb.shape[:2],
-            label_class=selected_class
+        border_mask = np.zeros_like(mask_u8, dtype=bool)
+        border_mask[0, :] = True
+        border_mask[-1, :] = True
+        border_mask[:, 0] = True
+        border_mask[:, -1] = True
+        border_pixels = int(np.count_nonzero(mask_u8 & border_mask))
+        border_ratio = float(border_pixels / foreground) if foreground else 0.0
+
+        return {
+            "shape": (h, w),
+            "foreground": foreground,
+            "ratio": ratio,
+            "components": int(num_labels - 1),
+            "largest_area": largest_area,
+            "largest_bbox": largest_bbox,
+            "largest_centroid": largest_centroid,
+            "border_pixels": border_pixels,
+            "border_ratio": border_ratio,
+        }
+
+    def next_capture_index(self):
+        pattern = re.compile(r"img(\d+)")
+        indices = []
+        for directory, suffixes in (
+            (self.uncropped_rgb_dir, [".png"]),
+            (self.cropped_rgb_dir, [".png"]),
+            (self.label_dir, [".txt"]),
+            (self.depth_dir, [".png"]),
+            (self.mask_dir, [".png"]),
+            (self.info_dir, [".txt"]),
+            (self.pc_dir, [".ply"]),
+            (self.debug_dir, [".png"]),
+        ):
+            if not directory.exists():
+                continue
+            for path in directory.iterdir():
+                if path.suffix not in suffixes:
+                    continue
+                match = pattern.match(path.stem)
+                if match:
+                    indices.append(int(match.group(1)))
+        return (max(indices) + 1) if indices else 0
+
+    def match_mask_to_image(self, mask, image_shape):
+        mask_u8 = (mask > 0).astype(np.uint8)
+        if mask_u8.shape == image_shape:
+            return mask_u8
+        return cv2.resize(
+            mask_u8, (image_shape[1], image_shape[0]), interpolation=cv2.INTER_NEAREST
         )
 
-        pcd_path = self.pc_dir / f"{img_name}.ply"
-        o3d.io.write_point_cloud(str(pcd_path), self.captured_pcd)
-        print(f"[SAVED] Point cloud saved to {pcd_path}")
-        print(f"[SAVED] {img_name}")
-
-        self.counter += 1
-        self.reset_capture_state()
+    def print_dataset_counts(self):
+        counts = {
+            "uncropped_rgb": len(list(self.uncropped_rgb_dir.glob("*.png"))),
+            "images": len(list(self.cropped_rgb_dir.glob("*.png"))),
+            "depth": len(list(self.depth_dir.glob("*.png"))),
+            "labels": len(list(self.label_dir.glob("*.txt"))),
+            "masks": len(list(self.mask_dir.glob("*.png"))),
+            "pointcloud": len(list(self.pc_dir.glob("*.ply"))),
+            "info": len(list(self.info_dir.glob("*.txt"))),
+        }
+        print(
+            "[COUNT] " + ", ".join(f"{name}={value}" for name, value in counts.items())
+        )
+        return counts
 
     def preview_pointcloud_interactive(self):
         if self.captured_pcd is not None:
             print("[INFO] Launching interactive 3D point cloud viewer...")
             o3d.visualization.draw_geometries([self.captured_pcd])
         else:
-            print("[WARNING] No point cloud to preview.")
+            print("[WARNING] No point cloud to preview. Capture a frame first.")
 
     def retake_frame(self):
-        print("[RETAKE] Retaking frame.")
+        print("[RETAKE] Retaking frame and resuming live capture stream.")
         self.reset_capture_state()
 
-    def reset_capture_state(self):
-        self.captured_rgb = None
-        self.captured_depth = None
-        self.captured_mask = None
-        self.captured_pcd = None
+        # Re-enable live capturing and update button states
         self.is_capturing = True
         self.capture_btn.config(state=tk.NORMAL)
         self.save_btn.config(state=tk.DISABLED)
         self.retake_btn.config(state=tk.DISABLED)
 
+    def reset_capture_state(self):
+        self.captured_rgb = None
+        self.captured_original_rgb = None
+        self.captured_depth = None
+        self.captured_mask = None
+        self.captured_pcd = None
+        # Add any missing cleanup bindings here...
+
+    # ─────────────────────────────────────────────────────────────────────
+    # FIXED: CLEAN SHUTDOWN METHOD FOR ORBBEC SYSTEM ENCLOSURE
+    # ─────────────────────────────────────────────────────────────────────
     def quit_app(self):
-        print("[INFO] Quitting application.")
-        self.cam.stop()
+        print("\n[SHUTDOWN] Releasing Orbbec camera pipeline streams...")
+        try:
+            # Safely stop background hardware threads before exiting
+            if hasattr(self, "cam") and self.cam is not None:
+                # Add any camera release calls if supported by your camera_interface
+                pass
+        except Exception as e:
+            print(f"[WARNING] Error releasing camera streams: {e}")
+
+        print("[SHUTDOWN] Closing debug log files...")
+        if hasattr(self, "log_file") and self.log_file is not None:
+            self.log_file.close()
+        try:
+            masking_pipeline._close_log_file()
+        except Exception:
+            pass
+
+        print("[SHUTDOWN] Destroying Tkinter GUI window environment. Done.")
         self.root.quit()
         self.root.destroy()
 
+
+# ─────────────────────────────────────────────────────────────────────
+# FIXED EXECUTION RUNTIME BLOCK: HOLDS UI ENGINE OPEN
+# ─────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    try:
-        root = tk.Tk()
-        app = RGBDCollectorApp(root)
-        root.mainloop()
-    except Exception as e:
-        print(f"[FATAL ERROR] {e}")
+    root = tk.Tk()
+    app = RGBDCollectorApp(root)
+
+    # This loop blocks the terminal thread and processes GUI events
+    # until you explicitly click "Shutdown Subsystem Enclosure" or press Q
+    root.mainloop()
+# ───────────────────

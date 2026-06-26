@@ -1,0 +1,62 @@
+
+================================================================================
+  masking.py run started: 2026-06-13 15:21:00.911532
+================================================================================
+
+━━━ [STAGE 1] Loading Point Cloud Array
+  [INFO] Total raw points loaded: 366,561
+
+━━━ [STAGE 2] Statistical Outlier Demolition
+  [INFO] Points surviving outlier filter: 353,167
+
+━━━ [STAGE 3] Live Plane Surface Isolation (RANSAC)
+  [INFO] Original RANSAC: a=0.0151, b=-0.0345, c=0.9993, d=-0.4792
+  [INFO] Normal vector pointing down. Flipping coefficients up toward lens.
+  [INFO] Points isolated on belt plane: 346,501
+  [INFO] Non-plane points going to workspace filter: 6,666
+
+━━━ [STAGE 5] Direction-Enforced Spatial Pre-Filtering
+  [INFO] Height gate window : 1.50mm to 500.00mm
+  [INFO] Dist-from-plane mm : min=11.821 mean=23.406 median=24.970 max=36.161
+  [INFO] Rejected by lower gate: 0 / 6,666
+  [INFO] Rejected by upper gate: 0 / 6,666
+  [DEBUG] Points passing directional spatial filters: 6,666
+
+━━━ [STAGE 1] Loading Point Cloud Array
+  [INFO] Total raw points loaded: 366,538
+
+━━━ [STAGE 2] Statistical Outlier Demolition
+  [INFO] Points surviving outlier filter: 352,928
+
+━━━ [STAGE 3] Live Plane Surface Isolation (RANSAC)
+  [INFO] Original RANSAC: a=0.0153, b=-0.0346, c=0.9993, d=-0.4793
+  [INFO] Normal vector pointing down. Flipping coefficients up toward lens.
+  [INFO] Points isolated on belt plane: 346,607
+  [INFO] Non-plane points going to workspace filter: 6,321
+
+━━━ [STAGE 5] Direction-Enforced Spatial Pre-Filtering
+  [INFO] Height gate window : 1.50mm to 500.00mm
+  [INFO] Dist-from-plane mm : min=12.322 mean=23.974 median=25.372 max=36.395
+  [INFO] Rejected by lower gate: 0 / 6,321
+  [INFO] Rejected by upper gate: 0 / 6,321
+  [DEBUG] Points passing directional spatial filters: 6,321
+
+━━━ [STAGE 1] Loading Point Cloud Array
+  [INFO] Total raw points loaded: 366,555
+
+━━━ [STAGE 2] Statistical Outlier Demolition
+  [INFO] Points surviving outlier filter: 353,311
+
+━━━ [STAGE 3] Live Plane Surface Isolation (RANSAC)
+  [INFO] Original RANSAC: a=0.0153, b=-0.0347, c=0.9993, d=-0.4792
+  [INFO] Normal vector pointing down. Flipping coefficients up toward lens.
+  [INFO] Points isolated on belt plane: 347,332
+  [INFO] Non-plane points going to workspace filter: 5,979
+
+━━━ [STAGE 5] Direction-Enforced Spatial Pre-Filtering
+  [INFO] Height gate window : 1.50mm to 500.00mm
+  [INFO] Dist-from-plane mm : min=13.741 mean=24.616 median=25.730 max=36.103
+  [INFO] Rejected by lower gate: 0 / 5,979
+  [INFO] Rejected by upper gate: 0 / 5,979
+  [DEBUG] Points passing directional spatial filters: 5,979
+  masking.py run ended: 2026-06-13 15:21:21.578828
