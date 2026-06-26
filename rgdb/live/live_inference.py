@@ -22,10 +22,15 @@ from pyorbbecsdk import OBFormat
 # ─────────────────────────────────────────────────────────────
 MODEL_DIR = Path("/home/cpsstudent/Documents/ips_s2026/rgdb/live")
 MODEL_FILES = {
-    "mbest": MODEL_DIR / "mbest.pt",
-    "sbest": MODEL_DIR / "sbest.pt",
+    "m8best": MODEL_DIR / "m8best.pt",
+    "m26best": MODEL_DIR / "m26best.pt",
+    "m11best": MODEL_DIR / "m11best.pt",
+    "s8best": MODEL_DIR / "s8best.pt",
+    "s26best": MODEL_DIR / "s26best.pt",
+    "s11best": MODEL_DIR / "s11best.pt",
 }
-DEFAULT_MODEL_KEY = "mbest"
+MODEL_SWITCH_KEYS = list(MODEL_FILES.keys())
+DEFAULT_MODEL_KEY = "m8best"
 
 CLASS_NAMES = {0: "Copper", 1: "Steel"}
 CLASS_COLORS = {0: (255, 0, 0), 1: (180, 180, 0)}  # Copper blue, steel teal-ish
@@ -52,9 +57,27 @@ cam_instance = None
 
 
 def model_mode_label(model_key: str) -> str:
-    if model_key == "sbest":
+    if model_key.startswith("s"):
         return "Single Detection"
     return "Multi Detection"
+
+
+def model_family_label(model_key: str) -> str:
+    if model_key.startswith("m"):
+        return "Multi"
+    if model_key.startswith("s"):
+        return "Single"
+    return "Unknown"
+
+
+def model_backbone_label(model_key: str) -> str:
+    if "26" in model_key:
+        return "YOLO26"
+    if "11" in model_key:
+        return "YOLO11"
+    if "8" in model_key:
+        return "YOLO8"
+    return "Unknown"
 
 
 def create_camera_interface_with_retry(attempts: int = 5, delay_s: float = 0.8):
@@ -85,6 +108,15 @@ def log_line(fh, message: str) -> None:
     print(message)
     fh.write(message + "\n")
     fh.flush()
+
+
+def load_model_by_key(model_key: str):
+    if model_key not in MODEL_FILES:
+        raise KeyError(f"Unknown model key: {model_key}")
+    model_path = MODEL_FILES[model_key]
+    if not model_path.exists():
+        raise FileNotFoundError(f"Model file not found: {model_path}")
+    return YOLO(str(model_path)), model_path
 
 
 # ─────────────────────────────────────────────────────────────
@@ -177,7 +209,7 @@ def draw_navbar(
     fps: float,
     info_open: bool,
     model_key: str,
-) -> tuple[int, int, int, int]:
+) -> tuple[tuple[int, int, int, int], tuple[int, int, int, int]]:
     h, w = frame.shape[:2]
     top_h = 42
     overlay = frame.copy()
@@ -218,6 +250,10 @@ def draw_navbar(
     btn_w, btn_h = 64, 22
     btn_x, btn_y = w - btn_w - 10, 10
 
+    model_btn_w, model_btn_h = 72, 22
+    model_btn_x = btn_x - 10 - model_btn_w
+    model_btn_y = 10
+
     steel_x = btn_x - 10 - chip_width("Steel")
     copper_x = steel_x - 12 - chip_width("Copper")
     mode_label = model_mode_label(model_key)
@@ -227,7 +263,7 @@ def draw_navbar(
     chip(steel_x, "Steel", CLASS_COLORS[1])
 
     if recording:
-        rec_x = max(180, copper_x - 76)
+        rec_x = max(180, mode_x - 76)
         cv2.circle(frame, (rec_x, 21), 6, (0, 0, 255), -1)
         cv2.putText(
             frame,
@@ -239,6 +275,33 @@ def draw_navbar(
             2,
             cv2.LINE_AA,
         )
+
+    model_overlay = frame.copy()
+    cv2.rectangle(
+        model_overlay,
+        (model_btn_x, model_btn_y),
+        (model_btn_x + model_btn_w, model_btn_y + model_btn_h),
+        (45, 45, 55),
+        -1,
+    )
+    cv2.addWeighted(model_overlay, 0.85, frame, 0.15, 0, frame)
+    cv2.rectangle(
+        frame,
+        (model_btn_x, model_btn_y),
+        (model_btn_x + model_btn_w, model_btn_y + model_btn_h),
+        (255, 255, 255),
+        1,
+    )
+    cv2.putText(
+        frame,
+        "Model",
+        (model_btn_x + 11, model_btn_y + 15),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.42,
+        (255, 255, 255),
+        2,
+        cv2.LINE_AA,
+    )
 
     btn_overlay = frame.copy()
     cv2.rectangle(btn_overlay, (btn_x, btn_y), (btn_x + btn_w, btn_y + btn_h), (0, 110, 124), -1)
@@ -269,7 +332,7 @@ def draw_navbar(
         (245, 245, 245),
         2,
     )
-    return btn_x, btn_y, btn_w, btn_h
+    return (btn_x, btn_y, btn_w, btn_h), (model_btn_x, model_btn_y, model_btn_w, model_btn_h)
 
 
 def draw_info_panel(frame: np.ndarray, panel_w: int, model_key: str) -> None:
@@ -294,7 +357,9 @@ def draw_info_panel(frame: np.ndarray, panel_w: int, model_key: str) -> None:
     )
 
     lines = [
-        ("Model", Path(MODEL_FILES.get(model_key, MODEL_FILES["mbest"])).name),
+        ("Model", Path(MODEL_FILES.get(model_key, MODEL_FILES[DEFAULT_MODEL_KEY])).name),
+        ("Family", model_family_label(model_key)),
+        ("Backbone", model_backbone_label(model_key)),
         ("Mode", model_mode_label(model_key)),
         ("Task", "segmentation"),
         ("Crop", f"x=[{CROP_LEFT}:{CROP_RIGHT}]"),
@@ -302,7 +367,7 @@ def draw_info_panel(frame: np.ndarray, panel_w: int, model_key: str) -> None:
         ("Copper", "blue outline"),
         ("Steel", "teal outline"),
         ("View", "outline-only overlay"),
-        ("Controls", "S save, R record, Q quit"),
+        ("Controls", "1-6 models, S save, R record, Q quit"),
     ]
 
     y = 72
@@ -328,6 +393,44 @@ def draw_info_panel(frame: np.ndarray, panel_w: int, model_key: str) -> None:
             cv2.LINE_AA,
         )
         y += 28
+
+
+def draw_model_menu(frame: np.ndarray, button_rect: tuple[int, int, int, int], open_menu: bool) -> list[tuple[int, int, int, int]]:
+    if not open_menu:
+        return []
+
+    bx, by, bw, bh = button_rect
+    item_w = 132
+    item_h = 26
+    x = max(10, bx + bw - item_w)
+    y = by + bh + 6
+    rects = []
+
+    overlay = frame.copy()
+    menu_h = item_h * len(MODEL_SWITCH_KEYS) + 6
+    cv2.rectangle(overlay, (x, y), (x + item_w, y + menu_h), (18, 20, 28), -1)
+    cv2.addWeighted(overlay, 0.92, frame, 0.08, 0, frame)
+    cv2.rectangle(frame, (x, y), (x + item_w, y + menu_h), (255, 255, 255), 1)
+
+    for idx, model_key in enumerate(MODEL_SWITCH_KEYS):
+        iy = y + 3 + idx * item_h
+        rect = (x + 2, iy, item_w - 4, item_h - 2)
+        rects.append(rect)
+        cv2.rectangle(frame, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (35, 39, 50), -1)
+        cv2.rectangle(frame, (rect[0], rect[1]), (rect[0] + rect[2], rect[1] + rect[3]), (70, 74, 90), 1)
+        label = f"{model_backbone_label(model_key)}  {model_family_label(model_key)}"
+        cv2.putText(
+            frame,
+            label,
+            (rect[0] + 8, rect[1] + 17),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.42,
+            (245, 245, 245),
+            1,
+            cv2.LINE_AA,
+        )
+
+    return rects
 
 
 # ─────────────────────────────────────────────────────────────
@@ -378,12 +481,11 @@ def main():
     global cam_instance
 
     active_model_key = DEFAULT_MODEL_KEY
-    active_model_path = MODEL_FILES[active_model_key]
     fps_log_path, fps_log_fh = create_fps_log_file()
+    model, active_model_path = load_model_by_key(active_model_key)
 
     log_line(fps_log_fh, f"[INFO] FPS log: {fps_log_path}")
     log_line(fps_log_fh, f"[INFO] Loading model: {active_model_path.name}")
-    model = YOLO(str(active_model_path))
 
     log_line(fps_log_fh, "[INFO] Initializing camera...")
     cam_instance = create_camera_interface_with_retry()
@@ -417,13 +519,37 @@ def main():
         "info_open": False,
         "info_width": 0,
         "info_btn_rect": (0, 0, 0, 0),
+        "model_btn_rect": (0, 0, 0, 0),
+        "model_menu_open": False,
+        "model_menu_item_rects": [],
         "model_key": active_model_key,
         "model_path": active_model_path,
     }
 
     def on_mouse(event, x, y, flags, param):
+        nonlocal model
         if event != cv2.EVENT_LBUTTONDOWN:
             return
+        mx, my, mw, mh = ui_state["model_btn_rect"]
+        if mx <= x <= mx + mw and my <= y <= my + mh:
+            ui_state["model_menu_open"] = not ui_state["model_menu_open"]
+            return
+
+        if ui_state["model_menu_open"]:
+            for idx, rect in enumerate(ui_state["model_menu_item_rects"]):
+                rx, ry, rw, rh = rect
+                if rx <= x <= rx + rw and ry <= y <= ry + rh:
+                    next_key = MODEL_SWITCH_KEYS[idx]
+                    ui_state["model_key"] = next_key
+                    ui_state["model_path"] = MODEL_FILES[next_key]
+                    log_line(fps_log_fh, f"[INFO] Switching model to {ui_state['model_path'].name}...")
+                    model, _ = load_model_by_key(next_key)
+                    cached_polygons.clear()
+                    detected_classes.clear()
+                    ui_state["model_menu_open"] = False
+                    log_line(fps_log_fh, f"[INFO] Model loaded: {ui_state['model_path'].name}")
+                    return
+
         bx, by, bw, bh = ui_state["info_btn_rect"]
         if bx <= x <= bx + bw and by <= y <= by + bh:
             ui_state["info_open"] = not ui_state["info_open"]
@@ -521,13 +647,16 @@ def main():
                 ui_state["info_width"] = max(target_w, ui_state["info_width"] - 28)
 
             draw_info_panel(annotated, ui_state["info_width"], ui_state["model_key"])
-            ui_state["info_btn_rect"] = draw_navbar(
+            ui_state["info_btn_rect"], ui_state["model_btn_rect"] = draw_navbar(
                 annotated,
                 recording,
                 len(detected_classes),
                 fps,
                 ui_state["info_open"],
                 ui_state["model_key"],
+            )
+            ui_state["model_menu_item_rects"] = draw_model_menu(
+                annotated, ui_state["model_btn_rect"], ui_state["model_menu_open"]
             )
 
             if recording and video_writer is not None:
@@ -549,15 +678,6 @@ def main():
                     video_writer = None
                     recording = False
                     print("[RECORD] Stopped.")
-            elif key == ord("m"):
-                next_key = "sbest" if ui_state["model_key"] == "mbest" else "mbest"
-                ui_state["model_key"] = next_key
-                ui_state["model_path"] = MODEL_FILES[next_key]
-                log_line(fps_log_fh, f"[INFO] Switching model to {ui_state['model_path'].name}...")
-                model = YOLO(str(ui_state["model_path"]))
-                cached_polygons = []
-                detected_classes = []
-                log_line(fps_log_fh, f"[INFO] Model loaded: {ui_state['model_path'].name}")
 
     except KeyboardInterrupt:
         log_line(fps_log_fh, "\n[INFO] Stopped by user.")
