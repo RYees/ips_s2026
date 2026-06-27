@@ -80,6 +80,11 @@ The save logic is atomic: if any required artifact is missing, the snapshot is n
 
 The live demo ships with model switching built in. The current model names are documented in `docs/models.md` and load from `rgbd/live/models/`.
 
+Current primary weights:
+
+- `best_multiple.pt`
+- `best_single.pt`
+
 ## Full Guide
 
 Read the docs folder for the complete walkthrough:
