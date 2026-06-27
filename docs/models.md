@@ -14,3 +14,5 @@ The live demo currently supports these selectable weights:
 The default is `best_multiple.pt`.
 
 The live demo expects these `.pt` files to be available in `rgbd/live/models/`.
+
+Access to the prepared training datasets is restricted. Requests for access to the CPS server datasets should be directed to Montanuniversitaet Leoben, Chair of Cyber-Physical-Systems, Leoben, Austria.
