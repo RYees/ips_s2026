@@ -49,6 +49,8 @@ The real datasets collected by this system and used for model training are alrea
 
 Each dataset is already split and ready for training, with roughly 2,000 items per dataset.
 
+Access to these datasets is restricted. To obtain the CPS server dataset path or request access, contact the Montanuniversitaet Leoben, Chair of Cyber-Physical-Systems, Leoben, Austria.
+
 ## Data Collection Output
 
 When a frame is saved, the collection UI writes the package into `rgbd/data/` using this layout:
