@@ -49,7 +49,7 @@ The real datasets collected by this system and used for model training are alrea
 
 Each dataset is already split and ready for training, with roughly 2,000 items per dataset.
 
-Access to these datasets is restricted. Requests for access to the CPS server datasets should be directed to Montanuniversitaet Leoben, Chair of Cyber-Physical-Systems, Leoben, Austria.
+Access to these datasets is restricted and subject to controlled distribution. Access requests for the CPS server datasets must be submitted through Montanuniversitaet Leoben, Chair of Cyber-Physical-Systems, Leoben, Austria.
 
 ## Data Collection Output
 
